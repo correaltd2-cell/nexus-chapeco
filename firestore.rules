@@ -1,0 +1,80 @@
+rules_version = '2';
+/* A trava de verdade do sistema. Esconder o item do menu nao é acesso negado.
+   O papel vive no perfil; quem esta inativo nao passa em lugar nenhum. */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() { return request.auth != null; }
+    function perfil() { return get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data; }
+    function ativo() { return logado() && perfil().ativo == true; }
+    function papel() { return ativo() ? perfil().papel : 'nenhum'; }
+    function gestao() { return papel() in ['admin', 'gestor']; }
+    function equipe() { return papel() in ['admin', 'gestor', 'recepcao', 'coordenacao', 'professor']; }
+    function veTudo() { return papel() in ['admin', 'gestor', 'recepcao']; }
+    function meusSetores() { return ativo() ? perfil().setores : []; }
+    function veSetor(setor) { return veTudo() || setor in meusSetores(); }
+
+    /* Equipe: cada um lê o próprio perfil; a gestão lê e escreve todos.
+       Ninguém muda o próprio papel, setores ou ativo pela API. */
+    match /perfis/{uid} {
+      allow read: if ativo() && (uid == request.auth.uid || equipe());
+      allow create, delete: if gestao();
+      allow update: if gestao()
+        || (uid == request.auth.uid
+            && request.resource.data.papel == resource.data.papel
+            && request.resource.data.setores == resource.data.setores
+            && request.resource.data.ativo == resource.data.ativo);
+    }
+
+    match /alunos/{id} {
+      allow read: if equipe();
+      allow write: if veTudo() || papel() == 'coordenacao';
+    }
+
+    match /conversas/{id} {
+      allow read: if equipe() && veSetor(resource.data.setor);
+      allow create: if veTudo();
+      allow update: if equipe() && veSetor(resource.data.setor);
+      allow delete: if gestao();
+    }
+
+    match /mensagens/{id} {
+      allow read: if equipe();
+      /* mensagem que sai pelo painel é gravada pela rota de API, com a chave de servico;
+         o navegador só lê. Nota interna é a exceção e vem marcada. */
+      allow create: if equipe() && request.resource.data.autor == 'humano';
+      allow update, delete: if gestao();
+    }
+
+    match /quadros/{id} { allow read: if equipe(); allow write: if equipe(); }
+    match /listas/{id}  { allow read: if equipe(); allow write: if equipe(); }
+    match /cartoes/{id} { allow read: if equipe(); allow write: if equipe(); }
+
+    match /provas/{id} {
+      allow read: if equipe();
+      allow write: if veTudo() || papel() in ['coordenacao', 'professor'];
+    }
+    match /provas_envios/{id} {
+      allow read: if equipe();
+      allow create, update: if veTudo() || papel() in ['coordenacao', 'professor'];
+      allow delete: if gestao();
+    }
+
+    match /horarios/{id} {
+      allow read: if equipe();
+      allow write: if veTudo() || papel() == 'coordenacao';
+    }
+    match /marcacoes/{id} {
+      allow read: if equipe();
+      allow write: if equipe();
+    }
+
+    match /templates/{id} { allow read: if equipe(); allow write: if gestao(); }
+    match /envios/{id}    { allow read: if equipe(); allow write: if gestao(); }
+
+    /* Configuração é da gestão. Atendimento e conexão do WhatsApp moram aqui. */
+    match /config/{id} { allow read: if equipe(); allow write: if gestao(); }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

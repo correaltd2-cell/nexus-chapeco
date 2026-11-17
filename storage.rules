@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function ativo() {
+      return request.auth != null
+        && firestore.get(/databases/(default)/documents/perfis/$(request.auth.uid)).data.ativo == true;
+    }
+    /* anexos de conversa, de cartão e de prova: só a equipe ativa, e no máximo 20 MB */
+    match /{pasta}/{resto=**} {
+      allow read: if ativo();
+      allow write: if ativo() && request.resource.size < 20 * 1024 * 1024;
+    }
+  }
+}
