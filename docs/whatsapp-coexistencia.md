@@ -78,25 +78,77 @@ dentro de 24 horas. Mídia só dos últimos 14 dias.
 - O app precisa ser aberto no celular **a cada 13 dias**, senão a conexão cai.
 - Mensagem mandada pelo celular é de graça; mandada pela API é cobrada normalmente.
 
-## Passo a passo quando a decisão estiver tomada
+## Como conectar (o botão já existe no sistema)
 
-1. **Portfólio de Negócios da Nexus** no Gerenciador da Meta, com razão social, CNPJ e
-   endereço preenchidos em Informações da empresa.
-2. **Forma de pagamento na conta do WhatsApp.** Sem cartão, templates e disparos não
-   saem (erro 131042). Aprendizado caro do projeto Luz por Assinatura.
-3. **Aplicativo no Meta** (tipo Business) com o produto WhatsApp adicionado.
-4. **Usuário de sistema** com controle total da conta do WhatsApp, e token que não
-   expira.
-5. **Webhook**: `https://<dominio>/api/whatsapp/webhook`, com o verify token do
-   `.env`, assinando `messages`, `smb_message_echoes`, `smb_app_state_sync`,
-   `history` e `account_update`.
-6. **Embedded Signup** com os parâmetros de coexistência acima, ou o caminho normal se
-   for o caminho A.
-7. **Templates**: submeter por categoria certa. Utility para confirmação de aula,
-   lembrete de prova e aviso de nota. Marketing para convite de renovação e campanha.
-   Authentication só para código de acesso, se um dia existir.
-8. **Teste**: mandar `hello_world`, depois uma mensagem de verdade, e conferir que o
-   eco do celular chega no sistema.
+A conexão é pelo **app Nexus 1**, que é Tech Provider: o webhook dele aponta direto para
+o sistema, e a conta fica com a Nexus. (O app da Firma Moderna também funcionaria, mas
+aí a Nexus dependeria do app que atende os outros clientes da agência.)
+
+O número que a plataforma da Firma Moderna tem como "Nexus Comercial - Chapecó"
+(+55 49 8897-1344) está na API **sem** coexistência: a Meta recusou a sincronização em
+21/09/2026 dizendo que ele não é um número do app do WhatsApp Business. Se esse for o
+número da recepção, ele não serve para coexistência enquanto estiver na API.
+
+### 1. No app Nexus 1 (developers.facebook.com, Meus apps)
+
+- **Configurações do app > Básico**: em Domínios do app, `nexus-chapeco.vercel.app`.
+  Anote o **ID do app** e a **Chave secreta do app**.
+- **WhatsApp > Configuração > Webhook**: URL de callback
+  `https://nexus-chapeco.vercel.app/api/whatsapp/webhook`, token de verificação igual ao
+  `WHATSAPP_VERIFY_TOKEN`. Assine os campos `messages`, `smb_message_echoes`,
+  `smb_app_state_sync`, `history` e `account_update`.
+- **Login do Facebook para Empresas > Configurações**: Login com o SDK do JavaScript
+  ligado; em Domínios permitidos para o SDK do JavaScript,
+  `https://nexus-chapeco.vercel.app`; em URIs de redirecionamento do OAuth válidos,
+  `https://nexus-chapeco.vercel.app/`.
+- **Login do Facebook para Empresas > Configurações > Criar configuração**: do tipo
+  Cadastro incorporado do WhatsApp (Embedded Signup), com as permissões
+  `whatsapp_business_management` e `whatsapp_business_messaging`. Anote o **ID da
+  configuração**.
+
+### 2. Na Vercel (Settings, Environment Variables, Production)
+
+| Variável | Valor |
+|---|---|
+| `META_APP_ID` | ID do app Nexus 1 |
+| `WHATSAPP_CONFIG_ID` | ID da configuração do Embedded Signup |
+| `META_APP_SECRET` | chave secreta do app (marque como Sensitive) |
+| `WHATSAPP_VERIFY_TOKEN` | uma senha longa inventada por vocês, a mesma do webhook (Sensitive) |
+
+`WHATSAPP_TOKEN` e `WHATSAPP_PHONE_NUMBER_ID` **não** entram: o token vem da conexão e
+fica em `segredos/whatsapp`, que só o servidor lê. Publique de novo depois de salvar.
+
+### 3. No celular da recepção
+
+WhatsApp Business atualizado (2.24.17 ou mais novo), com o número em uso, por perto. Em
+Ferramentas comerciais, desligue a Mensagem de saudação e a de ausência (senão o aluno
+recebe duas, quando o atendimento automático estiver ligado).
+
+### 4. No sistema
+
+Configurações > **WhatsApp da recepção, com coexistência** > Ver a conexão >
+**Conectar o WhatsApp da recepção**. Na janela da Meta:
+
+1. entre com o Facebook de quem administra o portfólio da Nexus;
+2. escolha **conectar o app do WhatsApp Business que já existe**;
+3. informe o número e confirme pelo código que aparece no celular;
+4. aceite compartilhar o histórico de conversas.
+
+Ao fechar, o sistema mostra cada passo: token, número (precisa dizer "no celular e no
+sistema"), webhook da conta, agenda e histórico. Agenda e histórico chegam em alguns
+minutos; o histórico entra com as conversas antigas **encerradas** e não abre tarefa nem
+soma não lida. Se a agenda ou o histórico não vierem, o botão de pedir de novo aparece
+até 24 horas depois de conectar. Depois disso, só reconectando.
+
+### 5. Conferir
+
+- Em **WhatsApp oficial > Conferir agora**: o número tem que dizer "também no app do
+  celular (coexistência)".
+- Mande "oi" de outro celular: tem que aparecer em Conversas.
+- Responda **pelo celular da recepção**: a resposta tem que aparecer na conversa como
+  "Recepção (celular)".
+- Ponha uma **forma de pagamento** na conta do WhatsApp no Gerenciador, senão os modelos
+  não saem (erro 131042).
 
 ## Templates que a escola vai precisar
 

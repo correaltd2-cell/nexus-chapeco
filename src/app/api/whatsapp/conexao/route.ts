@@ -6,6 +6,7 @@
    NENHUM segredo sai daqui: a rota só responde se a chave EXISTE no ambiente. */
 import { NextResponse } from 'next/server';
 import { adminBd, quemChamou } from '@/lib/firebase/admin';
+import { credencial, type Credencial } from '@/lib/whatsapp/credencial';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,9 +21,11 @@ export interface Conferencia {
   conserto?: string;
 }
 
-const token = () => process.env.WHATSAPP_TOKEN || '';
-const numeroId = () => process.env.WHATSAPP_PHONE_NUMBER_ID || '';
-const wabaId = () => process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '';
+/* a credencial vem das variáveis da Vercel ou da conexão por coexistência */
+let c: Credencial | null = null;
+const token = () => c?.token || '';
+const numeroId = () => c?.numeroId || '';
+const wabaId = () => c?.wabaId || '';
 
 async function graph(caminho: string, init?: RequestInit) {
   const r = await fetch(`${BASE}/${caminho}`, {
@@ -36,17 +39,25 @@ async function graph(caminho: string, init?: RequestInit) {
 }
 
 function confereChaves(): Conferencia {
-  const faltando = (['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_BUSINESS_ACCOUNT_ID',
-    'WHATSAPP_VERIFY_TOKEN', 'META_APP_SECRET'] as const).filter((k) => !process.env[k]);
-  if (!faltando.length) {
-    return { chave: 'chaves', titulo: 'As cinco chaves estão no ambiente', estado: 'ok', detalhe: 'Token, número, conta, verify token e segredo do app.' };
+  const faltando = (['META_APP_ID', 'WHATSAPP_CONFIG_ID', 'META_APP_SECRET', 'WHATSAPP_VERIFY_TOKEN'] as const)
+    .filter((k) => !process.env[k]);
+  if (faltando.length) {
+    return {
+      chave: 'chaves', titulo: 'Falta chave no ambiente', estado: 'falta',
+      detalhe: `Não encontrei: ${faltando.join(', ')}.`,
+      conserto: 'Preencha na Vercel, em Settings → Environment Variables, e publique de novo.',
+    };
+  }
+  if (!c) {
+    return {
+      chave: 'chaves', titulo: 'As chaves do app estão no ar, mas o número não foi conectado', estado: 'falta',
+      detalhe: 'Falta conectar o WhatsApp da recepção.',
+      conserto: 'Toque em "Conectar o WhatsApp da recepção" logo acima.',
+    };
   }
   return {
-    chave: 'chaves',
-    titulo: 'Falta chave no ambiente',
-    estado: 'falta',
-    detalhe: `Não encontrei: ${faltando.join(', ')}.`,
-    conserto: 'Preencha na Vercel, em Settings → Environment Variables, e publique de novo.',
+    chave: 'chaves', titulo: 'Chaves do app e token do número no lugar', estado: 'ok',
+    detalhe: c.origem === 'coexistencia' ? 'O token veio da conexão por coexistência e fica só no servidor.' : 'O token vem das variáveis da Vercel.',
   };
 }
 
@@ -54,7 +65,7 @@ async function confereNumero(): Promise<Conferencia> {
   if (!token() || !numeroId()) {
     return { chave: 'numero', titulo: 'Número', estado: 'falta', detalhe: 'Sem token ou sem o id do número, não dá para perguntar à Meta.' };
   }
-  const r = await graph(`${numeroId()}?fields=display_phone_number,verified_name,quality_rating,platform_type,code_verification_status`);
+  const r = await graph(`${numeroId()}?fields=display_phone_number,verified_name,quality_rating,platform_type,is_on_biz_app`);
   if (!r.ok) {
     return {
       chave: 'numero', titulo: 'A Meta não respondeu pelo número', estado: 'erro',
@@ -64,15 +75,18 @@ async function confereNumero(): Promise<Conferencia> {
         : 'Confira se o id do número é o da conta onde o app está instalado.',
     };
   }
-  const d = r.corpo as Record<string, string>;
+  const d = r.corpo as Record<string, string | boolean>;
   const nuvem = d.platform_type === 'CLOUD_API';
+  const noCelular = d.is_on_biz_app === true;
   return {
     chave: 'numero',
     titulo: `${d.verified_name || 'Número'}: ${d.display_phone_number || ''}`,
-    estado: nuvem ? 'ok' : 'aviso',
-    detalhe: `Qualidade ${d.quality_rating || 'sem leitura'}, hospedagem ${d.platform_type || 'desconhecida'}.`,
-    conserto: nuvem ? undefined
-      : 'A coexistência só funciona com o número hospedado na nuvem da Meta (CLOUD_API). Em ON_PREMISE o número roda no servidor do provedor e não dá para conviver.',
+    estado: nuvem && noCelular ? 'ok' : 'aviso',
+    detalhe: `Qualidade ${d.quality_rating || 'sem leitura'}, hospedagem ${d.platform_type || 'desconhecida'}, ${noCelular ? 'também no app do celular (coexistência)' : 'fora do app do celular'}.`,
+    conserto: !nuvem
+      ? 'A coexistência só funciona com o número hospedado na nuvem da Meta (CLOUD_API).'
+      : noCelular ? undefined
+        : 'Para a Meta este número não está no WhatsApp Business do celular: as mensagens que a recepção mandar pelo celular não aparecem aqui. Conecte pelo botão de coexistência.',
   };
 }
 
@@ -151,6 +165,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, erro: 'Só a administração confere a conexão.' }, { status: 403 });
   }
   const origem = new URL(req.url).origin;
+  c = await credencial();
   const chaves = confereChaves();
   const [numero, assinatura, webhook, mensagens] = await Promise.all([
     confereNumero(), confereAssinatura(), confereWebhook(origem), confereMensagens(),
@@ -165,6 +180,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, erro: 'Só a administração mexe na conexão.' }, { status: 403 });
   }
   const { acao, para } = (await req.json()) as { acao?: string; para?: string };
+  c = await credencial();
+  if (!c) return NextResponse.json({ ok: false, erro: 'O WhatsApp ainda não está conectado.' });
 
   if (acao === 'assinar') {
     const r = await graph(`${wabaId()}/subscribed_apps`, { method: 'POST' });

@@ -7,6 +7,7 @@ import { assina, define, modoDemo } from '@/lib/dados/fonte';
 import { useSessao, useTema, type Tema } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
+import ConectarWhatsApp from '@/componentes/conectar-whatsapp';
 import { ehGestao, NOME_PAPEL, NOME_SETOR, SETORES } from '@/lib/dominio/acessos';
 import { leAtendimento } from '@/lib/dominio/config';
 import { dataBR } from '@/lib/dominio/formato';
@@ -61,6 +62,7 @@ export default function Configuracoes() {
       <Atendimento valor={atendimento} podeMexer={gestao} aoSalvar={salvaAtendimento} />
       <Aparencia tema={tema} setTema={setTema} />
       {gestao && <Equipe perfis={perfis} eu={perfil} chama={chama} />}
+      {gestao && <ConectarWhatsApp chama={chama} />}
       {gestao && <WhatsApp chama={chama} />}
       {!gestao && (
         <section className="bl">

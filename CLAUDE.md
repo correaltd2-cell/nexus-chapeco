@@ -72,6 +72,7 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 | 18/11/2026 | **A triagem abre a tarefa, nunca responde o contato.** Mensagem que chega com assunto claro abre um cartão no quadro do setor. Sinal fraco não abre nada, e só existe uma tarefa aberta por conversa. Quem responde e quem move continua sendo gente. |
 | 18/11/2026 | **A foto do contato mora no próprio documento da conversa**, reduzida para 256px em JPEG. É leve o bastante para caber no limite de 1 MB e aparecer na lista sem segunda ida ao servidor. |
 | 18/11/2026 | **A etiqueta de assunto é automática.** A triagem pendura o assunto na conversa toda vez que o sinal é forte (Cancelamento, Financeiro, Marcação, Matrícula, Prova, Reposição, Coordenação), e ela aparece colorida na linha da lista. Nunca tira etiqueta que gente pôs à mão. |
+| 18/11/2026 | **A coexistência conecta pelo botão em Configurações, com o app Nexus 1** (Tech Provider da própria Nexus), não pelo app da Firma Moderna. O token vem do Embedded Signup e mora em `segredos/whatsapp` (só o servidor lê); o webhook da conta aponta para este sistema. Histórico do celular entra encerrado, sem triagem nem não lida. Passo a passo em `docs/whatsapp-coexistencia.md`. |
 | 18/11/2026 | **O telefone do contato não se edita na tela.** Ele é a chave que casa a conversa com o que a Meta manda. Nome, foto e observação se editam; telefone novo é conversa nova. |
 
 ## 3.2 O que já está de pé no atendimento (18/11/2026)
@@ -111,6 +112,7 @@ Next.js (App Router) ──► Vercel
               ├── /api/whatsapp/webhook     recebe da Cloud API
               ├── /api/whatsapp/enviar      manda pela Cloud API
               ├── /api/whatsapp/conexao     confere e configura a conexão
+              ├── /api/whatsapp/coexistencia conecta o número por Embedded Signup
               ├── /api/sheets/*             lê e escreve a grade no Google Sheets
               ├── /api/provas/*             envio e correção
               └── /api/cron/*               réguas, marcação da semana, cobrança

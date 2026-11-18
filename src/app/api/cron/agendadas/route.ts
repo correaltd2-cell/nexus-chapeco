@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminBd } from '@/lib/firebase/admin';
-import { mandaTexto, temConfig } from '@/lib/whatsapp/cloud';
+import { mandaTexto, whatsConectado } from '@/lib/whatsapp/cloud';
 import { janelaAberta } from '@/lib/dominio/formato';
 import type { Conversa, MensagemAgendada } from '@/lib/dominio/tipos';
 
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
   if (!autorizado(req)) {
     return NextResponse.json({ ok: false, erro: 'Sem autorização.' }, { status: 401 });
   }
-  if (!temConfig()) {
+  if (!(await whatsConectado())) {
     return NextResponse.json({ ok: false, erro: 'WhatsApp não conectado.' }, { status: 200 });
   }
 

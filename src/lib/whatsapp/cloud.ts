@@ -1,18 +1,13 @@
 /* Conversa com a Cloud API da Meta. So roda no servidor: o token nunca vai ao navegador. */
 import 'server-only';
+import { credencial } from './credencial';
+
+export { whatsConectado } from './credencial';
 
 const VERSAO = 'v23.0';
 const BASE = `https://graph.facebook.com/${VERSAO}`;
 
-export const temConfig = () =>
-  Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
-
-function cabecalho() {
-  return {
-    authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-    'content-type': 'application/json',
-  };
-}
+const cabecalho = (token: string) => ({ authorization: `Bearer ${token}`, 'content-type': 'application/json' });
 
 export interface RespostaEnvio {
   ok: boolean;
@@ -39,11 +34,12 @@ export function explicaRecusa(codigo?: number, mensagem?: string) {
 }
 
 async function manda(corpo: Record<string, unknown>): Promise<RespostaEnvio> {
-  if (!temConfig()) return { ok: false, erro: 'O WhatsApp ainda não está conectado.' };
+  const c = await credencial();
+  if (!c) return { ok: false, erro: 'O WhatsApp ainda não está conectado.' };
   try {
-    const r = await fetch(`${BASE}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    const r = await fetch(`${BASE}/${c.numeroId}/messages`, {
       method: 'POST',
-      headers: cabecalho(),
+      headers: cabecalho(c.token),
       body: JSON.stringify({ messaging_product: 'whatsapp', ...corpo }),
     });
     const dados = (await r.json()) as {
@@ -94,11 +90,12 @@ export const mandaBotoes = (para: string, texto: string, botoes: string[]) =>
 
 /** Marca a mensagem do contato como lida, para o visto azul aparecer no celular dele. */
 export async function marcaLida(waMessageId: string) {
-  if (!temConfig()) return;
+  const c = await credencial();
+  if (!c) return;
   try {
-    await fetch(`${BASE}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    await fetch(`${BASE}/${c.numeroId}/messages`, {
       method: 'POST',
-      headers: cabecalho(),
+      headers: cabecalho(c.token),
       body: JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: waMessageId }),
     });
   } catch { /* o visto azul nao vale travar o atendimento */ }
@@ -106,12 +103,13 @@ export async function marcaLida(waMessageId: string) {
 
 /** Baixa a midia que o contato mandou: primeiro a url, depois os bytes. */
 export async function baixaMidia(mediaId: string) {
-  if (!temConfig()) return null;
+  const c = await credencial();
+  if (!c) return null;
   try {
-    const meta = await fetch(`${BASE}/${mediaId}`, { headers: cabecalho() });
+    const meta = await fetch(`${BASE}/${mediaId}`, { headers: cabecalho(c.token) });
     const { url, mime_type } = (await meta.json()) as { url?: string; mime_type?: string };
     if (!url) return null;
-    const bin = await fetch(url, { headers: { authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` } });
+    const bin = await fetch(url, { headers: { authorization: `Bearer ${c.token}` } });
     if (!bin.ok) return null;
     return { bytes: Buffer.from(await bin.arrayBuffer()), mime: mime_type || 'application/octet-stream' };
   } catch {

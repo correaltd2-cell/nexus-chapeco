@@ -39,18 +39,24 @@ export function textoDaMensagem(m: Record<string, unknown>): string {
 export const naoViraFala = (tipo: string) =>
   ['reaction', 'sticker', 'unsupported', 'unknown', 'system'].includes(tipo);
 
-/** Acha a conversa do numero ou cria uma nova, sempre na Recepção. */
-export async function garanteConversa(ctx: Contexto, waId: string, nome: string) {
+/** Acha a conversa do numero ou cria uma nova, sempre na Recepção. A que nasce do
+    histórico do celular nasce encerrada: é conversa velha, não atendimento de agora. */
+export async function garanteConversa(ctx: Contexto, waId: string, nome: string, doHistorico = false) {
   const achadas = await ctx.bd.collection('conversas').where('waId', '==', waId).limit(1).get();
   if (!achadas.empty) return achadas.docs[0].ref;
   const agora = agoraIso();
   const aluno = await ctx.bd.collection('alunos').where('telefone', '==', waId).limit(1).get();
+  /* o nome que está na agenda do celular da recepção vale mais que o número puro */
+  const daAgenda = aluno.empty && !nome
+    ? ((await ctx.bd.doc(`contatos_do_celular/${waId}`).get()).data()?.nome as string | undefined)
+    : undefined;
   return ctx.bd.collection('conversas').add({
     waId,
-    nome: aluno.empty ? nome || waId : (aluno.docs[0].data().nome as string),
+    nome: aluno.empty ? nome || daAgenda || waId : (aluno.docs[0].data().nome as string),
     alunoId: aluno.empty ? null : aluno.docs[0].id,
     setor: 'recepcao',
-    estado: 'aberta',
+    estado: doHistorico ? 'encerrada' : 'aberta',
+    ...(doHistorico ? { encerradaEm: agora, encerradaPor: 'silencio' } : {}),
     agenteAtivo: true,
     naoLidas: 0,
     etiquetas: [],
@@ -223,19 +229,92 @@ export async function processaStatus(ctx: Contexto, s: Record<string, unknown>) 
   if (Object.keys(mudanca).length) await doc.ref.update(mudanca);
 }
 
-/** Contatos que vieram do celular na conexão (uma vez só). */
-export async function sincronizaContatos(
+/* ================= coexistência: o que vem do celular ================= */
+
+const soDigitos = (t: unknown) => String(t || '').replace(/\D/g, '');
+
+/** Contatos da agenda do celular da recepção (campo smb_app_state_sync), uma vez por
+    conexão. Ficam em contatos_do_celular, e a conversa que só tinha o número ganha o
+    nome da agenda. Aceita também o formato antigo, com `contacts`. */
+export async function recebeContatosDoCelular(
   ctx: Contexto,
-  contatos: { wa_id?: string; profile?: { name?: string } }[],
+  estado: { type?: string; action?: string; contact?: { full_name?: string; first_name?: string; phone_number?: string } }[],
+  antigos: { wa_id?: string; profile?: { name?: string } }[] = [],
 ) {
-  const lote = ctx.bd.batch();
-  let n = 0;
-  for (const c of contatos.slice(0, 450)) {
-    if (!c.wa_id) continue;
-    const ref = ctx.bd.doc(`contatos_do_celular/${c.wa_id}`);
-    lote.set(ref, { waId: c.wa_id, nome: c.profile?.name || '', vistoEm: agoraIso() }, { merge: true });
-    n++;
+  const itens = [
+    ...estado.filter((e) => (e.type || 'contact') === 'contact' && e.contact?.phone_number)
+      .map((e) => ({ waId: soDigitos(e.contact?.phone_number), nome: (e.contact?.full_name || e.contact?.first_name || '').trim(), sai: e.action === 'remove' })),
+    ...antigos.filter((c) => c.wa_id).map((c) => ({ waId: soDigitos(c.wa_id), nome: c.profile?.name || '', sai: false })),
+  ].filter((i) => i.waId);
+
+  for (let i = 0; i < itens.length; i += 400) {
+    const lote = ctx.bd.batch();
+    for (const c of itens.slice(i, i + 400)) {
+      lote.set(ctx.bd.doc(`contatos_do_celular/${c.waId}`),
+        { waId: c.waId, nome: c.nome, removido: c.sai, vistoEm: agoraIso() }, { merge: true });
+    }
+    await lote.commit();
   }
-  if (n) await lote.commit();
-  return n;
+
+  /* conversa que ainda só tem o número ganha o nome da agenda */
+  for (let i = 0; i < itens.length; i += 20) {
+    await Promise.all(itens.slice(i, i + 20).filter((c) => c.nome && !c.sai).map(async (c) => {
+      const achadas = await ctx.bd.collection('conversas').where('waId', '==', c.waId).limit(1).get();
+      const d = achadas.docs[0];
+      if (d && (!d.data().nome || d.data().nome === c.waId)) await d.ref.update({ nome: c.nome });
+    }));
+  }
+  return itens.length;
+}
+
+/** Histórico do celular (até 180 dias), em lotes, logo depois de pedir a sincronização.
+    Mensagem velha não é mensagem nova: não passa pela triagem, não abre tarefa, não soma
+    não lida e não reabre conversa. O id do documento vem do id da Meta, então o mesmo
+    lote recebido duas vezes não duplica nada.
+    Cada thread é um contato: a mensagem cujo remetente é o contato veio dele; a outra
+    foi a recepção que mandou pelo celular. */
+export async function recebeHistorico(
+  ctx: Contexto,
+  threads: { id?: string; messages?: Record<string, unknown>[] }[],
+) {
+  let gravadas = 0;
+  for (const t of threads) {
+    const contato = soDigitos(t.id);
+    if (!contato || !t.messages?.length) continue;
+    const ref = await garanteConversa(ctx, contato, '', true);
+    const atual = (await ref.get()).data() || {};
+    let maisNova = atual.criadaEm === atual.ultimaEm ? '' : String(atual.ultimaEm || '');
+    let previa = String(atual.ultimaPreviaTexto || '');
+    let janela = String(atual.janelaAte || '');
+
+    let lote = ctx.bd.batch();
+    let noLote = 0;
+    for (const m of t.messages) {
+      const id = String(m.id || '');
+      const tipo = String(m.type || '');
+      if (!id || ['reaction', 'system', 'unknown'].includes(tipo)) continue;
+      const doContato = soDigitos(m.from) === contato;
+      const quando = emIso(m.timestamp as string | undefined);
+      const texto = textoDaMensagem(m) || (tipo === 'sticker' ? 'figurinha' : `(${tipo || 'mensagem'})`);
+      lote.set(ctx.bd.doc(`mensagens/wa_${id.replace(/\//g, '_')}`), {
+        conversaId: ref.id,
+        direcao: doContato ? 'entrada' : 'saida',
+        autor: doContato ? 'cliente' : 'humano',
+        ...(doContato ? {} : { autorNome: 'Recepção (celular)', entregueEm: quando }),
+        texto, tipoBruto: tipo, waMessageId: id, doHistorico: true, criadaEm: quando,
+      }, { merge: true });
+      gravadas += 1;
+      noLote += 1;
+      if (!maisNova || quando > maisNova) { maisNova = quando; previa = texto; }
+      if (doContato) { const j = janelaDe(quando); if (!janela || j > janela) janela = j; }
+      if (noLote >= 400) { await lote.commit(); lote = ctx.bd.batch(); noLote = 0; }
+    }
+    if (noLote) await lote.commit();
+
+    const campos: Record<string, unknown> = {};
+    if (maisNova && maisNova !== atual.ultimaEm) { campos.ultimaEm = maisNova; campos.ultimaPreviaTexto = previa; }
+    if (janela && janela !== atual.janelaAte) campos.janelaAte = janela;
+    if (Object.keys(campos).length) await ref.update(campos);
+  }
+  return gravadas;
 }
