@@ -600,13 +600,13 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.4}
 @media (max-width:759px){
   .app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
   .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--app);border-top:1px solid var(--line);padding:4px max(8px,env(safe-area-inset-right,0px)) 3px max(8px,env(safe-area-inset-left,0px))}
-  .tabs button{border:0;background:transparent;display:grid;justify-items:center;gap:1px;padding:3px 0 2px;font-size:11.5px;color:var(--ink-2);min-width:0}
+  .tabs a,.tabs button{border:0;background:transparent;display:grid;justify-items:center;gap:1px;padding:3px 0 2px;font-size:11.5px;color:var(--ink-2);min-width:0}
   .tabs .pl{display:grid;place-items:center;width:58px;height:28px;border-radius:14px;position:relative}
   .tabs .pl .ic{width:22px;height:22px}
-  .tabs button[aria-current="page"]{color:var(--ink);font-weight:600}
-  .tabs button[aria-current="page"] .pl{background:var(--acc-soft);color:var(--acc-ink)}
+  .tabs [aria-current="page"]{color:var(--ink);font-weight:600}
+  .tabs [aria-current="page"] .pl{background:var(--acc-soft);color:var(--acc-ink)}
   .tabs .n{position:absolute;top:-2px;right:6px;min-width:17px;height:17px;border-radius:9px;background:var(--acc);color:var(--on-acc);font-size:11px;font-weight:600;display:grid;place-items:center;padding:0 4px}
-  .app:has(#v-conversas:not([hidden]) .wa.c-open) .tabs,.app:has(#v-conversas:not([hidden]) .wa.p-open) .tabs,.app:has(#v-quadros:not([hidden]) .mod) .tabs,.app:has(#v-configuracoes:not([hidden]) .aj.ab) .tabs{display:none}
+  .app:has(.wa.c-open) .tabs,.app:has(.wa.p-open) .tabs,.app:has(.mod) .tabs,.app:has(.aj.ab) .tabs{display:none}
   .vh{padding:8px max(12px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));min-height:54px}
   .qd-abas{flex:1 1 100%;order:3}
   .qd .vh .fim{margin-left:auto}
@@ -645,3 +645,26 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.4}
   .tm .pv{width:96px;flex:none}
   textarea{font-size:16px}
 }
+
+/* ================= login ================= */
+.login{min-height:100%;display:grid;place-items:center;background:var(--app);padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.login-c{width:min(380px,100%);background:var(--panel);border-radius:14px;padding:30px 26px 26px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 3px rgba(11,20,26,.08),0 8px 28px -14px rgba(11,20,26,.25)}
+.login-c h1{font-size:22px;font-weight:600;letter-spacing:-.01em;margin:10px 0 0}
+.login-c .eu-foto.grande{width:54px;height:54px;font-size:26px;margin:0}
+.login-c .obs{padding:0 0 6px}
+.login-c .cmp-l{font-size:13px;color:var(--ink-3);margin-top:10px}
+.login-c .cx{padding:11px 12px}
+.login-c .btn{margin-top:18px;justify-content:center}
+.btn.larga{width:100%}
+.btn:disabled{opacity:.6;cursor:default}
+.erro{color:var(--danger);font-size:13.5px;margin-top:10px}
+
+/* a casca quando ainda nao sabe quem é */
+.carregando{min-height:100%;display:grid;place-items:center;color:var(--ink-3);background:var(--app)}
+/* no sistema real o trilho leva links, nao botoes */
+.rail a.ib{text-decoration:none}
+.rail .eu-foto{border:0;cursor:pointer;font-family:inherit}
+.tabs a{text-decoration:none;color:inherit}
+
+/* falha de entrega no lugar do tique */
+.tk-x{color:var(--danger);font-weight:700;font-size:12px;line-height:11px;width:16px;text-align:center}
