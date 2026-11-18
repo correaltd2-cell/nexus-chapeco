@@ -267,10 +267,20 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 /* ================= conversas ================= */
 .wa{
   --gutter:clamp(16px,5%,56px);
-  display:grid;grid-template-columns:340px minmax(0,1fr) 320px;height:100%;position:relative;background:var(--surface);
+  /* a largura das laterais muda por tela; o resto lê daqui, e a lista não pula de
+     largura quando a primeira conversa abre ou o painel é recolhido */
+  --lista:340px; --painel:320px;
+  display:grid;grid-template-columns:var(--lista) minmax(0,1fr) var(--painel);height:100%;position:relative;background:var(--surface);
 }
-.wa.vazia{grid-template-columns:340px minmax(0,1fr)}
 .wa.vazia .pnl{display:none}
+/* Sem conversa aberta, ou com o painel do contato recolhido, a conversa fica com o
+   espaço dele. Recolher só existe com o painel em coluna; abaixo de 1180 ele já é
+   gaveta. Fica guardado no aparelho (painel-recolhido.ts). */
+@media (min-width:1181px){
+  .wa.vazia,.wa.recolhido{grid-template-columns:var(--lista) minmax(0,1fr)}
+  .wa.recolhido .pnl{display:none}
+  .wa.recolhido .abre{display:grid}
+}
 .wa>*{min-width:0;min-height:0}
 
 .lst{display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--surface)}
@@ -363,7 +373,7 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   background:var(--canvas);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2;
   font-size:14px;font-weight:500;
 }
-.ph .ib{display:none;margin-left:-10px}
+.ph .ib{margin-left:-10px}
 .bl{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:12px;padding:2px 0}
 .cab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:24px 20px 20px;text-align:center}
 .cab h2{font-size:18px;font-weight:600;margin-top:12px}
@@ -425,10 +435,10 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 /* Tela grande: as laterais ganham corpo e a conversa vira coluna de leitura no meio,
    em vez de uma bolha solta num vazio de dois mil pixels. */
 @media (min-width:1500px){
-  .wa{--gutter:max(24px,calc((100% - 940px) / 2));grid-template-columns:384px minmax(0,1fr) 356px}
+  .wa{--gutter:max(24px,calc((100% - 940px) / 2));--lista:384px;--painel:356px}
 }
 @media (min-width:1900px){
-  .wa{grid-template-columns:420px minmax(0,1fr) 392px}
+  .wa{--lista:420px;--painel:392px}
 }
 
 /* ================= configurações ================= */
@@ -610,13 +620,12 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   .nav-item{position:relative}
   .rail-foot{flex-direction:column;gap:4px;padding:10px 8px}
   .me{justify-content:center;flex:none}
-  .wa{grid-template-columns:300px minmax(0,1fr) 288px}
+  .wa{--lista:300px;--painel:288px}
 }
 @media (max-width:1180px){
-  .wa{grid-template-columns:300px minmax(0,1fr)}
+  .wa{grid-template-columns:var(--lista) minmax(0,1fr)}
   .pnl{position:absolute;top:0;right:0;bottom:0;width:min(330px,100%);z-index:50;display:none;box-shadow:var(--shadow-2)}
   .wa.p-open .pnl{display:block}
-  .ph .ib{display:grid}
   .abre{display:grid}
 }
 @media (max-width:759px){

@@ -7,6 +7,7 @@ import { assina, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
 import PainelContato from '@/componentes/painel-contato';
+import { usePainelRecolhido } from '@/componentes/painel-recolhido';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
 import { NOME_CURTO_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
 import { buscaCasou, passaNoFiltro, situacao, type Filtro } from '@/lib/dominio/conversas';
@@ -47,7 +48,12 @@ export default function Inbox() {
   const [rascunho, setRascunho] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState('');
+  /* no celular e na tela estreita: a conversa por cima da lista, e o painel por cima
+     da conversa. Vem do estado, e nao de classe posta a mao no HTML: o React reescreve
+     o className a cada mudanca e apagava a classe, e o primeiro toque se perdia. */
+  const [naConversa, setNaConversa] = useState(false);
   const [painel, setPainel] = useState(false);
+  const [recolhido, setRecolhido] = usePainelRecolhido();
   const [agendadas, setAgendadas] = useState<MensagemAgendada[]>([]);
   const [programando, setProgramando] = useState(false);
   const agora = useAgora();
@@ -95,8 +101,7 @@ export default function Inbox() {
   const janela = aberta ? janelaAberta(aberta) : false;
 
   const abrir = useCallback(async (c: Conversa) => {
-    setAbertaId(c.id); setPainel(false); setRascunho('');
-    document.querySelector('.wa')?.classList.add('c-open');
+    setAbertaId(c.id); setNaConversa(true); setPainel(false); setRascunho('');
     if (c.naoLidas > 0) {
       try { await atualiza('conversas', c.id, { naoLidas: 0 }); } catch { /* sem permissão, segue */ }
     }
@@ -154,7 +159,7 @@ export default function Inbox() {
       estado: 'agendada', criadaEm: new Date().toISOString(),
     });
     setProgramando(false); setProgTexto(''); setProgQuando(''); setAviso('');
-    setPainel(true); document.querySelector('.wa')?.classList.add('p-open');
+    setPainel(true);
   }
 
   /* a janela de 24 horas vale na hora do ENVIO, nao agora: se ela ja tiver fechado
@@ -180,7 +185,9 @@ export default function Inbox() {
     }));
 
   return (
-    <div className={aberta ? 'wa' : 'wa vazia'}>
+    <div className={[
+      'wa', !aberta && 'vazia', recolhido && 'recolhido', naConversa && 'c-open', painel && 'p-open',
+    ].filter(Boolean).join(' ')}>
       <section className="lst" aria-label="Conversas">
         <header className="lh"><b>Conversas</b></header>
         <div className="busca">
@@ -245,16 +252,16 @@ export default function Inbox() {
           <>
             <header className="ch">
               <button className="ib volta" aria-label="Voltar para a lista"
-                      onClick={() => document.querySelector('.wa')?.classList.remove('c-open', 'p-open')}>
+                      onClick={() => { setNaConversa(false); setPainel(false); }}>
                 <Ic n="volta" />
               </button>
               <button className="cab-btn" aria-label={`Dados de ${aberta.nome}`}
-                      onClick={() => { setPainel(!painel); document.querySelector('.wa')?.classList.toggle('p-open'); }}>
+                      onClick={() => { setRecolhido(false); setPainel(!painel); }}>
                 <Avatar nome={aberta.nome} foto={aberta.foto} c="s" />
                 <span><b>{aberta.nome}</b><small>{situacao(aberta)}</small></span>
               </button>
-              <button className="ib abre" title="Dados do contato" aria-label="Dados do contato"
-                      onClick={() => { setPainel(!painel); document.querySelector('.wa')?.classList.toggle('p-open'); }}>
+              <button className="ib abre" title="Abrir dados do contato" aria-label="Abrir dados do contato"
+                      onClick={() => { setRecolhido(false); setPainel(!painel); }}>
                 <Ic n="info" />
               </button>
             </header>
@@ -354,10 +361,7 @@ export default function Inbox() {
             conversa={aberta}
             mensagens={mensagens}
             agendadas={agendadas.filter((a) => a.conversaId === aberta.id)}
-            aoFechar={() => {
-              setPainel(false);
-              document.querySelector('.wa')?.classList.remove('p-open');
-            }}
+            aoFechar={() => { setRecolhido(true); setPainel(false); }}
           />
         )}
       </aside>

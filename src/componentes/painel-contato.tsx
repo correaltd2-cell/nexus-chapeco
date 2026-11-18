@@ -168,7 +168,8 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
   return (
     <>
       <div className="ph">
-        <button className="ib" aria-label="Fechar" onClick={aoFechar}><Ic n="x" /></button>
+        <button className="ib" title="Fechar dados do contato" aria-label="Fechar dados do contato"
+                onClick={aoFechar}><Ic n="x" /></button>
         Dados do contato
       </div>
 
