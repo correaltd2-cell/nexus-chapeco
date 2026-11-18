@@ -4,7 +4,7 @@
    serve para mostrar o sistema antes de existir banco, e depois para ensaiar telas
    sem sujar o banco da escola. As telas nao sabem a diferenca. */
 import {
-  addDoc, collection, deleteField, doc, onSnapshot, updateDoc, writeBatch,
+  addDoc, collection, deleteField, doc, onSnapshot, setDoc, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { bd, configurado } from '@/lib/firebase/cliente';
 import { AGENDADAS, CARTOES, CONVERSAS, LISTAS, MENSAGENS, PERFIS, QUADROS } from './exemplo';
@@ -97,6 +97,19 @@ export async function atualiza(nome: string, id: string, campos: Campos): Promis
     return;
   }
   await updateDoc(doc(bd(), nome, id), paraFirestore(campos));
+}
+
+/** Grava um documento de id conhecido, criando se ainda nao existe.
+    É o que a tela de configuracoes precisa: `config/atendimento` nasce no primeiro
+    salvar, sem ninguem ter que criar o documento a mao antes. */
+export async function define(nome: string, id: string, dados: Campos): Promise<void> {
+  if (modoDemo) {
+    const atual = tabela(nome).get(id) || { id };
+    tabela(nome).set(id, { ...atual, ...dados, id } as Doc);
+    avisaOuvintes(nome);
+    return;
+  }
+  await setDoc(doc(bd(), nome, id), paraFirestore(dados), { merge: true });
 }
 
 export async function lote(ops: OpLote[]): Promise<void> {

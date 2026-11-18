@@ -9,6 +9,7 @@ import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
 import { useAgora, horaConhecida } from '@/componentes/relogio';
 import { NOME_SETOR, SETORES } from '@/lib/dominio/acessos';
+import { leAtendimento } from '@/lib/dominio/config';
 import { esperandoDesde, situacao } from '@/lib/dominio/conversas';
 import {
   dataBR, dataHoraBR, duracao, iniciais, janelaAberta, paraCampoDeData, telefoneLegivel,
@@ -33,6 +34,7 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
   const [quadros, setQuadros] = useState<Quadro[]>([]);
   const [listas, setListas] = useState<Lista[]>([]);
   const [cartoes, setCartoes] = useState<Cartao[]>([]);
+  const [configs, setConfigs] = useState<Record<string, unknown>[]>([]);
 
   const [editando, setEditando] = useState(false);
   const [nome, setNome] = useState(conversa.nome);
@@ -47,6 +49,7 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
   useEffect(() => assina('quadros', (d) => setQuadros(d as unknown as Quadro[])), []);
   useEffect(() => assina('listas', (d) => setListas(d as unknown as Lista[])), []);
   useEffect(() => assina('cartoes', (d) => setCartoes(d as unknown as Cartao[])), []);
+  useEffect(() => assina('config', (d) => setConfigs(d as Record<string, unknown>[])), []);
 
   const nomeDoAutor = perfil?.nome || 'Equipe';
   const quadrosAbertos = useMemo(
@@ -68,9 +71,12 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
   }, [cartoes, conversa.id, conversa.nome, mensagens, quadros, listas]);
 
   const desde = esperandoDesde(conversa, mensagens);
-  /* meia hora é o limite que a escola aguenta deixar alguem esperando sem resposta */
+  /* quanto tempo é demais é da escola, em Configurações; meia hora é o padrão */
+  const limite = leAtendimento(
+    configs.find((c) => c.id === 'atendimento') as Parameters<typeof leAtendimento>[0],
+  ).minutosDeAguardo;
   const demais = Boolean(
-    desde && horaConhecida(agora) && agora.getTime() - new Date(desde).getTime() > 30 * 60_000,
+    desde && horaConhecida(agora) && agora.getTime() - new Date(desde).getTime() > limite * 60_000,
   );
   const janela = janelaAberta(conversa, horaConhecida(agora) ? agora : new Date());
 
