@@ -1,7 +1,10 @@
 /* O que fazer com cada coisa que a Meta manda no webhook.
    Separado da rota para dar para testar sem subir servidor. */
 import 'server-only';
-import type { Firestore } from 'firebase-admin/firestore';
+import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
+import { leAssunto, tarefaDoAssunto } from '@/lib/dominio/triagem';
+import { PASSO, novoId } from '@/lib/dominio/quadros';
+import type { Lista, Quadro } from '@/lib/dominio/tipos';
 
 export interface Contexto { bd: Firestore }
 
@@ -57,6 +60,56 @@ export async function garanteConversa(ctx: Contexto, waId: string, nome: string)
   });
 }
 
+/* A triagem abre a tarefa sozinha. Duas travas, de proposito: so com sinal forte
+   (o que nao da para dizer nao vira cartao, porque quadro cheio de cartao errado
+   ninguem olha) e so uma tarefa aberta por conversa, senao cada mensagem do mesmo
+   assunto viraria um cartao novo. Quem resolve continua sendo gente: isto aqui nao
+   responde o contato nem move a conversa de setor. */
+async function ligada(ctx: Contexto): Promise<boolean> {
+  const cfg = await ctx.bd.doc('config/atendimento').get();
+  return cfg.data()?.abreTarefaNaTriagem !== false;
+}
+
+export async function abreTarefaPelaTriagem(
+  ctx: Contexto, conversa: DocumentReference, nome: string, texto: string,
+) {
+  if (!texto.trim()) return;
+  const aberta = await ctx.bd.collection('cartoes')
+    .where('conversaId', '==', conversa.id).where('arquivado', '==', false).limit(1).get();
+  if (!aberta.empty) return;
+  if (!(await ligada(ctx))) return;
+
+  const [qs, ls] = await Promise.all([
+    ctx.bd.collection('quadros').get(),
+    ctx.bd.collection('listas').get(),
+  ]);
+  const quadros = qs.docs.map((d) => ({ id: d.id, ...d.data() }) as Quadro);
+  const listas = ls.docs.map((d) => ({ id: d.id, ...d.data() }) as Lista);
+  const tarefa = tarefaDoAssunto(leAssunto(texto), nome, texto, quadros, listas);
+  if (!tarefa) return;
+
+  /* entra no topo da lista: é o que acabou de chegar */
+  const primeiro = await ctx.bd.collection('cartoes')
+    .where('listaId', '==', tarefa.listaId).where('arquivado', '==', false)
+    .orderBy('ordem').limit(1).get();
+  const ordem = primeiro.empty ? PASSO : (primeiro.docs[0].data().ordem as number) - PASSO;
+  const agora = agoraIso();
+
+  const cartao = await ctx.bd.collection('cartoes').add({
+    quadroId: tarefa.quadroId, listaId: tarefa.listaId, ordem,
+    titulo: tarefa.titulo, descricao: tarefa.descricao, etiquetas: tarefa.etiquetas,
+    membros: [], prazoConcluido: false, checklist: [], comentarios: [], anexos: [],
+    conversaId: conversa.id, arquivado: false, criadoEm: agora, atualizadoEm: agora,
+    atividade: [{ id: novoId(), autorNome: 'Triagem', texto: 'abriu a tarefa pela conversa', criadoEm: agora }],
+  });
+  await conversa.update({ tarefaId: cartao.id });
+  await ctx.bd.collection('mensagens').add({
+    conversaId: conversa.id, direcao: 'saida', autor: 'sistema', autorNome: 'Triagem',
+    texto: `A triagem abriu a tarefa "${tarefa.titulo}" em ${tarefa.quadroNome}.`,
+    criadaEm: agora,
+  });
+}
+
 /** Mensagem que o contato mandou. */
 export async function recebeDoContato(
   ctx: Contexto,
@@ -93,6 +146,12 @@ export async function recebeDoContato(
       ? { estado: 'aberta', setor: 'recepcao', encerradaEm: null }
       : {}),
   });
+
+  if (!naoViraFala(tipo)) {
+    const nome = (conversa.data()?.nome as string) || waId;
+    /* a tarefa é um extra: se ela falhar, a mensagem ja esta gravada e o time atende */
+    try { await abreTarefaPelaTriagem(ctx, ref, nome, texto); } catch { /* segue */ }
+  }
   return ref;
 }
 

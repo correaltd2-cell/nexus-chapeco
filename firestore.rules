@@ -42,7 +42,9 @@ service cloud.firestore {
       allow read: if equipe();
       /* mensagem que sai pelo painel é gravada pela rota de API, com a chave de servico;
          o navegador só lê. Nota interna é a exceção e vem marcada. */
-      allow create: if equipe() && request.resource.data.autor == 'humano';
+      allow create: if equipe()
+        && request.resource.data.autor in ['humano', 'sistema']
+        && !('waMessageId' in request.resource.data);
       allow update, delete: if gestao();
     }
 
@@ -67,6 +69,14 @@ service cloud.firestore {
     match /marcacoes/{id} {
       allow read: if equipe();
       allow write: if equipe();
+    }
+
+    /* Mensagem escrita agora para sair depois. Quem envia de verdade é a rota do
+       cron, com a chave de servico; aqui o time so programa e cancela. */
+    match /agendadas/{id} {
+      allow read: if equipe();
+      allow create, update: if equipe();
+      allow delete: if gestao();
     }
 
     match /templates/{id} { allow read: if equipe(); allow write: if gestao(); }

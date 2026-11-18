@@ -7,7 +7,7 @@ import {
   addDoc, collection, deleteField, doc, onSnapshot, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { bd, configurado } from '@/lib/firebase/cliente';
-import { CARTOES, CONVERSAS, LISTAS, MENSAGENS, PERFIS, QUADROS } from './exemplo';
+import { AGENDADAS, CARTOES, CONVERSAS, LISTAS, MENSAGENS, PERFIS, QUADROS } from './exemplo';
 
 export const modoDemo = !configurado;
 
@@ -42,6 +42,7 @@ function semeia() {
   guarda('quadros', QUADROS as unknown as Doc[]);
   guarda('listas', LISTAS as unknown as Doc[]);
   guarda('cartoes', CARTOES as unknown as Doc[]);
+  guarda('agendadas', AGENDADAS as unknown as Doc[]);
 }
 
 const tabela = (nome: string) => {

@@ -1,6 +1,6 @@
 /* Os desenhos de icone, num sprite so. Vieram da demonstracao aprovada.
    Use <Ic n="chat"/> onde precisar; o sprite entra uma vez na casca. */
-export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "chat", "check", "doc", "envia", "filtro", "grade", "grafico", "info", "lista", "lua", "mais", "menu", "moeda", "nota", "pessoas", "play", "pontos", "quadro", "raio", "relogio", "seta", "sol", "tag", "texto", "troca", "volta", "x"] as const;
+export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "doc", "envia", "filtro", "grade", "grafico", "info", "lista", "lua", "mais", "menu", "moeda", "nota", "pessoas", "play", "pontos", "quadro", "raio", "relogio", "seta", "sol", "tag", "texto", "troca", "volta", "x"] as const;
 export type NomeIcone = (typeof NOMES_ICONE)[number];
 
 export function Ic({ n, c }: { n: NomeIcone | string; c?: string }) {
@@ -26,6 +26,7 @@ export function SpriteDeIcones() {
   <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8 12.3 2.8 2.8L16 9.5"/></symbol>
   <symbol id="i-agenda" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20.5H7z"/><path d="M14 3.5v4h4M10 12.5h5M10 16h5"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5h3.5L9 6h6l1.5 2.5H20v11H4z"/><circle cx="12" cy="13.5" r="3.2"/></symbol>
   <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4 4.5h7.5l8 8-7 7-8.5-8.5z"/><circle cx="8.2" cy="8.7" r="1.1"/></symbol>
   <symbol id="i-nota" viewBox="0 0 24 24"><path d="M5 19.5h3.5L19 9l-3.5-3.5L5 16z"/><path d="m13.5 7.5 3.5 3.5"/></symbol>
   <symbol id="i-seta" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>

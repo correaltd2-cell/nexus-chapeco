@@ -65,6 +65,9 @@ export interface Conversa {
   ultimaPreviaTexto: string;
   janelaAte?: string;      // fim das 24 horas; depois disso so template
   aguardandoDesde?: string;
+  foto?: string;           // foto do contato, reduzida, guardada no proprio documento
+  observacao?: string;     // o que o time precisa lembrar deste contato
+  tarefaId?: string;       // o cartao que a triagem abriu para esta conversa
   retorno?: { quando: string; nota: string };
   encerradaEm?: string;
   encerradaPor?: QuemEncerrou;
@@ -123,6 +126,22 @@ export interface AnexoCartao {
   mime: string;
   tamanho: number;
   criadoEm: string;
+}
+
+/* Mensagem escrita agora para sair depois. Fora da janela de 24 horas a Meta so
+   aceita modelo aprovado, entao a hora escolhida decide o que da para mandar. */
+export type EstadoAgendada = 'agendada' | 'enviada' | 'cancelada' | 'falhou';
+
+export interface MensagemAgendada {
+  id: string;
+  conversaId: string;
+  texto: string;
+  quando: string;          // ISO com hora: e quando ela sai
+  autorId: string;
+  autorNome: string;
+  estado: EstadoAgendada;
+  motivo?: string;         // por que nao saiu, na palavra da Meta
+  criadaEm: string;
 }
 
 export interface Cartao {

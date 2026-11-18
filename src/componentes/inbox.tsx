@@ -6,17 +6,22 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { assina, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
-import { NOME_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
+import PainelContato from '@/componentes/painel-contato';
+import { horaConhecida, useAgora } from '@/componentes/relogio';
+import { NOME_CURTO_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
+import { buscaCasou, passaNoFiltro, situacao, type Filtro } from '@/lib/dominio/conversas';
 import {
-  buscaCasou, esperandoResposta, passaNoFiltro, situacao, ultimaFala, type Filtro,
-} from '@/lib/dominio/conversas';
-import {
-  corta, diaPorExtenso, hora, iniciais, janelaAberta, mesmoDia, quando, telefoneLegivel,
+  corta, diaPorExtenso, hora, iniciais, janelaAberta, mesmoDia, paraCampoDeHora, quando,
 } from '@/lib/dominio/formato';
-import type { Conversa, Mensagem } from '@/lib/dominio/tipos';
+import type { Conversa, Mensagem, MensagemAgendada } from '@/lib/dominio/tipos';
 
-function Avatar({ nome, c }: { nome: string; c?: string }) {
-  return <span className={c ? `av ${c}` : 'av'} aria-hidden="true">{iniciais(nome)}</span>;
+function Avatar({ nome, foto, c }: { nome: string; foto?: string; c?: string }) {
+  return (
+    <span className={c ? `av ${c}` : 'av'} aria-hidden="true">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {foto ? <img src={foto} alt="" /> : iniciais(nome)}
+    </span>
+  );
 }
 
 function Ticks({ m }: { m: Mensagem }) {
@@ -43,6 +48,11 @@ export default function Inbox() {
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState('');
   const [painel, setPainel] = useState(false);
+  const [agendadas, setAgendadas] = useState<MensagemAgendada[]>([]);
+  const [programando, setProgramando] = useState(false);
+  const agora = useAgora();
+  const [progTexto, setProgTexto] = useState('');
+  const [progQuando, setProgQuando] = useState('');
   const rolo = useRef<HTMLDivElement>(null);
 
   /* lista de conversas, em tempo real */
@@ -54,6 +64,11 @@ export default function Inbox() {
   /* mensagens de todas as conversas; a aberta filtra em memoria */
   useEffect(() => assina('mensagens', (docs) => {
     setTodasMensagens(docs as unknown as Mensagem[]);
+  }), []);
+
+  /* o que foi escrito agora para sair depois */
+  useEffect(() => assina('agendadas', (docs) => {
+    setAgendadas(docs as unknown as MensagemAgendada[]);
   }), []);
 
   const mensagens = useMemo(
@@ -125,16 +140,44 @@ export default function Inbox() {
     }
   }
 
-  const chips: { k: Filtro; r: string; n: number }[] = [
+  async function programa(e: FormEvent) {
+    e.preventDefault();
+    const texto = progTexto.trim();
+    if (!texto || !progQuando || !aberta) return;
+    const quandoSai = new Date(progQuando);
+    if (quandoSai.getTime() <= new Date().getTime()) {
+      setAviso('Escolha uma hora que ainda não passou.'); return;
+    }
+    await cria('agendadas', {
+      conversaId: aberta.id, texto, quando: quandoSai.toISOString(),
+      autorId: perfil?.id || '', autorNome: perfil?.nome || 'Equipe',
+      estado: 'agendada', criadaEm: new Date().toISOString(),
+    });
+    setProgramando(false); setProgTexto(''); setProgQuando(''); setAviso('');
+    setPainel(true); document.querySelector('.wa')?.classList.add('p-open');
+  }
+
+  /* a janela de 24 horas vale na hora do ENVIO, nao agora: se ela ja tiver fechado
+     la na frente, a mensagem so sai por modelo aprovado, e isso precisa estar dito */
+  const foraDaJanela = Boolean(
+    progQuando && aberta?.janelaAte && new Date(progQuando).getTime() > new Date(aberta.janelaAte).getTime(),
+  );
+  const naFila = aberta
+    ? agendadas.filter((a) => a.conversaId === aberta.id && a.estado === 'agendada').length
+    : 0;
+
+  const chipsEstado: { k: Filtro; r: string; n: number }[] = [
     { k: 'todas', r: 'Todas', n: 0 },
     { k: 'nao_lidas', r: 'Não lidas', n: conversas.filter((c) => c.estado !== 'encerrada' && c.naoLidas > 0).length },
-    ...SETORES.map((s) => ({
-      k: s as Filtro, r: NOME_SETOR[s],
-      n: conversas.filter((c) => c.estado !== 'encerrada' && c.setor === s).length,
-    })),
     { k: 'retornos', r: 'Retornos', n: conversas.filter((c) => c.estado !== 'encerrada' && c.retorno).length },
     { k: 'encerradas', r: 'Encerradas', n: 0 },
   ];
+  const chipsSetor: { k: Filtro; r: string; n: number }[] = SETORES
+    .filter((s) => (perfil ? veSetor(perfil.papel, perfil.setores, s) : false))
+    .map((s) => ({
+      k: s as Filtro, r: NOME_CURTO_SETOR[s],
+      n: conversas.filter((c) => c.estado !== 'encerrada' && c.setor === s).length,
+    }));
 
   return (
     <div className={aberta ? 'wa' : 'wa vazia'}>
@@ -146,18 +189,29 @@ export default function Inbox() {
                  aria-label="Pesquisar conversa por nome ou telefone"
                  onChange={(e) => setBusca(e.target.value)} />
         </div>
-        <div className="chips" role="group" aria-label="Filtrar conversas">
-          {chips.map((c) => (
-            <button key={c.k} className="chip" aria-pressed={filtro === c.k} onClick={() => setFiltro(c.k)}>
-              {c.r}{c.n > 0 && <span className="num">{c.n}</span>}
-            </button>
-          ))}
+        <div className="filtros">
+          <div className="chips" role="group" aria-label="Filtrar por situação">
+            {chipsEstado.map((c) => (
+              <button key={c.k} className="chip" aria-pressed={filtro === c.k} onClick={() => setFiltro(c.k)}>
+                {c.r}{c.n > 0 && <span className="num">{c.n}</span>}
+              </button>
+            ))}
+          </div>
+          {chipsSetor.length > 1 && (
+            <div className="chips" role="group" aria-label="Filtrar por setor">
+              {chipsSetor.map((c) => (
+                <button key={c.k} className="chip" aria-pressed={filtro === c.k} onClick={() => setFiltro(c.k)}>
+                  {c.r}{c.n > 0 && <span className="num">{c.n}</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="lista">
           {visiveis.map((c) => (
             <button key={c.id} className={c.naoLidas ? 'it nl' : 'it'} aria-current={c.id === abertaId}
                     onClick={() => void abrir(c)}>
-              <Avatar nome={c.nome} />
+              <Avatar nome={c.nome} foto={c.foto} />
               <span className="bd">
                 <span className="l1">
                   <b>{c.nome}</b>
@@ -196,7 +250,7 @@ export default function Inbox() {
               </button>
               <button className="cab-btn" aria-label={`Dados de ${aberta.nome}`}
                       onClick={() => { setPainel(!painel); document.querySelector('.wa')?.classList.toggle('p-open'); }}>
-                <Avatar nome={aberta.nome} c="s" />
+                <Avatar nome={aberta.nome} foto={aberta.foto} c="s" />
                 <span><b>{aberta.nome}</b><small>{situacao(aberta)}</small></span>
               </button>
               <button className="ib abre" title="Dados do contato" aria-label="Dados do contato"
@@ -243,8 +297,38 @@ export default function Inbox() {
 
             {aviso && <div className="fx"><p>{aviso}</p></div>}
 
+            {programando && (
+              <form className="prog" onSubmit={(e) => void programa(e)}>
+                <input type="text" className="cx" value={progTexto} autoComplete="off" autoFocus
+                       aria-label="Mensagem programada" placeholder="O que vai ser enviado"
+                       onChange={(e) => setProgTexto(e.target.value)} />
+                <div className="ln">
+                  <input type="datetime-local" className="cx" value={progQuando} aria-label="Quando enviar"
+                         min={horaConhecida(agora) ? paraCampoDeHora(agora) : undefined}
+                         onChange={(e) => setProgQuando(e.target.value)} />
+                </div>
+                <div className="acoes">
+                  <p className={foraDaJanela ? 'obs alerta' : 'obs'}>
+                    {foraDaJanela
+                      ? 'Nessa hora a janela de 24 horas já terá fechado: só sai por modelo aprovado, ou se o contato escrever antes.'
+                      : 'A mensagem fica guardada e sai sozinha na hora marcada.'}
+                  </p>
+                  <button type="button" className="btn" onClick={() => setProgramando(false)}>Cancelar</button>
+                  <button type="submit" className="btn p" disabled={!progTexto.trim() || !progQuando}>
+                    Programar
+                  </button>
+                </div>
+              </form>
+            )}
+
             {janela ? (
               <form className="cmp" onSubmit={enviar}>
+                <button type="button" className="ib prog" aria-expanded={programando}
+                        title={naFila ? `${naFila} mensagem programada nesta conversa` : 'Programar mensagem'}
+                        aria-label="Programar mensagem"
+                        onClick={() => setProgramando(!programando)}>
+                  <Ic n={naFila ? 'check' : 'relogio'} />
+                </button>
                 <input type="text" value={rascunho} autoComplete="off" aria-label="Mensagem"
                        placeholder="Digite uma mensagem" onChange={(e) => setRascunho(e.target.value)} />
                 <button type="submit" className="ib" title="Enviar" aria-label="Enviar" disabled={enviando}>
@@ -254,6 +338,9 @@ export default function Inbox() {
             ) : (
               <div className="pe">
                 <p>Passaram 24 horas da última mensagem do contato. Para retomar, envie um modelo aprovado.</p>
+                <button className="btn" aria-expanded={programando} onClick={() => setProgramando(!programando)}>
+                  <Ic n="relogio" />Programar mensagem
+                </button>
               </div>
             )}
           </>
@@ -262,39 +349,16 @@ export default function Inbox() {
 
       <aside className="pnl" aria-label="Dados do contato">
         {aberta && (
-          <>
-            <div className="ph">
-              <button className="ib" aria-label="Fechar"
-                      onClick={() => { setPainel(false); document.querySelector('.wa')?.classList.remove('p-open'); }}>
-                <Ic n="x" />
-              </button>
-              Dados do contato
-            </div>
-            <div className="bl cab">
-              <Avatar nome={aberta.nome} c="l" />
-              <h2>{aberta.nome}</h2>
-              <span className="num">{telefoneLegivel(aberta.waId)}</span>
-              <span>{aberta.alunoId ? 'Aluno cadastrado' : 'Ainda não ligado a um aluno'}</span>
-            </div>
-            <div className="bl">
-              <p className="bt">Atendimento</p>
-              <dl className="kv">
-                <dt>Setor</dt><dd>{NOME_SETOR[aberta.setor]}</dd>
-                <dt>Situação</dt><dd>{situacao(aberta)}</dd>
-                <dt>Janela de 24 horas</dt><dd>{janela ? 'aberta' : 'fechada'}</dd>
-                <dt>Esperando resposta</dt>
-                <dd>{esperandoResposta(aberta, ultimaFala(mensagens)) ? 'sim' : 'não'}</dd>
-              </dl>
-            </div>
-            {aberta.etiquetas.length > 0 && (
-              <div className="bl">
-                <p className="bt">Etiquetas</p>
-                <div className="tags">
-                  {aberta.etiquetas.map((t) => <span key={t} className="tag">{t}</span>)}
-                </div>
-              </div>
-            )}
-          </>
+          <PainelContato
+            key={aberta.id}
+            conversa={aberta}
+            mensagens={mensagens}
+            agendadas={agendadas.filter((a) => a.conversaId === aberta.id)}
+            aoFechar={() => {
+              setPainel(false);
+              document.querySelector('.wa')?.classList.remove('p-open');
+            }}
+          />
         )}
       </aside>
     </div>

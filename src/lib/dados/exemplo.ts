@@ -2,7 +2,7 @@
    Serve para mostrar o sistema antes de o Firebase existir, e depois para ensaiar
    telas sem sujar o banco da escola. */
 import type {
-  Cartao, Conversa, Lista, Mensagem, Perfil, Quadro,
+  Cartao, Conversa, Lista, Mensagem, MensagemAgendada, Perfil, Quadro,
 } from '@/lib/dominio/tipos';
 
 const base = new Date();
@@ -119,6 +119,16 @@ export const MENSAGENS: Mensagem[] = [
     texto: 'Posso te ajudar em algo mais?', botoes: ['Sim, outra coisa', 'Não, obrigado'], criadaEm: hm(8, 43) }),
   msg('c-marina', { texto: 'Não, obrigado', criadaEm: hm(8, 44) }),
   msg('c-marina', { autor: 'sistema', texto: 'Atendimento encerrado', criadaEm: hm(8, 44) }),
+];
+
+/* uma mensagem ja programada, para o bloco do painel aparecer com conteudo */
+export const AGENDADAS: MensagemAgendada[] = [
+  {
+    id: 'ag-renan', conversaId: 'c-renan',
+    texto: 'Oi Renan! Lembrando que a sua reposição é amanhã às 19h. Até lá!',
+    quando: emDias(1), autorId: 'u-rec', autorNome: 'Recepção',
+    estado: 'agendada', criadaEm: hm(10, 45),
+  },
 ];
 
 export const QUADROS: Quadro[] = [

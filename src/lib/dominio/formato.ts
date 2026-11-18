@@ -87,3 +87,30 @@ export function semanaDe(d = new Date()) {
 export function janelaAberta(conversa: { janelaAte?: string }, agora = new Date()) {
   return Boolean(conversa.janelaAte && new Date(conversa.janelaAte).getTime() > agora.getTime());
 }
+
+/** Quanto tempo passou, do jeito que gente fala: "12 min", "2 h 14 min", "3 dias". */
+export function duracao(desde: string, agora = new Date()) {
+  const ms = agora.getTime() - paraData(desde).getTime();
+  if (ms < 60_000) return 'agora';
+  const min = Math.floor(ms / 60_000);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return min % 60 ? `${h} h ${min % 60} min` : `${h} h`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? '1 dia' : `${d} dias`;
+}
+
+/** Dia e hora por extenso curto: "18/11 às 14:30". */
+export const dataHoraBR = (iso: string) => `${dataBR(iso)} às ${hora(iso)}`;
+
+/** O valor que o campo datetime-local entende, no fuso de quem está na tela. */
+export function paraCampoDeHora(d: Date) {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** Só a data, no formato do campo de prazo: 2026-11-18. */
+export function paraCampoDeData(d: Date) {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}

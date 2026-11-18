@@ -49,3 +49,22 @@ export function buscaCasou(c: Conversa, busca: string) {
   if (c.nome.toLowerCase().includes(q)) return true;
   return Boolean(digitos && c.waId.replace(/\D/g, '').includes(digitos));
 }
+
+/** Desde quando o contato espera resposta: a fala dele que ninguém respondeu.
+    Devolve nada quando a bola não está com a gente. */
+export function esperandoDesde(c: Conversa, ms: Mensagem[]): string | undefined {
+  if (c.estado === 'encerrada') return undefined;
+  const falas = ms.filter((m) => m.autor !== 'sistema')
+    .sort((a, b) => a.criadaEm.localeCompare(b.criadaEm));
+  const ultima = falas[falas.length - 1];
+  if (!ultima || ultima.direcao !== 'entrada') {
+    return c.estado === 'aguardando' ? c.aguardandoDesde : undefined;
+  }
+  /* a primeira mensagem da rajada: é desde ela que a pessoa está esperando */
+  let desde = ultima;
+  for (let i = falas.length - 2; i >= 0; i -= 1) {
+    if (falas[i].direcao !== 'entrada') break;
+    desde = falas[i];
+  }
+  return desde.criadaEm;
+}

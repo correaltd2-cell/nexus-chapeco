@@ -41,6 +41,15 @@ export const NOME_SETOR: Record<Setor, string> = {
   kids: 'Coordenação Kids',
 };
 
+/* Nos filtros o nome vai curto: "Coordenação Kids" sozinho empurra a fileira
+   inteira para baixo. No resto da tela o setor continua com o nome inteiro. */
+export const NOME_CURTO_SETOR: Record<Setor, string> = {
+  recepcao: 'Recepção',
+  financeiro: 'Financeiro',
+  coordenacao: 'Coordenação',
+  kids: 'Kids',
+};
+
 export const SETORES: Setor[] = ['recepcao', 'financeiro', 'coordenacao', 'kids'];
 
 /** Quem vê a conversa de um setor. Recepção vê tudo, porque é o coração da escola. */

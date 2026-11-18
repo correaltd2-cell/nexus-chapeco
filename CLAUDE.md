@@ -69,6 +69,29 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 | 17/11/2026 | **As provas são construídas aqui dentro**, exclusivas da unidade Chapecó. Não dependem do Nexus Hub nem de sistema de terceiro. |
 | 17/11/2026 | **A grade de aulas continua no Google Sheets** enquanto a planilha for a fonte. O sistema lê e escreve nela; não existe cópia paralela. |
 | 17/11/2026 | **Firebase e Vercel**, não Supabase. |
+| 18/11/2026 | **A triagem abre a tarefa, nunca responde o contato.** Mensagem que chega com assunto claro abre um cartão no quadro do setor. Sinal fraco não abre nada, e só existe uma tarefa aberta por conversa. Quem responde e quem move continua sendo gente. |
+| 18/11/2026 | **A foto do contato mora no próprio documento da conversa**, reduzida para 256px em JPEG. É leve o bastante para caber no limite de 1 MB e aparecer na lista sem segunda ida ao servidor. |
+| 18/11/2026 | **O telefone do contato não se edita na tela.** Ele é a chave que casa a conversa com o que a Meta manda. Nome, foto e observação se editam; telefone novo é conversa nova. |
+
+## 3.2 O que já está de pé no atendimento (18/11/2026)
+
+- **Painel do contato**: foto, nome e observação do time editáveis, etiquetas, passar
+  para qualquer setor (deixa recado na conversa), **tempo de aguardo** (vermelho depois
+  de 30 minutos), tarefas ligadas à conversa e a fila de mensagens programadas.
+- **Mensagem programada**: a equipe escreve agora e marca a hora. A fila é a coleção
+  `agendadas`; quem envia é `/api/cron/agendadas`, chamada de dez em dez minutos pelo
+  `vercel.json` com o `CRON_SECRET`. **A janela de 24 horas é conferida na hora de SAIR**,
+  não na hora de programar: se ela fechou no caminho, a mensagem não vai calada, fica
+  marcada com o motivo e o time decide se manda um modelo.
+- **Triagem que abre tarefa**: `src/lib/dominio/triagem.ts` soma sinais por assunto
+  (cancelamento pesa mais que matrícula, senão "cancelar minha matrícula" viraria lead
+  novo) e `recebimento.ts` abre o cartão no quadro certo. Prova em `testes/triagem.ts`:
+  `node --experimental-strip-types testes/triagem.ts`. **Rodar antes de mexer nos sinais.**
+  `config/atendimento.abreTarefaNaTriagem = false` desliga sem deploy.
+- **O relógio da tela** é `useAgora()` (`src/componentes/relogio.ts`), fonte externa que
+  anda a cada meio minuto. Ler a hora no corpo do componente não é permitido pelas regras
+  novas do React, e no servidor ela é outra: antes da hidratação devolve zero, e quem usa
+  trata como "ainda não sei a hora" em vez de mostrar 1970.
 
 ## 4. Arquitetura
 
