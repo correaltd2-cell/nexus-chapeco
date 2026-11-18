@@ -596,10 +596,11 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .constr-c li{padding:4px 0}
 
 /* ================= larguras ================= */
-@media (max-width:1320px){
-  .wa{grid-template-columns:316px minmax(0,1fr) 300px}
-}
-@media (max-width:1180px){
+/* A escola trabalha com a tela dividida: metade de um monitor de 2560 dá 1280 de
+   largura, e com o rail inteiro a conversa ficava com menos de 400. Até 1440 o rail
+   vira só ícones (o nome aparece ao passar o mouse) e as laterais da conversa
+   afinam, para o meio ficar com mais de 600. */
+@media (max-width:1440px){
   :root{--rail:76px}
   .brand{padding:18px 0 15px;display:grid;place-items:center}
   .brand-name,.brand-sub,.nav-label,.nav-item span,.me div{display:none}
@@ -609,6 +610,9 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   .nav-item{position:relative}
   .rail-foot{flex-direction:column;gap:4px;padding:10px 8px}
   .me{justify-content:center;flex:none}
+  .wa{grid-template-columns:300px minmax(0,1fr) 288px}
+}
+@media (max-width:1180px){
   .wa{grid-template-columns:300px minmax(0,1fr)}
   .pnl{position:absolute;top:0;right:0;bottom:0;width:min(330px,100%);z-index:50;display:none;box-shadow:var(--shadow-2)}
   .wa.p-open .pnl{display:block}

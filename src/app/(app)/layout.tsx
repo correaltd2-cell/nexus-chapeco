@@ -90,6 +90,7 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
                   <div className="nav-label">{g.titulo}</div>
                   {itens.map((m) => (
                     <Link key={m} href={ROTA[m]} className="nav-item"
+                          title={NOME_MODULO[m]} aria-label={NOME_MODULO[m]}
                           aria-current={atual === m ? 'page' : undefined}>
                       <Ic n={ICONE[m]} />
                       <span>{NOME_MODULO[m]}</span>

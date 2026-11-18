@@ -142,8 +142,10 @@ telas com o cliente, não as cores: aquelas foram substituídas.
 - **A única cor fora da paleta é o vermelho** (`--alert`), e só para prazo estourado e
   mensagem que não entregou. Não dá para dizer "deu errado" com cinza.
 - **Rail escuro com os nomes das seções** à esquerda, agrupadas (Atendimento, Escola,
-  Gestão), e a interface clara ao lado. Abaixo de 1180px o rail vira só ícones; no
-  celular ele sai e entra a barra de abas embaixo.
+  Gestão), e a interface clara ao lado. **Até 1440px o rail vira só ícones** (nome ao
+  passar o mouse), porque a escola trabalha com a tela dividida (decidido em
+  18/11/2026); abaixo de 1180px o painel do contato vira gaveta; no celular o rail sai
+  e entra a barra de abas embaixo.
 - **Tipografia:** Bricolage Grotesque nos títulos e números grandes, com moderação;
   Instrument Sans no corpo; JetBrains Mono em todo dado numérico, sempre com
   `tabular-nums` (a classe `.num`). As três entram por `<link>` no documento, como no
