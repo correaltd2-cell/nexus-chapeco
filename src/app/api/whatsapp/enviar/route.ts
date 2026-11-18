@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminBd, quemChamou } from '@/lib/firebase/admin';
 import { mandaTemplate, mandaTexto } from '@/lib/whatsapp/cloud';
+import { camposDaFalaDaEscola } from '@/lib/whatsapp/automatico';
 import type { Conversa } from '@/lib/dominio/tipos';
 
 export async function POST(req: Request) {
@@ -41,13 +42,15 @@ export async function POST(req: Request) {
     criadaEm: agora,
   });
 
-  /* a primeira resposta de gente desliga o Lumi: quem fala agora é o time */
+  /* a primeira resposta de gente desliga o atendimento automático: quem fala agora é o
+     time. Texto liga o relógio do follow-up; modelo não, porque a janela estava fechada */
   await ref.update({
     ultimaEm: agora,
     ultimaPreviaTexto: texto,
     agenteAtivo: false,
-    estado: conversa.estado === 'encerrada' ? 'aberta' : conversa.estado,
+    estado: conversa.estado === 'encerrada' || conversa.estado === 'ia' ? 'aberta' : conversa.estado,
     aguardandoDesde: FieldValue.delete(),
+    ...(resposta.ok ? camposDaFalaDaEscola(agora, !corpo.template) : {}),
   });
 
   if (!resposta.ok) return NextResponse.json({ ok: false, erro: resposta.erro }, { status: 200 });

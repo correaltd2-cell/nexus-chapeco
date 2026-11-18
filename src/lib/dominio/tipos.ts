@@ -50,6 +50,9 @@ export interface Aluno {
 /* ---------- conversas ---------- */
 export type EstadoConversa = 'aberta' | 'ia' | 'aguardando' | 'encerrada';
 export type QuemEncerrou = 'cliente' | 'silencio' | 'atendente';
+/* inicio: conversa recem-criada; menu: esperando o contato escolher o assunto;
+   assistente: com o assistente do financeiro; gente: com uma pessoa do time */
+export type EtapaAtendimento = 'inicio' | 'menu' | 'assistente' | 'gente';
 
 export interface Conversa {
   id: string;
@@ -69,6 +72,15 @@ export interface Conversa {
   observacao?: string;     // o que o time precisa lembrar deste contato
   tarefaId?: string;       // o cartao que a triagem abriu para esta conversa
   retorno?: { quando: string; nota: string };
+  /* ---- atendimento automatico (src/lib/dominio/automatico.ts) ---- */
+  etapa?: EtapaAtendimento;
+  tentativasMenu?: number;
+  atendimentoDesde?: string;   // quando o atendimento de agora começou
+  relogioDesde?: string;       // ultima fala da escola que espera resposta do contato
+  relogioMotivo?: 'despedida'; // o contato parece ter se despedido; a IA confirma
+  followUpEm?: string;         // quando saiu o 1º follow-up deste relogio
+  aguardandoSetorDesde?: string; // passou para um setor que ainda nao respondeu
+  processandoEm?: string;      // trava do cron, para dois nao mandarem a mesma coisa
   encerradaEm?: string;
   encerradaPor?: QuemEncerrou;
   encerradaPorNome?: string;

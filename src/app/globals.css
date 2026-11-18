@@ -326,6 +326,10 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 }
 .cab-btn{display:flex;align-items:center;gap:12px;flex:1;min-width:0;text-align:left;height:100%}
 .cab-btn b{display:block;font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* encerrar o atendimento na mão: o primeiro toque arma, o segundo encerra */
+.ch .enc{flex:none;padding:6px 11px;font-size:12.5px;color:var(--muted)}
+.ch .enc.confirma{background:var(--solar-wash);border-color:var(--solar-line);color:var(--solar-deep);font-weight:600}
+.b .bts-msg{display:block;margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
 .cab-btn small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cab-btn>span:last-child{min-width:0}
 .volta,.abre{display:none}
@@ -648,6 +652,39 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .constr-c ul{margin:0;padding-left:17px;color:var(--muted)}
 .constr-c li{padding:4px 0}
 
+/* ----- atendimento automático (Configurações) ----- */
+.cfg-grupo{border:0;margin-top:0;margin-bottom:0;padding:0;min-width:0}
+.cfg-grupo>.bl{margin:14px auto}
+.cfg-grupo[disabled] .cx,.cfg-grupo[disabled] .chip{opacity:.7}
+.bt-linhas{display:flex;flex-direction:column;gap:8px}
+.bt-linha{display:grid;grid-template-columns:18px minmax(0,1fr) minmax(0,210px);gap:8px;align-items:center}
+.bt-linha .ln .cx{flex:1 1 120px}
+.cont{flex:none;align-self:center;font-size:11px;color:var(--muted-2);min-width:38px;text-align:right}
+.cont.atr{color:var(--alert);font-weight:600}
+.minutos{align-items:center;margin:0}
+.frm .minutos label{margin:0;font-size:13px;color:var(--text)}
+.minutos .cx{flex:0 0 90px}
+.minutos .obs{padding:0}
+.faq{display:flex;flex-direction:column;gap:8px}
+.faq-it{display:flex;flex-direction:column;gap:6px;padding:9px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+.faq-it .cx{background:var(--surface)}
+.modelo{margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);font-size:13px;white-space:pre-wrap}
+.modelo code{font-family:var(--fonte-dados);font-size:12px;color:var(--solar-deep)}
+.quem-avisa{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.salvar-barra{
+  position:sticky;bottom:12px;z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  margin:14px auto;padding:10px 14px;background:var(--surface);border:1px solid var(--solar-line);
+  border-radius:var(--r);box-shadow:var(--shadow-2);font-size:13px;
+}
+.salvar-barra span{flex:1 1 220px;color:var(--solar-deep);font-weight:500}
+.teste-res{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+.balao-teste{margin:0;padding:8px 11px;border:1px solid var(--solar-line);border-radius:9px;background:var(--balao-out);white-space:pre-wrap}
+.teste-chat{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}
+.tc{max-width:85%;padding:7px 10px;border:1px solid var(--line);border-radius:9px;font-size:13.5px}
+.tc p{white-space:pre-wrap}
+.tc.aluno{align-self:flex-end;background:var(--surface-3)}
+.tc.escola{align-self:flex-start;background:var(--balao-out);border-color:var(--solar-line)}
+
 /* ================= larguras ================= */
 /* A escola trabalha com a tela dividida: metade de um monitor de 2560 dá 1280 de
    largura, e com o rail inteiro a conversa ficava com menos de 400. Até 1440 o rail
@@ -699,6 +736,9 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   .busca{margin-left:max(16px,env(safe-area-inset-left,0px));margin-right:max(16px,env(safe-area-inset-right,0px));padding-left:13px;padding-right:13px}
   .ch,.cmp,.pe,.fx,.rolo{padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
   .w{max-width:86%}
+  .so-largo{display:none}
+  .bt-linha{grid-template-columns:18px minmax(0,1fr)}
+  .bt-linha select{grid-column:2}
 
   .qd-tela{scroll-snap-type:x proximity;scroll-padding-left:16px;padding-top:14px}
   .kl{width:min(282px,82vw);scroll-snap-align:start}

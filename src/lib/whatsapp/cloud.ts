@@ -63,31 +63,51 @@ async function manda(corpo: Record<string, unknown>): Promise<RespostaEnvio> {
 export const mandaTexto = (para: string, texto: string) =>
   manda({ to: para, type: 'text', text: { preview_url: true, body: texto } });
 
-export const mandaTemplate = (para: string, nome: string, idioma: string, variaveis: string[]) =>
-  manda({
+/** Modelo aprovado. `sufixoDoLink` preenche o botão de link dinâmico do modelo (o
+    {{1}} no fim da URL cadastrada na Meta), quando ele tem um. */
+export function mandaTemplate(para: string, nome: string, idioma: string, variaveis: string[], sufixoDoLink?: string) {
+  const componentes: Record<string, unknown>[] = [];
+  if (variaveis.length) {
+    componentes.push({ type: 'body', parameters: variaveis.map((v) => ({ type: 'text', text: v })) });
+  }
+  if (sufixoDoLink) {
+    componentes.push({ type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: sufixoDoLink }] });
+  }
+  return manda({
     to: para,
     type: 'template',
-    template: {
-      name: nome,
-      language: { code: idioma },
-      ...(variaveis.length
-        ? { components: [{ type: 'body', parameters: variaveis.map((v) => ({ type: 'text', text: v })) }] }
-        : {}),
-    },
+    template: { name: nome, language: { code: idioma }, ...(componentes.length ? { components: componentes } : {}) },
   });
+}
 
-export const mandaBotoes = (para: string, texto: string, botoes: string[]) =>
+/** Botões de resposta. O id volta no webhook quando o contato toca; sem ids, b1, b2, b3. */
+export const mandaBotoes = (para: string, texto: string, botoes: string[], ids?: string[]) =>
   manda({
     to: para,
     type: 'interactive',
     interactive: {
       type: 'button',
-      body: { text: texto },
+      body: { text: texto.slice(0, 1024) },
       /* a Cloud API aceita no maximo 3 botoes, com ate 20 letras cada */
       action: {
         buttons: botoes.slice(0, 3).map((b, i) => ({
-          type: 'reply', reply: { id: `b${i + 1}`, title: b.slice(0, 20) },
+          type: 'reply', reply: { id: ids?.[i] || `b${i + 1}`, title: b.slice(0, 20) },
         })),
+      },
+    },
+  });
+
+/** Lista de opções: até 10 linhas de até 24 letras, atrás de um botão de até 20. */
+export const mandaLista = (para: string, texto: string, botao: string, linhas: { id: string; titulo: string }[]) =>
+  manda({
+    to: para,
+    type: 'interactive',
+    interactive: {
+      type: 'list',
+      body: { text: texto.slice(0, 1024) },
+      action: {
+        button: botao.slice(0, 20),
+        sections: [{ title: 'Opções', rows: linhas.slice(0, 10).map((l) => ({ id: l.id, title: l.titulo.slice(0, 24) })) }],
       },
     },
   });

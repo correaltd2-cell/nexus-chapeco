@@ -9,6 +9,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminBd } from '@/lib/firebase/admin';
 import { mandaTexto, temConfig } from '@/lib/whatsapp/cloud';
 import { janelaAberta } from '@/lib/dominio/formato';
+import { camposDaFalaDaEscola } from '@/lib/whatsapp/automatico';
 import type { Conversa, MensagemAgendada } from '@/lib/dominio/tipos';
 
 export const dynamic = 'force-dynamic';
@@ -80,6 +81,7 @@ export async function GET(req: Request) {
         ultimaPreviaTexto: a.texto,
         agenteAtivo: false,
         aguardandoDesde: FieldValue.delete(),
+        ...camposDaFalaDaEscola(quando),
       });
       await doc.ref.update({ estado: 'enviada' });
       enviadas += 1;

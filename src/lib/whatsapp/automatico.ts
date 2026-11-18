@@ -1,0 +1,422 @@
+/* O atendimento automático em ação, no servidor: reage a cada mensagem do contato,
+   roda o relógio do follow-up e devolve para a Recepção a conversa que um setor nao
+   respondeu. As decisoes moram em src/lib/dominio/automatico.ts (puras, testadas);
+   aqui fica so o que fala com o banco, com a Meta e com a IA.
+
+   Tres travas de seguranca, de proposito:
+   - nada roda com a chave mestra desligada (config/automatico.ligado)
+   - nada sai fora da janela de 24 horas: aqui so se responde a quem acabou de escrever
+   - mensagem antiga importada do celular (historico da coexistencia) nunca chega aqui */
+import 'server-only';
+import { FieldValue, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
+import { mandaBotoes, mandaLista, mandaTemplate, mandaTexto, temConfig } from './cloud';
+import { escreveMensagem, iaLigada, respondeComoAssistente, type Leitura } from '@/lib/ia/claude';
+import { leAssunto } from '@/lib/dominio/triagem';
+import { janelaAberta } from '@/lib/dominio/formato';
+import { NOME_SETOR } from '@/lib/dominio/acessos';
+import {
+  BOTOES_AJUDOU, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, depoisDoMenuConfuso, destinoDoAssunto,
+  deveVoltarParaRecepcao, escolhaDoMenu, idDaPergunta, idDoBotao, leAutomatico, pareceDespedida,
+  primeiro, promptMensagem, reservaDo, setorDoPassa, turnosDoAssistente,
+  type ConfigAutomatico, type ContextoDaConversa, type Destino, type Linha, type Momento,
+} from '@/lib/dominio/automatico';
+import type { Conversa, Mensagem, Perfil, QuemEncerrou, Setor } from '@/lib/dominio/tipos';
+
+const APAGA = () => FieldValue.delete();
+const agoraIso = () => new Date().toISOString();
+
+export async function leConfig(bd: Firestore): Promise<ConfigAutomatico> {
+  const d = await bd.doc('config/automatico').get();
+  return leAutomatico(d.exists ? (d.data() as Partial<ConfigAutomatico>) : null);
+}
+
+/** A conversa deste atendimento, para a IA ler. Nota interna e aviso do sistema ficam de fora. */
+export async function linhasDoAtendimento(bd: Firestore, conversaId: string, desde?: string): Promise<Linha[]> {
+  const s = await bd.collection('mensagens')
+    .where('conversaId', '==', conversaId).orderBy('criadaEm').limitToLast(30).get();
+  return s.docs
+    .map((d) => d.data() as Mensagem)
+    .filter((m) => m.autor !== 'sistema' && (!desde || m.criadaEm >= desde))
+    .map((m) => ({
+      de: m.direcao === 'entrada' ? 'aluno' as const : 'escola' as const,
+      quem: m.autor === 'lumi' ? 'atendimento automático' : m.autorNome || 'equipe',
+      texto: m.texto || (m.midiaNome ? `(mandou ${m.midiaNome})` : '(mandou uma mídia)'),
+    }));
+}
+
+export const contextoDe = (c: Partial<Conversa>, linhas: Linha[]): ContextoDaConversa => ({
+  nome: c.nome || '', ehAluno: Boolean(c.alunoId), observacao: c.observacao, linhas,
+});
+
+/** O texto de um momento: a IA escreve; sem ela, o texto de reserva das Configurações. */
+async function textoDo(momento: Momento, cfg: ConfigAutomatico, ctx: ContextoDaConversa) {
+  const leitura = await escreveMensagem(promptMensagem(cfg, momento, ctx));
+  return { leitura, texto: leitura?.mensagem || reservaDo(momento, cfg, ctx.nome) };
+}
+
+/* ---------------- falar com o contato ---------------- */
+
+interface Envio {
+  texto: string;
+  botoes?: { titulos: string[]; ids: string[] };
+  lista?: { botao: string; linhas: { id: string; titulo: string }[] };
+  /* liga: a fala espera resposta, o relógio do follow-up começa agora.
+     mantem: não mexe no relógio (o follow-up conta da fala que esperava resposta).
+     nao: aviso que não espera resposta, como "já te passo pra recepção". */
+  relogio: 'liga' | 'mantem' | 'nao';
+}
+
+async function fala(bd: Firestore, ref: DocumentReference, c: { waId?: string; janelaAte?: string }, e: Envio) {
+  const texto = e.texto.trim();
+  if (!texto || !c.waId || !janelaAberta(c)) return false;
+  const r = e.botoes
+    ? await mandaBotoes(c.waId, texto, e.botoes.titulos, e.botoes.ids)
+    : e.lista
+      ? await mandaLista(c.waId, texto, e.lista.botao, e.lista.linhas)
+      : await mandaTexto(c.waId, texto);
+  const agora = agoraIso();
+  const opcoes = e.botoes?.titulos || e.lista?.linhas.map((l) => l.titulo);
+  await bd.collection('mensagens').add({
+    conversaId: ref.id, direcao: 'saida', autor: 'lumi', autorNome: 'Atendimento automático',
+    texto, ...(opcoes ? { botoes: opcoes } : {}),
+    waMessageId: r.waMessageId || null,
+    falhouEm: r.ok ? null : agora, falhaMotivo: r.ok ? null : r.erro || null,
+    criadaEm: agora,
+  });
+  const campos: Record<string, unknown> = { ultimaEm: agora, ultimaPreviaTexto: texto };
+  if (e.relogio === 'liga' && r.ok) {
+    Object.assign(campos, { relogioDesde: agora, relogioMotivo: APAGA(), followUpEm: APAGA() });
+  }
+  await ref.update(campos);
+  return r.ok;
+}
+
+async function recado(bd: Firestore, conversaId: string, texto: string) {
+  await bd.collection('mensagens').add({
+    conversaId, direcao: 'saida', autor: 'sistema', autorNome: 'Sistema', texto, criadaEm: agoraIso(),
+  });
+}
+
+/** O que muda na conversa quando alguém do time fala com o contato (pelo sistema, pelo
+    celular ou por mensagem programada). Quem fala agora é gente; o relógio do follow-up
+    começa, a nao ser que tenha saido por modelo (janela fechada: nao ha o que retomar). */
+export function camposDaFalaDaEscola(quando: string, ligaRelogio = true): Record<string, unknown> {
+  return {
+    etapa: 'gente', tentativasMenu: APAGA(), aguardandoSetorDesde: APAGA(),
+    relogioMotivo: APAGA(), followUpEm: APAGA(),
+    relogioDesde: ligaRelogio ? quando : APAGA(),
+  };
+}
+
+/** Encerra o atendimento. A conversa volta para a Recepção, e a próxima mensagem do
+    contato começa o fluxo de novo. */
+export async function encerra(
+  bd: Firestore, ref: DocumentReference, por: QuemEncerrou, aviso: string, quemNome?: string,
+) {
+  await ref.update({
+    estado: 'encerrada', encerradaEm: agoraIso(), encerradaPor: por,
+    encerradaPorNome: quemNome || APAGA(),
+    setor: 'recepcao', agenteAtivo: true,
+    etapa: APAGA(), tentativasMenu: APAGA(), atendimentoDesde: APAGA(),
+    relogioDesde: APAGA(), relogioMotivo: APAGA(), followUpEm: APAGA(),
+    aguardandoSetorDesde: APAGA(), aguardandoDesde: APAGA(), processandoEm: APAGA(),
+  });
+  await recado(bd, ref.id, aviso);
+}
+
+/* ---------------- a mensagem que acabou de chegar ---------------- */
+
+/** O id e o texto do botão ou da linha de lista que o contato tocou. */
+function respostaInterativa(m: Record<string, unknown>, texto: string): { id?: string; titulo?: string } {
+  if (m.type === 'interactive') {
+    const i = m.interactive as { button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } } | undefined;
+    const r = i?.button_reply || i?.list_reply;
+    return { id: r?.id, titulo: r?.title };
+  }
+  if (m.type === 'button') {
+    const b = m.button as { payload?: string; text?: string } | undefined;
+    return { id: b?.payload, titulo: b?.text };
+  }
+  return { titulo: texto };
+}
+
+interface Rodada {
+  bd: Firestore;
+  ref: DocumentReference;
+  c: Partial<Conversa>;      // como estava antes desta mensagem, com a janela ja renovada
+  cfg: ConfigAutomatico;
+  texto: string;
+  quando: string;
+  resposta: { id?: string; titulo?: string };
+}
+
+export async function atendeAoVivo(
+  bd: Firestore, ref: DocumentReference, antes: Partial<Conversa>,
+  m: Record<string, unknown>, texto: string, quando: string, janelaAte: string,
+) {
+  const cfg = await leConfig(bd);
+  if (!cfg.ligado || !temConfig()) return;
+
+  const r: Rodada = {
+    bd, ref, c: { ...antes, janelaAte }, cfg, texto, quando, resposta: respostaInterativa(m, texto),
+  };
+  const novo = antes.estado === 'encerrada' || antes.etapa === 'inicio';
+  /* o contato falou: o relógio para, quem decide o próximo passo é a etapa */
+  const paraRelogio = { relogioDesde: APAGA(), relogioMotivo: APAGA(), followUpEm: APAGA() };
+
+  if (novo) {
+    await ref.update({
+      ...paraRelogio, etapa: 'menu', tentativasMenu: 0, atendimentoDesde: quando,
+      setor: 'recepcao', aguardandoSetorDesde: APAGA(),
+    });
+    const destino = cfg.pulaMenu ? destinoDoAssunto(leAssunto(texto).assunto, cfg) : null;
+    if (destino) return segue(r, destino);
+    return mandaMenu(r, 'saudacao');
+  }
+
+  if (antes.etapa === 'menu') {
+    await ref.update(paraRelogio);
+    const destino = escolhaDoMenu(cfg, r.resposta) ?? destinoDoAssunto(leAssunto(texto).assunto, cfg);
+    if (destino) return segue(r, destino);
+    const tentativas = antes.tentativasMenu || 0;
+    if (depoisDoMenuConfuso(tentativas) === 'repete') {
+      await ref.update({ tentativasMenu: tentativas + 1 });
+      return mandaMenu(r, 'denovo');
+    }
+    return paraRecepcao(r);
+  }
+
+  if (antes.etapa === 'assistente') {
+    await ref.update(paraRelogio);
+    return assistente(r);
+  }
+
+  /* com gente: nada responde sozinho. Se parece despedida, o relógio liga para a IA
+     confirmar, lendo a conversa, se resolveu de verdade. */
+  if (pareceDespedida(texto)) {
+    await ref.update({ relogioDesde: quando, relogioMotivo: 'despedida', followUpEm: APAGA() });
+  } else {
+    await ref.update(paraRelogio);
+  }
+}
+
+async function mandaMenu(r: Rodada, qual: 'saudacao' | 'denovo') {
+  const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.quando);
+  const texto = qual === 'saudacao'
+    ? (await textoDo('saudacao', r.cfg, contextoDe(r.c, linhas))).texto
+    : r.cfg.menuDeNovo;
+  await fala(r.bd, r.ref, r.c, {
+    texto,
+    botoes: { titulos: r.cfg.botoes.map((b) => b.texto), ids: r.cfg.botoes.map((_, i) => idDoBotao(i)) },
+    relogio: 'liga',
+  });
+}
+
+async function segue(r: Rodada, destino: Destino) {
+  if (destino === 'recepcao') return paraRecepcao(r);
+  await r.ref.update({ setor: 'financeiro', estado: 'ia', agenteAtivo: true, etapa: 'assistente', tentativasMenu: 0 });
+  r.c = { ...r.c, setor: 'financeiro', estado: 'ia', etapa: 'menu' };
+  return assistente(r);
+}
+
+/** Vai para gente na Recepção, com um aviso curto que não espera resposta. */
+async function paraRecepcao(r: Rodada) {
+  await r.ref.update({
+    setor: 'recepcao', estado: 'aguardando', aguardandoDesde: r.quando, agenteAtivo: false,
+    etapa: 'gente', tentativasMenu: APAGA(),
+  });
+  const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.c.atendimentoDesde || r.quando);
+  const { texto } = await textoDo('encaminha', r.cfg, contextoDe(r.c, linhas));
+  await fala(r.bd, r.ref, r.c, { texto, relogio: 'nao' });
+}
+
+/** O assistente não resolveu: passa para gente, com um resumo para ninguém perguntar tudo de novo. */
+async function passaParaGente(r: Rodada, resumo: string, avisa: boolean) {
+  const setor = setorDoPassa(r.cfg);
+  await r.ref.update({
+    setor, estado: 'aguardando', aguardandoDesde: agoraIso(), agenteAtivo: false,
+    etapa: 'gente', tentativasMenu: APAGA(),
+    aguardandoSetorDesde: setor === 'recepcao' ? APAGA() : agoraIso(),
+  });
+  await recado(r.bd, r.ref.id, `O assistente passou a conversa para ${NOME_SETOR[setor]}. Resumo: ${resumo}`);
+  if (avisa) await fala(r.bd, r.ref, r.c, { texto: reservaDo('encaminha', r.cfg, r.c.nome || ''), relogio: 'nao' });
+}
+
+async function assistente(r: Rodada) {
+  const { cfg } = r;
+  if (cfg.modo === 'ia' && iaLigada()) {
+    const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.c.atendimentoDesde || r.quando);
+    const resposta = await respondeComoAssistente(turnosDoAssistente(cfg, contextoDe(r.c, linhas)));
+    if (resposta) {
+      const passa = resposta.acao === 'passar';
+      await fala(r.bd, r.ref, r.c, { texto: resposta.mensagem, relogio: passa ? 'nao' : 'liga' });
+      if (passa) await passaParaGente(r, resposta.resumo || 'O assistente não soube responder.', false);
+      return;
+    }
+    /* a IA não respondeu: segue no modo botões, que não depende dela */
+  }
+  return assistenteEmBotoes(r);
+}
+
+async function assistenteEmBotoes(r: Rodada) {
+  const { cfg, resposta } = r;
+  const id = resposta.id || '';
+  if (id === ID_PESSOA) return passaParaGente(r, 'Pediu para falar com uma pessoa.', true);
+  if (id === ID_AJUDOU) {
+    if (cfg.resolvida === 'despedida') {
+      await fala(r.bd, r.ref, r.c, { texto: reservaDo('despedida', cfg, r.c.nome || ''), relogio: 'nao' });
+    }
+    return encerra(r.bd, r.ref, 'cliente', 'Resolvido pelo assistente. Atendimento encerrado.');
+  }
+  const pelaLista = /^faq-(\d)$/.exec(id);
+  if (pelaLista) {
+    const q = cfg.faq[Number(pelaLista[1])];
+    if (!q || !q.r) return passaParaGente(r, `Perguntou sobre "${q?.t || 'uma dúvida'}", que ainda não tem resposta escrita.`, true);
+    return fala(r.bd, r.ref, r.c, {
+      texto: `${q.r}\n\nAjudou?`, botoes: { titulos: BOTOES_AJUDOU, ids: [ID_AJUDOU, ID_PESSOA] }, relogio: 'liga',
+    });
+  }
+  /* digitou, ou acabou de chegar: a lista vai uma vez; digitou de novo, vai para gente */
+  const tentativas = r.c.etapa === 'assistente' ? r.c.tentativasMenu || 0 : 0;
+  if (tentativas >= 1 || !cfg.faq.length) {
+    return passaParaGente(r, `Escreveu: "${r.texto.slice(0, 200)}".`, true);
+  }
+  await r.ref.update({ tentativasMenu: tentativas + 1 });
+  return fala(r.bd, r.ref, r.c, {
+    texto: `Beleza${r.c.nome ? `, ${primeiro(r.c.nome)}` : ''}! Escolhe tua dúvida aqui embaixo 👇`,
+    lista: {
+      botao: 'Ver as dúvidas',
+      linhas: [...cfg.faq.map((q, i) => ({ id: idDaPergunta(i), titulo: q.t })), { id: ID_PESSOA, titulo: 'Falar com uma pessoa' }],
+    },
+    relogio: 'liga',
+  });
+}
+
+/* ---------------- o relógio (cron de minuto em minuto) ---------------- */
+
+/** Pega a conversa para este cron. Se outro cron está nela há menos de 3 minutos, larga. */
+async function trava(bd: Firestore, ref: DocumentReference, agora: Date): Promise<Partial<Conversa> | null> {
+  return bd.runTransaction(async (tx) => {
+    const s = await tx.get(ref);
+    if (!s.exists) return null;
+    const d = s.data() as Partial<Conversa>;
+    if (d.processandoEm && agora.getTime() - new Date(d.processandoEm).getTime() < 3 * 60_000) return null;
+    tx.update(ref, { processandoEm: agora.toISOString() });
+    return { ...d, id: s.id };
+  });
+}
+
+export async function rodaRelogios(bd: Firestore, agora = new Date()) {
+  const cfg = await leConfig(bd);
+  const feito = { followups: 0, encerradas: 0, voltaram: 0 };
+  if (!cfg.ligado || !temConfig()) return { ...feito, desligado: true };
+
+  const limite = new Date(agora.getTime() - cfg.fu1Min * 60_000).toISOString();
+  const vencidas = await bd.collection('conversas').where('relogioDesde', '<=', limite).limit(40).get();
+
+  for (const doc of vencidas.docs) {
+    if (acaoDoRelogio(doc.data() as Conversa, cfg, agora) === 'nada') continue;
+    const c = await trava(bd, doc.ref, agora);
+    if (!c) continue;
+    try {
+      const acao = acaoDoRelogio(c as Conversa, cfg, agora);
+      if (acao === 'nada') continue;
+      const ctx = contextoDe(c, await linhasDoAtendimento(bd, doc.id, c.atendimentoDesde));
+      const momento: Momento = acao === 'followup' ? 'followup' : acao === 'encerra' ? 'encerramento' : 'despedida';
+      const leitura: Leitura | null = await escreveMensagem(promptMensagem(cfg, momento, ctx));
+
+      if (leitura?.situacao === 'aluno_esperando') {
+        /* quem espera é o contato: nada sai, e o time ve o tempo de aguardo */
+        await doc.ref.update({ relogioDesde: APAGA(), relogioMotivo: APAGA(), followUpEm: APAGA() });
+        continue;
+      }
+      if (acao === 'avalia_despedida' && leitura && leitura.situacao !== 'resolvida') {
+        await doc.ref.update({ relogioDesde: APAGA(), relogioMotivo: APAGA() });
+        continue;
+      }
+
+      const resolvida = acao === 'avalia_despedida' || leitura?.situacao === 'resolvida';
+      if (acao === 'followup' && !resolvida) {
+        await fala(bd, doc.ref, c, { texto: leitura?.mensagem || reservaDo('followup', cfg, c.nome || ''), relogio: 'mantem' });
+        await doc.ref.update({ followUpEm: agora.toISOString() });
+        feito.followups += 1;
+        continue;
+      }
+
+      /* encerra: por falta de resposta, ou porque resolveu */
+      const texto = resolvida
+        ? (cfg.resolvida === 'despedida' ? leitura?.mensagem || reservaDo('despedida', cfg, c.nome || '') : '')
+        : leitura?.mensagem || reservaDo('encerramento', cfg, c.nome || '');
+      if (texto) await fala(bd, doc.ref, c, { texto, relogio: 'mantem' });
+      await encerra(bd, doc.ref, resolvida ? 'cliente' : 'silencio',
+        resolvida ? 'Atendimento resolvido e encerrado.' : 'Atendimento encerrado por falta de resposta.');
+      feito.encerradas += 1;
+    } catch (e) {
+      console.error('[relogio]', doc.id, e);
+    } finally {
+      await doc.ref.update({ processandoEm: APAGA() }).catch(() => undefined);
+    }
+  }
+
+  /* setor que recebeu e não respondeu: volta para a Recepção */
+  const limiteVolta = new Date(agora.getTime() - cfg.voltaHoras * 3_600_000).toISOString();
+  const paradas = await bd.collection('conversas').where('aguardandoSetorDesde', '<=', limiteVolta).limit(40).get();
+  for (const doc of paradas.docs) {
+    const c = doc.data() as Conversa;
+    if (!deveVoltarParaRecepcao(c, cfg, agora)) continue;
+    await doc.ref.update({ setor: 'recepcao', aguardandoSetorDesde: APAGA() });
+    await recado(bd, doc.id, `Voltou para a Recepção: ${NOME_SETOR[c.setor]} não respondeu em ${cfg.voltaHoras} h.`);
+    feito.voltaram += 1;
+  }
+  return feito;
+}
+
+/* ---------------- ações do time ---------------- */
+
+/** Passa a conversa para um setor. Coordenação e Coordenação Kids recebem o aviso no
+    celular pessoal, por modelo aprovado, com o botão que abre a conversa no sistema. */
+export async function transfere(
+  bd: Firestore, ref: DocumentReference, c: Conversa, setor: Setor, quemNome: string,
+) {
+  const agora = agoraIso();
+  await ref.update({
+    setor, estado: 'aguardando', agenteAtivo: false, aguardandoDesde: agora,
+    etapa: 'gente', tentativasMenu: APAGA(),
+    aguardandoSetorDesde: setor === 'recepcao' ? APAGA() : agora,
+    relogioDesde: APAGA(), relogioMotivo: APAGA(), followUpEm: APAGA(),
+  });
+  await recado(bd, ref.id, `${quemNome} passou a conversa para ${NOME_SETOR[setor]}.`);
+
+  const avisos: string[] = [];
+  const cfg = await leConfig(bd);
+  if ((setor === 'coordenacao' || setor === 'kids') && cfg.avisoLigado && temConfig()) {
+    const ps = await bd.collection('perfis').where('ativo', '==', true).get();
+    for (const d of ps.docs) {
+      const p = d.data() as Perfil;
+      const fone = (p.telefone || '').replace(/\D/g, '');
+      if (!p.avisaNoWhats || !fone || !(p.setores || []).includes(setor)) continue;
+      const r = await mandaTemplate(fone, cfg.avisoModelo, cfg.avisoIdioma,
+        [primeiro(p.nome), NOME_SETOR[setor], c.nome || c.waId], ref.id);
+      const linha = r.ok
+        ? `Aviso enviado no WhatsApp de ${p.nome}.`
+        : `O aviso para ${p.nome} não saiu: ${r.erro || 'a Meta recusou'}.`;
+      avisos.push(linha);
+      await recado(bd, ref.id, linha);
+    }
+  }
+  return avisos;
+}
+
+/** O time encerra na mão. Com a chave ligada e a despedida marcada, a IA se despede antes. */
+export async function encerraNaMao(bd: Firestore, ref: DocumentReference, c: Conversa, quemNome: string) {
+  const cfg = await leConfig(bd);
+  if (cfg.ligado && cfg.manualDespedida && temConfig() && janelaAberta(c)) {
+    const ctx = contextoDe(c, await linhasDoAtendimento(bd, ref.id, c.atendimentoDesde));
+    /* quem encerra é gente, de propósito: sai a despedida, a não ser que a escola tenha
+       escolhido encerrar calado as conversas já resolvidas */
+    const { leitura, texto } = await textoDo('despedida', cfg, ctx);
+    const calado = leitura?.situacao === 'resolvida' && cfg.resolvida === 'nada';
+    if (!calado) await fala(bd, ref, c, { texto, relogio: 'mantem' });
+  }
+  await encerra(bd, ref, 'atendente', `${quemNome} encerrou o atendimento.`, quemNome);
+}

@@ -40,9 +40,9 @@ export async function quemChamou(req: Request) {
     const d = await adminAuth().verifyIdToken(token);
     const perfil = await adminBd().doc(`perfis/${d.uid}`).get();
     if (!perfil.exists) return null;
-    const dados = perfil.data() as { papel?: string; ativo?: boolean; nome?: string };
+    const dados = perfil.data() as { papel?: string; ativo?: boolean; nome?: string; setores?: string[] };
     if (!dados.ativo) return null;
-    return { uid: d.uid, papel: dados.papel || 'recepcao', nome: dados.nome || '' };
+    return { uid: d.uid, papel: dados.papel || 'recepcao', nome: dados.nome || '', setores: dados.setores || [] };
   } catch {
     return null;
   }
