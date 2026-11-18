@@ -1,6 +1,7 @@
 /* Regras dos quadros que valem na tela e no servidor.
    A ordem dos cartoes é um numero com folga entre os vizinhos: mover um cartao é
    escrever UM documento, nao renumerar a lista inteira. */
+import { fimDoDia } from './formato';
 import type { Cartao, Lista } from './tipos';
 
 export const PASSO = 1000;
@@ -38,9 +39,10 @@ export const quantosFiltros = (f: Filtros) =>
   (f.busca.trim() ? 1 : 0) + f.etiquetas.length + f.membros.length +
   (f.soVencidos ? 1 : 0) + (f.semMembro ? 1 : 0);
 
+/** Prazo so vence quando o DIA acaba: cartao para hoje nao nasce vermelho. */
 export function vencido(c: Cartao, hoje = new Date()) {
   if (!c.prazo || c.prazoConcluido) return false;
-  return new Date(c.prazo).getTime() < hoje.getTime();
+  return fimDoDia(c.prazo).getTime() < hoje.getTime();
 }
 
 export function passaNosFiltros(c: Cartao, f: Filtros) {

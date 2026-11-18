@@ -4,9 +4,18 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, bd, configurado } from '@/lib/firebase/cliente';
+import { avisa } from '@/componentes/aviso';
 import type { Perfil } from '@/lib/dominio/tipos';
 
 type Estado = 'carregando' | 'fora' | 'dentro' | 'sem-perfil' | 'sem-config';
+
+/* Sem Firebase configurado o sistema abre em demonstracao, com dados ficticios e
+   um perfil de administrador, para dar para ver as telas antes de existir banco. */
+export const PERFIL_DEMO: Perfil = {
+  id: 'u-gui', nome: 'Guilherme', email: 'demonstracao@nexus', papel: 'admin',
+  setores: ['recepcao', 'financeiro', 'coordenacao', 'kids'],
+  avisaNoWhats: false, ativo: true, criadoEm: new Date().toISOString(),
+};
 
 interface Sessao {
   estado: Estado;
@@ -19,9 +28,9 @@ const Ctx = createContext<Sessao>({ estado: 'carregando', usuario: null, perfil:
 export const useSessao = () => useContext(Ctx);
 
 export function ProvedorDeSessao({ children }: { children: ReactNode }) {
-  const [estado, setEstado] = useState<Estado>(configurado ? 'carregando' : 'sem-config');
+  const [estado, setEstado] = useState<Estado>(configurado ? 'carregando' : 'dentro');
   const [usuario, setUsuario] = useState<User | null>(null);
-  const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [perfil, setPerfil] = useState<Perfil | null>(configurado ? null : PERFIL_DEMO);
 
   useEffect(() => {
     if (!configurado) return;
@@ -45,7 +54,10 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
     );
   }, [usuario]);
 
-  const sair = async () => { if (configurado) await signOut(auth()); };
+  const sair = async () => {
+    if (!configurado) { avisa('Na demonstração não tem login para sair.'); return; }
+    await signOut(auth());
+  };
 
   return <Ctx.Provider value={{ estado, usuario, perfil, sair }}>{children}</Ctx.Provider>;
 }

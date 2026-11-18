@@ -1,5 +1,5 @@
 'use client';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, configurado } from '@/lib/firebase/cliente';
@@ -12,6 +12,9 @@ export default function Entrar() {
   const [indo, setIndo] = useState(false);
   const { estado, sair } = useSessao();
   const router = useRouter();
+
+  /* sem Firebase, o sistema roda em demonstracao e nao tem o que logar */
+  useEffect(() => { if (!configurado) router.replace('/conversas'); }, [router]);
 
   async function enviar(e: FormEvent) {
     e.preventDefault();

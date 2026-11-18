@@ -15,19 +15,36 @@ const SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 's�
 
 export const dia0 = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+/** Le uma data.
+   "2026-11-17" sozinho tem que valer como o dia 17 AQUI, nao meia-noite em Londres:
+   `new Date("2026-11-17")` vira 16/11 as 21h no horario de Chapeco, e o prazo aparece
+   um dia antes e vencido sem estar. Com hora junto, o texto ja diz o fuso. */
+export function paraData(iso: string): Date {
+  const so = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (so) return new Date(Number(so[1]), Number(so[2]) - 1, Number(so[3]));
+  return new Date(iso);
+}
+
+/** O ultimo instante do dia de uma data. É com ele que se compara prazo. */
+export function fimDoDia(iso: string): Date {
+  const d = paraData(iso);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
 export function hora(iso: string) {
-  const d = new Date(iso);
+  const d = paraData(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 export function dataBR(iso: string) {
-  const d = new Date(iso);
+  const d = paraData(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 /** Hora quando é hoje, "ontem", dia da semana na mesma semana, data depois disso. */
 export function quando(iso: string, agora = new Date()) {
-  const d = new Date(iso);
+  const d = paraData(iso);
   const dias = Math.round((dia0(agora).getTime() - dia0(d).getTime()) / 864e5);
   if (dias <= 0) return hora(iso);
   if (dias === 1) return 'ontem';
@@ -37,7 +54,7 @@ export function quando(iso: string, agora = new Date()) {
 
 /** Separador de dia dentro da conversa. */
 export function diaPorExtenso(iso: string, agora = new Date()) {
-  const d = new Date(iso);
+  const d = paraData(iso);
   const dias = Math.round((dia0(agora).getTime() - dia0(d).getTime()) / 864e5);
   if (dias <= 0) return 'Hoje';
   if (dias === 1) return 'Ontem';
@@ -46,7 +63,7 @@ export function diaPorExtenso(iso: string, agora = new Date()) {
 }
 
 export const mesmoDia = (a: string, b: string) =>
-  dia0(new Date(a)).getTime() === dia0(new Date(b)).getTime();
+  dia0(paraData(a)).getTime() === dia0(paraData(b)).getTime();
 
 /** Telefone do jeito que gente lê: +55 49 99123-4567 */
 export function telefoneLegivel(bruto: string) {

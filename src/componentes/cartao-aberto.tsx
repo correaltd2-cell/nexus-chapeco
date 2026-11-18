@@ -2,9 +2,9 @@
 /* O cartao aberto. Tudo que o Trello tem de util: descricao, etiquetas, pessoas,
    prazo, checklist, comentarios, anexos, mover de lista e arquivar. */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { deleteField, doc, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref as refArquivo, uploadBytes } from 'firebase/storage';
-import { arquivos, bd } from '@/lib/firebase/cliente';
+import { arquivos } from '@/lib/firebase/cliente';
+import { APAGAR, atualiza, modoDemo } from '@/lib/dados/fonte';
 import { Ic } from '@/componentes/icones';
 import { avisa } from '@/componentes/aviso';
 import { useSessao } from '@/componentes/sessao';
@@ -36,7 +36,6 @@ export default function CartaoAberto({
   const caixa = useRef<HTMLDivElement>(null);
   const entrada = useRef<HTMLInputElement>(null);
 
-  const ref = doc(bd(), 'cartoes', cartao.id);
   const lista = listas.find((l) => l.id === cartao.listaId);
   const quadro = quadros.find((q) => q.id === cartao.quadroId);
   const feitos = feitosDoChecklist(cartao);
@@ -56,7 +55,7 @@ export default function CartaoAberto({
   });
 
   const salva = (campos: Record<string, unknown>, atividade?: string) =>
-    updateDoc(ref, {
+    atualiza('cartoes', cartao.id, {
       ...campos,
       atualizadoEm: new Date().toISOString(),
       ...(atividade ? { atividade: [...cartao.atividade, anota(atividade)] } : {}),
@@ -92,7 +91,7 @@ export default function CartaoAberto({
     e.preventDefault();
     const t = comentario.trim();
     if (!t) return;
-    void updateDoc(ref, {
+    void atualiza('cartoes', cartao.id, {
       comentarios: [...cartao.comentarios, {
         id: id9(), autorId: perfil?.id || '', autorNome: perfil?.nome || 'Equipe',
         texto: t, criadoEm: new Date().toISOString(),
@@ -103,6 +102,7 @@ export default function CartaoAberto({
   }
 
   async function anexa(arquivo: File) {
+    if (modoDemo) { avisa('Na demonstração não dá para subir arquivo: falta o Storage do Firebase.'); return; }
     if (arquivo.size > 20 * 1024 * 1024) { avisa('O arquivo passa de 20 MB. Mande um menor.'); return; }
     setSubindo(true);
     try {
@@ -122,6 +122,7 @@ export default function CartaoAberto({
   }
 
   async function abreAnexo(path: string) {
+    if (modoDemo) { avisa('Na demonstração o anexo é só um exemplo.'); return; }
     try { window.open(await getDownloadURL(refArquivo(arquivos(), path)), '_blank', 'noopener'); }
     catch { avisa('Não consegui abrir o anexo.'); }
   }
@@ -157,7 +158,7 @@ export default function CartaoAberto({
                   </button>
                 </div>
                 <div className="lnk">
-                  <button className="tx-btn" onClick={() => void salva({ conversaId: deleteField() }, 'desligou o cartão da conversa')}>
+                  <button className="tx-btn" onClick={() => void salva({ conversaId: APAGAR }, 'desligou o cartão da conversa')}>
                     Desligar da conversa
                   </button>
                 </div>
@@ -269,7 +270,7 @@ export default function CartaoAberto({
               <h3>Prazo</h3>
               <input className="cx" type="date" value={cartao.prazo || ''} aria-label="Prazo do cartão"
                      onChange={(e) => void salva(
-                       e.target.value ? { prazo: e.target.value } : { prazo: deleteField(), prazoConcluido: false },
+                       e.target.value ? { prazo: e.target.value } : { prazo: APAGAR, prazoConcluido: false },
                      )} />
               {cartao.prazo && (
                 <label className={cartao.prazoConcluido ? 'ci ok' : 'ci'}>

@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { Ic, SpriteDeIcones } from '@/componentes/icones';
 import { useSessao, useTema } from '@/componentes/sessao';
 import { MODULOS, NOME_MODULO, modulosDoPapel, type Modulo } from '@/lib/dominio/acessos';
+import { modoDemo } from '@/lib/dados/fonte';
 
 const ROTA: Record<Modulo, string> = {
   conversas: '/conversas',
@@ -88,7 +89,15 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
           </button>
         </nav>
 
-        <main className="views">{children}</main>
+        <main className="views">
+          {modoDemo && (
+            <p className="fita-demo">
+              Demonstração, com dados fictícios. Nada aqui é aluno de verdade, e o que você mudar
+              some ao recarregar a página.
+            </p>
+          )}
+          {children}
+        </main>
 
         <nav className="tabs" aria-label="Seções do sistema">
           {NO_CELULAR.filter((m) => meus.includes(m)).map((m) => (

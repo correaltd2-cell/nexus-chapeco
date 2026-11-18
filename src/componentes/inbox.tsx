@@ -3,10 +3,7 @@
    Le do Firestore em tempo real; manda pela rota /api/whatsapp/enviar, que é quem
    tem o segredo. */
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import {
-  collection, doc, limit, onSnapshot, orderBy, query, updateDoc, where,
-} from 'firebase/firestore';
-import { bd } from '@/lib/firebase/cliente';
+import { assina, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
 import { NOME_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
@@ -38,7 +35,7 @@ function Ticks({ m }: { m: Mensagem }) {
 export default function Inbox() {
   const { perfil, usuario } = useSessao();
   const [conversas, setConversas] = useState<Conversa[]>([]);
-  const [mensagens, setMensagens] = useState<Mensagem[]>([]);
+  const [todasMensagens, setTodasMensagens] = useState<Mensagem[]>([]);
   const [abertaId, setAbertaId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [busca, setBusca] = useState('');
@@ -49,26 +46,22 @@ export default function Inbox() {
   const rolo = useRef<HTMLDivElement>(null);
 
   /* lista de conversas, em tempo real */
-  useEffect(() => {
-    const q = query(collection(bd(), 'conversas'), orderBy('ultimaEm', 'desc'), limit(80));
-    return onSnapshot(q, (s) => {
-      setConversas(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Conversa));
-    }, () => setAviso('Não consegui ler as conversas. Confira seu acesso.'));
-  }, []);
+  useEffect(() => assina('conversas', (docs) => {
+    setConversas((docs as unknown as Conversa[]).slice()
+      .sort((a, b) => (b.ultimaEm || '').localeCompare(a.ultimaEm || '')));
+  }), []);
 
-  /* mensagens da conversa aberta */
-  useEffect(() => {
-    if (!abertaId) { setMensagens([]); return; }
-    const q = query(
-      collection(bd(), 'mensagens'),
-      where('conversaId', '==', abertaId),
-      orderBy('criadaEm', 'asc'),
-      limit(300),
-    );
-    return onSnapshot(q, (s) => {
-      setMensagens(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Mensagem));
-    });
-  }, [abertaId]);
+  /* mensagens de todas as conversas; a aberta filtra em memoria */
+  useEffect(() => assina('mensagens', (docs) => {
+    setTodasMensagens(docs as unknown as Mensagem[]);
+  }), []);
+
+  const mensagens = useMemo(
+    () => todasMensagens
+      .filter((m) => m.conversaId === abertaId)
+      .sort((a, b) => a.criadaEm.localeCompare(b.criadaEm)),
+    [todasMensagens, abertaId],
+  );
 
   useEffect(() => {
     const r = rolo.current;
@@ -90,15 +83,31 @@ export default function Inbox() {
     setAbertaId(c.id); setPainel(false); setRascunho('');
     document.querySelector('.wa')?.classList.add('c-open');
     if (c.naoLidas > 0) {
-      try { await updateDoc(doc(bd(), 'conversas', c.id), { naoLidas: 0 }); } catch { /* sem permissão, segue */ }
+      try { await atualiza('conversas', c.id, { naoLidas: 0 }); } catch { /* sem permissão, segue */ }
     }
   }, []);
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
     const texto = rascunho.trim();
-    if (!texto || !aberta || !usuario) return;
+    if (!texto || !aberta) return;
     setEnviando(true); setAviso('');
+
+    /* na demonstracao nao existe servidor nem Meta: a fala entra direto na base */
+    if (modoDemo) {
+      const agora = new Date().toISOString();
+      await cria('mensagens', {
+        conversaId: aberta.id, direcao: 'saida', autor: 'humano',
+        autorNome: perfil?.nome || 'Equipe', texto, entregueEm: agora, criadaEm: agora,
+      });
+      await atualiza('conversas', aberta.id, {
+        ultimaEm: agora, ultimaPreviaTexto: texto, agenteAtivo: false, naoLidas: 0,
+      });
+      setRascunho(''); setEnviando(false);
+      return;
+    }
+
+    if (!usuario) { setEnviando(false); return; }
     try {
       const token = await usuario.getIdToken();
       const r = await fetch('/api/whatsapp/enviar', {

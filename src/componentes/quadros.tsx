@@ -5,10 +5,7 @@
    do aluno, que é o motivo de existir aqui dentro. */
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  addDoc, collection, doc, onSnapshot, orderBy, query, updateDoc, writeBatch,
-} from 'firebase/firestore';
-import { bd } from '@/lib/firebase/cliente';
+import { assina, atualiza, cria, lote } from '@/lib/dados/fonte';
 import { Ic } from '@/componentes/icones';
 import { avisa } from '@/componentes/aviso';
 import { useSessao } from '@/componentes/sessao';
@@ -42,22 +39,16 @@ export default function Quadros() {
   const arrastando = useRef<string | null>(null);
   const tela = useRef<HTMLDivElement>(null);
 
-  useEffect(() => onSnapshot(query(collection(bd(), 'quadros'), orderBy('ordem')), (s) => {
-    const qs = s.docs.map((d) => ({ id: d.id, ...d.data() }) as Quadro).filter((q) => !q.arquivado);
+  useEffect(() => assina('quadros', (docs) => {
+    const qs = (docs as unknown as Quadro[]).filter((q) => !q.arquivado).sort((a, b) => a.ordem - b.ordem);
     setQuadros(qs);
     setAtualId((a) => (a && qs.some((q) => q.id === a) ? a : qs[0]?.id || null));
   }), []);
 
-  useEffect(() => onSnapshot(collection(bd(), 'listas'), (s) => {
-    setListas(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Lista));
-  }), []);
-
-  useEffect(() => onSnapshot(collection(bd(), 'cartoes'), (s) => {
-    setCartoes(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Cartao));
-  }), []);
-
-  useEffect(() => onSnapshot(collection(bd(), 'perfis'), (s) => {
-    setEquipe(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Perfil).filter((p) => p.ativo));
+  useEffect(() => assina('listas', (docs) => setListas(docs as unknown as Lista[])), []);
+  useEffect(() => assina('cartoes', (docs) => setCartoes(docs as unknown as Cartao[])), []);
+  useEffect(() => assina('perfis', (docs) => {
+    setEquipe((docs as unknown as Perfil[]).filter((p) => p.ativo));
   }), []);
 
   const quadro = quadros.find((q) => q.id === atualId) || null;
@@ -70,24 +61,20 @@ export default function Quadros() {
 
   /* ---------- escrever ---------- */
   async function criaQuadro(nome: string) {
-    const ref = await addDoc(collection(bd(), 'quadros'), {
+    const id = await cria('quadros', {
       nome, ordem: (quadros.length + 1) * PASSO, arquivado: false, criadoEm: agora(),
     });
-    const lote = writeBatch(bd());
-    LISTAS_PADRAO.forEach((n, i) => {
-      lote.set(doc(collection(bd(), 'listas')), {
-        quadroId: ref.id, nome: n, ordem: (i + 1) * PASSO, arquivada: false,
-      });
-    });
-    await lote.commit();
-    setAtualId(ref.id);
+    for (let i = 0; i < LISTAS_PADRAO.length; i++) {
+      await cria('listas', { quadroId: id, nome: LISTAS_PADRAO[i], ordem: (i + 1) * PASSO, arquivada: false });
+    }
+    setAtualId(id);
     avisa(`Quadro ${nome} criado`);
   }
 
   async function criaCartao(listaId: string, titulo: string) {
     const naLista = cartoesDaLista(cartoes, listaId);
     const ultimo = naLista[naLista.length - 1];
-    await addDoc(collection(bd(), 'cartoes'), {
+    await cria('cartoes', {
       quadroId: atualId, listaId, ordem: ultimo ? ultimo.ordem + PASSO : PASSO,
       titulo, descricao: '', etiquetas: [], membros: perfil ? [perfil.id] : [],
       prazoConcluido: false, checklist: [], comentarios: [],
@@ -109,20 +96,19 @@ export default function Quadros() {
 
     if (precisaRenumerar(antes, depois)) {
       /* os vizinhos encostaram: renumera a lista com folga e encaixa */
-      const lote = writeBatch(bd());
       const nova = [...naLista.slice(0, corte), cartao, ...naLista.slice(corte)];
-      renumera(nova).forEach((x) => lote.update(doc(bd(), 'cartoes', x.id), {
-        ordem: x.ordem, ...(x.id === cartaoId ? { listaId, quadroId: destino.quadroId } : {}),
-      }));
-      await lote.commit();
+      await lote(renumera(nova).map((x) => ({
+        colecao: 'cartoes', id: x.id,
+        campos: { ordem: x.ordem, ...(x.id === cartaoId ? { listaId, quadroId: destino.quadroId } : {}) },
+      })));
     } else {
-      await updateDoc(doc(bd(), 'cartoes', cartaoId), {
+      await atualiza('cartoes', cartaoId, {
         listaId, quadroId: destino.quadroId, ordem: ordemEntre(antes, depois), atualizadoEm: agora(),
       });
     }
     if (cartao.listaId !== listaId) {
       const origem = listas.find((l) => l.id === cartao.listaId);
-      await updateDoc(doc(bd(), 'cartoes', cartaoId), {
+      await atualiza('cartoes', cartaoId, {
         atividade: [...cartao.atividade, {
           id: Math.random().toString(36).slice(2, 11), autorNome: perfil?.nome || 'Equipe',
           texto: `moveu de ${origem?.nome || '?'} para ${destino.nome}`, criadoEm: agora(),
@@ -240,7 +226,7 @@ export default function Quadros() {
                          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                          onBlur={(e) => {
                            const n = e.target.value.trim();
-                           if (n && n !== l.nome) void updateDoc(doc(bd(), 'listas', l.id), { nome: n });
+                           if (n && n !== l.nome) void atualiza('listas', l.id, { nome: n });
                            setRenomeando(null);
                          }} />
                 ) : (
@@ -258,20 +244,20 @@ export default function Quadros() {
                   <button onClick={() => { setRenomeando(l.id); setPop(null); }}>Renomear</button>
                   <button disabled={i === 0} onClick={() => {
                     const outra = minhasListas[i - 1];
-                    const lote = writeBatch(bd());
-                    lote.update(doc(bd(), 'listas', l.id), { ordem: outra.ordem });
-                    lote.update(doc(bd(), 'listas', outra.id), { ordem: l.ordem });
-                    void lote.commit(); setPop(null);
+                    void lote([
+                      { colecao: 'listas', id: l.id, campos: { ordem: outra.ordem } },
+                      { colecao: 'listas', id: outra.id, campos: { ordem: l.ordem } },
+                    ]); setPop(null);
                   }}>Mover para a esquerda</button>
                   <button disabled={i === minhasListas.length - 1} onClick={() => {
                     const outra = minhasListas[i + 1];
-                    const lote = writeBatch(bd());
-                    lote.update(doc(bd(), 'listas', l.id), { ordem: outra.ordem });
-                    lote.update(doc(bd(), 'listas', outra.id), { ordem: l.ordem });
-                    void lote.commit(); setPop(null);
+                    void lote([
+                      { colecao: 'listas', id: l.id, campos: { ordem: outra.ordem } },
+                      { colecao: 'listas', id: outra.id, campos: { ordem: l.ordem } },
+                    ]); setPop(null);
                   }}>Mover para a direita</button>
                   <button onClick={() => {
-                    void updateDoc(doc(bd(), 'listas', l.id), { arquivada: true });
+                    void atualiza('listas', l.id, { arquivada: true });
                     setPop(null);
                     avisa('Lista arquivada. Ela fica em Itens arquivados.');
                   }}>Arquivar lista<small>dá para restaurar depois</small></button>
@@ -371,7 +357,7 @@ export default function Quadros() {
                 e.preventDefault();
                 const n = novaLista.trim();
                 if (!n || !atualId) return;
-                void addDoc(collection(bd(), 'listas'), {
+                void cria('listas', {
                   quadroId: atualId, nome: n,
                   ordem: (minhasListas[minhasListas.length - 1]?.ordem || 0) + PASSO, arquivada: false,
                 });
@@ -452,7 +438,7 @@ export default function Quadros() {
           {listas.filter((l) => l.quadroId === quadro.id && l.arquivada).map((l) => (
             <div key={l.id} className="arq">
               <span>{l.nome}<small>lista</small></span>
-              <button className="tx-btn" onClick={() => void updateDoc(doc(bd(), 'listas', l.id), { arquivada: false })}>
+              <button className="tx-btn" onClick={() => void atualiza('listas', l.id, { arquivada: false })}>
                 Restaurar
               </button>
             </div>
@@ -460,7 +446,7 @@ export default function Quadros() {
           {cartoes.filter((c) => c.quadroId === quadro.id && c.arquivado).map((c) => (
             <div key={c.id} className="arq">
               <span>{c.titulo}<small>cartão</small></span>
-              <button className="tx-btn" onClick={() => void updateDoc(doc(bd(), 'cartoes', c.id), { arquivado: false })}>
+              <button className="tx-btn" onClick={() => void atualiza('cartoes', c.id, { arquivado: false })}>
                 Restaurar
               </button>
             </div>
