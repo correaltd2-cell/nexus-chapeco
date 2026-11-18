@@ -1,34 +1,35 @@
 'use client';
-/* A casca do sistema: trilho no computador, abas no celular, troca de tema e a trava
-   de rota. Esconder o item do menu nao é acesso negado, entao a trava vale aqui E nas
-   regras do Firestore. */
+/* A casca do sistema, no mesmo arranjo da Luz por Assinatura: rail escuro com os
+   nomes das seções à esquerda, interface clara ao lado. No celular o rail sai e
+   entra a barra de abas embaixo.
+   A trava de rota vale aqui E nas regras do Firestore, porque esconder o item do
+   menu não é acesso negado. */
 import { useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Ic, SpriteDeIcones } from '@/componentes/icones';
 import { useSessao, useTema } from '@/componentes/sessao';
-import { MODULOS, NOME_MODULO, modulosDoPapel, type Modulo } from '@/lib/dominio/acessos';
+import { MODULOS, NOME_MODULO, NOME_PAPEL, modulosDoPapel, type Modulo } from '@/lib/dominio/acessos';
 import { modoDemo } from '@/lib/dados/fonte';
 
 const ROTA: Record<Modulo, string> = {
-  conversas: '/conversas',
-  quadros: '/quadros',
-  provas: '/provas',
-  aulas: '/aulas',
-  relatorios: '/relatorios',
-  ajustes: '/ajustes',
+  conversas: '/conversas', quadros: '/quadros', provas: '/provas',
+  aulas: '/aulas', relatorios: '/relatorios', ajustes: '/ajustes',
 };
 
 const ICONE: Record<Modulo, string> = {
-  conversas: 'chat',
-  quadros: 'quadro',
-  provas: 'doc',
-  aulas: 'agenda',
-  relatorios: 'grafico',
-  ajustes: 'ajuste',
+  conversas: 'chat', quadros: 'quadro', provas: 'doc',
+  aulas: 'agenda', relatorios: 'grafico', ajustes: 'ajuste',
 };
 
-/* no celular a barra de baixo cabe quatro; o resto fica no trilho do computador */
+/* os grupos do menu, na ordem em que a escola pensa */
+const GRUPOS: { titulo: string; modulos: Modulo[] }[] = [
+  { titulo: 'Atendimento', modulos: ['conversas', 'quadros'] },
+  { titulo: 'Escola', modulos: ['aulas', 'provas'] },
+  { titulo: 'Gestão', modulos: ['relatorios', 'ajustes'] },
+];
+
+/* no celular a barra de baixo cabe quatro */
 const NO_CELULAR: Modulo[] = ['conversas', 'quadros', 'aulas', 'ajustes'];
 
 export default function CascaDoSistema({ children }: { children: React.ReactNode }) {
@@ -41,8 +42,7 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
   const atual = (MODULOS.find((m) => rota.startsWith(ROTA[m])) || 'conversas') as Modulo;
 
   useEffect(() => {
-    if (estado === 'fora') router.replace('/entrar');
-    if (estado === 'sem-perfil') router.replace('/entrar');
+    if (estado === 'fora' || estado === 'sem-perfil') router.replace('/entrar');
   }, [estado, router]);
 
   useEffect(() => {
@@ -64,30 +64,56 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
     return <div className="carregando" role="status">Carregando...</div>;
   }
 
-  const trocaTema = () => setTema(escuro ? 'claro' : 'escuro');
+  const rotulo = escuro ? 'Mudar para o tema claro' : 'Mudar para o tema escuro';
 
   return (
     <>
       <SpriteDeIcones />
       <div className="app">
-        <nav className="rail" aria-label="Seções do sistema">
-          {meus.map((m) => (
-            <Link key={m} href={ROTA[m]} className="ib" title={NOME_MODULO[m]}
-                  aria-label={NOME_MODULO[m]} aria-current={atual === m ? 'page' : undefined}>
-              <Ic n={ICONE[m]} />
-            </Link>
-          ))}
-          <span className="sp" />
-          <button className="ib" onClick={trocaTema}
-                  title={escuro ? 'Mudar para o tema claro' : 'Mudar para o tema escuro'}
-                  aria-label={escuro ? 'Mudar para o tema claro' : 'Mudar para o tema escuro'}>
-            <Ic n={escuro ? 'sol' : 'lua'} />
-          </button>
-          <button className="eu-foto" onClick={() => void sair()} title={`${perfil.nome}. Sair`}
-                  aria-label={`${perfil.nome}. Sair do sistema`}>
-            {perfil.nome.slice(0, 1).toUpperCase()}
-          </button>
-        </nav>
+        <aside className="rail">
+          <div className="brand">
+            <div className="brand-mark">
+              <span className="bulb" aria-hidden="true">N</span>
+              <div>
+                <div className="brand-name">Nexus English Center</div>
+                <div className="brand-sub">Chapecó</div>
+              </div>
+            </div>
+          </div>
+
+          <nav className="nav" aria-label="Seções do sistema">
+            {GRUPOS.map((g) => {
+              const itens = g.modulos.filter((m) => meus.includes(m));
+              if (!itens.length) return null;
+              return (
+                <div key={g.titulo}>
+                  <div className="nav-label">{g.titulo}</div>
+                  {itens.map((m) => (
+                    <Link key={m} href={ROTA[m]} className="nav-item"
+                          aria-current={atual === m ? 'page' : undefined}>
+                      <Ic n={ICONE[m]} />
+                      <span>{NOME_MODULO[m]}</span>
+                    </Link>
+                  ))}
+                </div>
+              );
+            })}
+          </nav>
+
+          <div className="rail-foot">
+            <button className="me" onClick={() => void sair()} title={`${perfil.nome}. Sair`}>
+              <span className="eu-foto" aria-hidden="true">{perfil.nome.slice(0, 1).toUpperCase()}</span>
+              <div>
+                <b>{perfil.nome}</b>
+                <small>{NOME_PAPEL[perfil.papel]}</small>
+              </div>
+            </button>
+            <button className="ib" onClick={() => setTema(escuro ? 'claro' : 'escuro')}
+                    title={rotulo} aria-label={rotulo}>
+              <Ic n={escuro ? 'sol' : 'lua'} />
+            </button>
+          </div>
+        </aside>
 
         <main className="views">
           {modoDemo && (

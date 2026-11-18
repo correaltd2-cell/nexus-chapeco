@@ -2,7 +2,7 @@
 /* O atendimento. Arranjo de aplicativo de mensagens de proposito: o time ja sabe usar.
    Le do Firestore em tempo real; manda pela rota /api/whatsapp/enviar, que é quem
    tem o segredo. */
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { assina, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
@@ -137,7 +137,7 @@ export default function Inbox() {
   ];
 
   return (
-    <div className="wa">
+    <div className={aberta ? 'wa' : 'wa vazia'}>
       <section className="lst" aria-label="Conversas">
         <header className="lh"><b>Conversas</b></header>
         <div className="busca">
@@ -212,15 +212,15 @@ export default function Inbox() {
                 const primeira = !antes || antes.autor !== m.autor || novoDia;
                 if (m.autor === 'sistema') {
                   return (
-                    <div key={m.id}>
+                    <Fragment key={m.id}>
                       {novoDia && <div className="cp">{diaPorExtenso(m.criadaEm)}</div>}
                       <div className="cp">{m.texto}</div>
-                    </div>
+                    </Fragment>
                   );
                 }
                 const lado = m.direcao === 'entrada' ? 'in' : 'out';
                 return (
-                  <div key={m.id}>
+                  <Fragment key={m.id}>
                     {novoDia && <div className="cp">{diaPorExtenso(m.criadaEm)}</div>}
                     <div className={`w ${lado}${primeira ? ' p' : ''}`}>
                       <div className="b">
@@ -235,7 +235,7 @@ export default function Inbox() {
                         <span className="mt num">{hora(m.criadaEm)}<Ticks m={m} /></span>
                       </div>
                     </div>
-                  </div>
+                  </Fragment>
                 );
               })}
               {!mensagens.length && <div className="sem"><p>Nenhuma mensagem nesta conversa ainda.</p></div>}

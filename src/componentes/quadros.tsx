@@ -16,7 +16,7 @@ import {
   renumera, vencido,
 } from '@/lib/dominio/quadros';
 import { dataBR, iniciais } from '@/lib/dominio/formato';
-import type { Cartao, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
+import type { Cartao, Conversa, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
 
 const agora = () => new Date().toISOString();
 
@@ -27,6 +27,7 @@ export default function Quadros() {
   const [listas, setListas] = useState<Lista[]>([]);
   const [cartoes, setCartoes] = useState<Cartao[]>([]);
   const [equipe, setEquipe] = useState<Perfil[]>([]);
+  const [conversas, setConversas] = useState<Conversa[]>([]);
   const [atualId, setAtualId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState(filtrosVazios());
   const [pop, setPop] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function Quadros() {
   useEffect(() => assina('perfis', (docs) => {
     setEquipe((docs as unknown as Perfil[]).filter((p) => p.ativo));
   }), []);
+  useEffect(() => assina('conversas', (docs) => setConversas(docs as unknown as Conversa[])), []);
 
   const quadro = quadros.find((q) => q.id === atualId) || null;
   const minhasListas = useMemo(
@@ -467,7 +469,9 @@ export default function Quadros() {
       )}
 
       {aberto && (
-        <CartaoAberto key={aberto.id} cartao={aberto} listas={listas} quadros={quadros} equipe={equipe}
+        <CartaoAberto key={aberto.id} cartao={aberto}
+                      conversa={conversas.find((c) => c.id === aberto.conversaId)}
+                      listas={listas} quadros={quadros} equipe={equipe}
                       etiquetas={ETIQUETAS_PADRAO} fechar={() => setAbertoId(null)}
                       irParaConversa={(id) => router.push(`/conversas?conversa=${id}`)} />
       )}

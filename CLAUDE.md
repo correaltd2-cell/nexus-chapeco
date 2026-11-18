@@ -107,19 +107,32 @@ não passa nas regras. Ninguém muda o próprio papel pela interface.
 
 ## 6. Design
 
-O desenho aprovado pelo cliente está em `docs/demonstracao.html` (a demonstração que
-validou a interface) e os tokens em `src/app/globals.css`. **Abra a demonstração antes
-de construir qualquer tela.**
+**O sistema visual é o mesmo da Luz por Assinatura, com a paleta da Nexus** (decidido
+em 17/11/2026). A fonte da verdade são os tokens no topo de `src/app/globals.css`; a
+referência de origem é `docs/design-tokens.css` e `docs/modelo-visual.html` daquele
+projeto. `docs/demonstracao.html` guarda a demonstração que validou o ARRANJO das
+telas com o cliente, não as cores: aquelas foram substituídas.
 
-- **Cara de aplicativo de mensagens, não de painel.** O time já sabe usar WhatsApp Web;
-  a tela de atendimento imita esse arranjo de propósito.
-- **Cinza neutro, fonte do sistema, uma cor só para o que pede atenção** (verde
-  `#0C8443`). Laranja `#F6821F` é só a marca, no avatar da escola.
-- **Tema claro, escuro ou automático**, escolhido em Configurações e guardado no
-  aparelho. Os tokens trocam pelas classes `t-claro` e `t-escuro` no `body`.
-- Gráficos: azul `#2a78d6` para volume e tempo, e só três cores quando há três partes
-  de um todo. Nunca pintar barra por valor.
-- Interface clara, porque o time usa isso oito horas por dia.
+- **Paleta: preto, laranja, branco e cinza.** O escuro (`--ink` `#141414`) é do rail.
+  O laranja (`--solar` `#F6821F`) é a marca E o único acento forte: nada mais compete
+  com ele. O resto é branco, cinza e as escalas de texto.
+- **A única cor fora da paleta é o vermelho** (`--alert`), e só para prazo estourado e
+  mensagem que não entregou. Não dá para dizer "deu errado" com cinza.
+- **Rail escuro com os nomes das seções** à esquerda, agrupadas (Atendimento, Escola,
+  Gestão), e a interface clara ao lado. Abaixo de 1180px o rail vira só ícones; no
+  celular ele sai e entra a barra de abas embaixo.
+- **Tipografia:** Bricolage Grotesque nos títulos e números grandes, com moderação;
+  Instrument Sans no corpo; JetBrains Mono em todo dado numérico, sempre com
+  `tabular-nums` (a classe `.num`). As três entram por `<link>` no documento, como no
+  modelo da LPA, porque `next/font` busca a fonte no build e a rede daqui não alcança
+  o Google. A pilha de reserva vive dentro do próprio token, então
+  `font-family:var(--fonte-display)` sozinho já basta.
+- **Tema claro, escuro ou automático.** O automático segue o aparelho; a escolha feita
+  em Configurações vale por cima, pela classe `t-escuro` ou `t-claro` no `body`.
+- Interface clara por padrão, porque o time usa isso oito horas por dia.
+- A tela de atendimento tem o arranjo de um aplicativo de mensagens (lista, conversa,
+  dados do contato) porque o time já sabe usar isso. O que ela **não** faz é imitar o
+  WhatsApp: nada de bolha verde nem papel de parede bege.
 
 ### Escrita da interface
 Português brasileiro, tom direto, frase em caixa baixa. O botão diz o que acontece:

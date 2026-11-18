@@ -9,11 +9,13 @@ import { Ic } from '@/componentes/icones';
 import { avisa } from '@/componentes/aviso';
 import { useSessao } from '@/componentes/sessao';
 import { feitosDoChecklist, novoId } from '@/lib/dominio/quadros';
+import { situacao } from '@/lib/dominio/conversas';
 import { dataBR, iniciais } from '@/lib/dominio/formato';
-import type { Cartao, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
+import type { Cartao, Conversa, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
 
 interface Props {
   cartao: Cartao;
+  conversa?: Conversa;
   listas: Lista[];
   quadros: Quadro[];
   equipe: Perfil[];
@@ -23,7 +25,7 @@ interface Props {
 }
 
 export default function CartaoAberto({
-  cartao, listas, quadros, equipe, etiquetas, fechar, irParaConversa,
+  cartao, conversa, listas, quadros, equipe, etiquetas, fechar, irParaConversa,
 }: Props) {
   const { perfil } = useSessao();
   const [titulo, setTitulo] = useState(cartao.titulo);
@@ -33,6 +35,7 @@ export default function CartaoAberto({
   const [subindo, setSubindo] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
   const entrada = useRef<HTMLInputElement>(null);
+  const entradaArquivo = useRef<HTMLInputElement>(null);
 
   const lista = listas.find((l) => l.id === cartao.listaId);
   const quadro = quadros.find((q) => q.id === cartao.quadroId);
@@ -147,9 +150,11 @@ export default function CartaoAberto({
               <section className="ms">
                 <h3>Conversa no WhatsApp</h3>
                 <div className="mc">
-                  <span className="av s" aria-hidden="true">{iniciais(cartao.titulo)}</span>
-                  <span className="mc-t"><b>Conversa ligada a este cartão</b>
-                    <small>abrir leva direto para o atendimento</small></span>
+                  <span className="av s" aria-hidden="true">{iniciais(conversa?.nome || '?')}</span>
+                  <span className="mc-t"><b>{conversa?.nome || 'Conversa ligada a este cartão'}</b>
+                    <small>{conversa
+                      ? `${situacao(conversa)}${conversa.naoLidas ? `, ${conversa.naoLidas} nova${conversa.naoLidas > 1 ? 's' : ''}` : ''}`
+                      : 'abrir leva direto para o atendimento'}</small></span>
                   <button className="btn p" onClick={() => irParaConversa(cartao.conversaId as string)}>
                     Abrir conversa
                   </button>
@@ -211,10 +216,13 @@ export default function CartaoAberto({
                 </div>
               ))}
               <div className="ln">
-                <input className="cx" type="file" aria-label="Anexar arquivo" disabled={subindo}
+                <button className="btn" type="button" disabled={subindo}
+                        onClick={() => entradaArquivo.current?.click()}>
+                  <Ic n="mais" />{subindo ? 'Subindo o arquivo...' : 'Anexar arquivo'}
+                </button>
+                <input ref={entradaArquivo} type="file" hidden aria-hidden="true" tabIndex={-1}
                        onChange={(e) => { const f = e.target.files?.[0]; if (f) void anexa(f); e.target.value = ''; }} />
               </div>
-              {subindo && <p className="obs">Subindo o arquivo...</p>}
             </section>
 
             <section className="ms">
