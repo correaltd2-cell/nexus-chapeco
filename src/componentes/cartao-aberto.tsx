@@ -8,11 +8,9 @@ import { APAGAR, atualiza, modoDemo } from '@/lib/dados/fonte';
 import { Ic } from '@/componentes/icones';
 import { avisa } from '@/componentes/aviso';
 import { useSessao } from '@/componentes/sessao';
-import { feitosDoChecklist } from '@/lib/dominio/quadros';
+import { feitosDoChecklist, novoId } from '@/lib/dominio/quadros';
 import { dataBR, iniciais } from '@/lib/dominio/formato';
 import type { Cartao, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
-
-const id9 = () => Math.random().toString(36).slice(2, 11);
 
 interface Props {
   cartao: Cartao;
@@ -42,7 +40,6 @@ export default function CartaoAberto({
   const pct = cartao.checklist.length ? Math.round((feitos / cartao.checklist.length) * 100) : 0;
 
   useEffect(() => { caixa.current?.focus(); }, []);
-  useEffect(() => { setTitulo(cartao.titulo); setDescricao(cartao.descricao); }, [cartao.id, cartao.titulo, cartao.descricao]);
 
   useEffect(() => {
     const ouve = (e: KeyboardEvent) => { if (e.key === 'Escape') fechar(); };
@@ -51,7 +48,7 @@ export default function CartaoAberto({
   }, [fechar]);
 
   const anota = (texto: string) => ({
-    id: id9(), autorNome: perfil?.nome || 'Equipe', texto, criadoEm: new Date().toISOString(),
+    id: novoId(), autorNome: perfil?.nome || 'Equipe', texto, criadoEm: new Date().toISOString(),
   });
 
   const salva = (campos: Record<string, unknown>, atividade?: string) =>
@@ -82,7 +79,7 @@ export default function CartaoAberto({
     e.preventDefault();
     const t = novoItem.trim();
     if (!t) return;
-    void salva({ checklist: [...cartao.checklist, { id: id9(), texto: t, feito: false }] });
+    void salva({ checklist: [...cartao.checklist, { id: novoId(), texto: t, feito: false }] });
     setNovoItem('');
     entrada.current?.focus();
   }
@@ -93,7 +90,7 @@ export default function CartaoAberto({
     if (!t) return;
     void atualiza('cartoes', cartao.id, {
       comentarios: [...cartao.comentarios, {
-        id: id9(), autorId: perfil?.id || '', autorNome: perfil?.nome || 'Equipe',
+        id: novoId(), autorId: perfil?.id || '', autorNome: perfil?.nome || 'Equipe',
         texto: t, criadoEm: new Date().toISOString(),
       }],
       atualizadoEm: new Date().toISOString(),
@@ -110,7 +107,7 @@ export default function CartaoAberto({
       await uploadBytes(refArquivo(arquivos(), caminho), arquivo);
       await salva({
         anexos: [...cartao.anexos, {
-          id: id9(), nome: arquivo.name, path: caminho, mime: arquivo.type || 'application/octet-stream',
+          id: novoId(), nome: arquivo.name, path: caminho, mime: arquivo.type || 'application/octet-stream',
           tamanho: arquivo.size, criadoEm: new Date().toISOString(),
         }],
       }, `anexou ${arquivo.name}`);

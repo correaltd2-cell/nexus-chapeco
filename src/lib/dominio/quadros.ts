@@ -6,6 +6,13 @@ import type { Cartao, Lista } from './tipos';
 
 export const PASSO = 1000;
 
+/** Identificador curto para item de checklist, comentario e linha de atividade.
+    Vive aqui fora do componente porque sortear nao é coisa de renderizacao. */
+export const novoId = (): string =>
+  (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`)
+    .replace(/-/g, '')
+    .slice(0, 10);
+
 /** O numero de ordem para encaixar entre dois cartoes. */
 export function ordemEntre(antes?: Cartao, depois?: Cartao): number {
   if (!antes && !depois) return PASSO;

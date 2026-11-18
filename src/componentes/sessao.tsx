@@ -1,6 +1,8 @@
 'use client';
 /* Quem está logado, o perfil dele e o tema. Tudo que a casca precisa saber. */
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode,
+} from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, bd, configurado } from '@/lib/firebase/cliente';
@@ -90,17 +92,25 @@ export function escuroAgora(t: Tema) {
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
+/* O tema vive fora do React: na escolha guardada no aparelho e no ajuste do sistema
+   operacional. useSyncExternalStore é a porta certa para ler isso. */
+const ouvintesDoTema = new Set<() => void>();
+const mudouOTema = () => ouvintesDoTema.forEach((f) => f());
+
+function assinaTema(avisar: () => void) {
+  ouvintesDoTema.add(avisar);
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  mq.addEventListener('change', avisar);
+  return () => { ouvintesDoTema.delete(avisar); mq.removeEventListener('change', avisar); };
+}
+
 export function useTema() {
-  const [tema, setTemaEstado] = useState<Tema>('auto');
-  const [escuro, setEscuro] = useState(false);
-  useEffect(() => {
-    const t = leTema();
-    setTemaEstado(t); aplicaTema(t); setEscuro(escuroAgora(t));
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const ouve = () => setEscuro(escuroAgora(leTema()));
-    mq.addEventListener('change', ouve);
-    return () => mq.removeEventListener('change', ouve);
-  }, []);
-  const setTema = (t: Tema) => { setTemaEstado(t); aplicaTema(t); setEscuro(escuroAgora(t)); };
+  /* no servidor nao existe aparelho para perguntar: assume automatico e claro */
+  const tema = useSyncExternalStore(assinaTema, leTema, () => 'auto' as Tema);
+  const escuro = useSyncExternalStore(assinaTema, () => escuroAgora(leTema()), () => false);
+
+  useEffect(() => { aplicaTema(tema); }, [tema]);
+
+  const setTema = (t: Tema) => { aplicaTema(t); mudouOTema(); };
   return { tema, escuro, setTema };
 }

@@ -12,7 +12,8 @@ import { useSessao } from '@/componentes/sessao';
 import CartaoAberto from '@/componentes/cartao-aberto';
 import {
   ETIQUETAS_PADRAO, LISTAS_PADRAO, PASSO, cartoesDaLista, feitosDoChecklist, filtrosVazios,
-  listasVisiveis, ordemEntre, passaNosFiltros, precisaRenumerar, quantosFiltros, renumera, vencido,
+  listasVisiveis, novoId, ordemEntre, passaNosFiltros, precisaRenumerar, quantosFiltros,
+  renumera, vencido,
 } from '@/lib/dominio/quadros';
 import { dataBR, iniciais } from '@/lib/dominio/formato';
 import type { Cartao, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
@@ -78,7 +79,7 @@ export default function Quadros() {
       quadroId: atualId, listaId, ordem: ultimo ? ultimo.ordem + PASSO : PASSO,
       titulo, descricao: '', etiquetas: [], membros: perfil ? [perfil.id] : [],
       prazoConcluido: false, checklist: [], comentarios: [],
-      atividade: [{ id: 'n0', autorNome: perfil?.nome || 'Equipe', texto: 'criou o cartão', criadoEm: agora() }],
+      atividade: [{ id: novoId(), autorNome: perfil?.nome || 'Equipe', texto: 'criou o cartão', criadoEm: agora() }],
       anexos: [], arquivado: false, criadoEm: agora(), atualizadoEm: agora(),
     });
   }
@@ -110,7 +111,7 @@ export default function Quadros() {
       const origem = listas.find((l) => l.id === cartao.listaId);
       await atualiza('cartoes', cartaoId, {
         atividade: [...cartao.atividade, {
-          id: Math.random().toString(36).slice(2, 11), autorNome: perfil?.nome || 'Equipe',
+          id: novoId(), autorNome: perfil?.nome || 'Equipe',
           texto: `moveu de ${origem?.nome || '?'} para ${destino.nome}`, criadoEm: agora(),
         }],
       });
@@ -119,11 +120,17 @@ export default function Quadros() {
   }
 
   /* ---------- arrastar ---------- */
+  /* o espaco cinza que mostra onde o cartao vai cair. Nasce na primeira vez que
+     alguem arrasta, nunca durante a renderizacao. */
   const marcador = useRef<HTMLDivElement | null>(null);
-  if (typeof document !== 'undefined' && !marcador.current) {
-    marcador.current = document.createElement('div');
-    marcador.current.className = 'kph';
-  }
+  const pegaMarcador = useCallback(() => {
+    if (!marcador.current) {
+      const el = document.createElement('div');
+      el.className = 'kph';
+      marcador.current = el;
+    }
+    return marcador.current;
+  }, []);
 
   const limpaArrasto = useCallback(() => {
     marcador.current?.parentNode?.removeChild(marcador.current);
@@ -138,15 +145,16 @@ export default function Quadros() {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     const caixa = e.currentTarget.querySelector('.kl-cs');
-    if (!caixa || !marcador.current) return;
+    if (!caixa) return;
+    const marca = pegaMarcador();
     const cards = Array.from(caixa.querySelectorAll('.kc:not(.arr)')) as HTMLElement[];
     let antes: HTMLElement | null = null;
     for (const k of cards) {
       const r = k.getBoundingClientRect();
       if (e.clientY < r.top + r.height / 2) { antes = k; break; }
     }
-    if (marcador.current.parentNode !== caixa || marcador.current.nextElementSibling !== antes) {
-      caixa.insertBefore(marcador.current, antes);
+    if (marca.parentNode !== caixa || marca.nextElementSibling !== antes) {
+      caixa.insertBefore(marca, antes);
     }
     void listaId;
   }
@@ -459,7 +467,7 @@ export default function Quadros() {
       )}
 
       {aberto && (
-        <CartaoAberto cartao={aberto} listas={listas} quadros={quadros} equipe={equipe}
+        <CartaoAberto key={aberto.id} cartao={aberto} listas={listas} quadros={quadros} equipe={equipe}
                       etiquetas={ETIQUETAS_PADRAO} fechar={() => setAbertoId(null)}
                       irParaConversa={(id) => router.push(`/conversas?conversa=${id}`)} />
       )}
