@@ -2,7 +2,7 @@
    Separado da rota para dar para testar sem subir servidor. */
 import 'server-only';
 import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
-import { leAssunto, tarefaDoAssunto } from '@/lib/dominio/triagem';
+import { comEtiqueta, etiquetaDoAssunto, leAssunto, tarefaDoAssunto } from '@/lib/dominio/triagem';
 import { PASSO, novoId } from '@/lib/dominio/quadros';
 import type { Lista, Quadro } from '@/lib/dominio/tipos';
 
@@ -68,6 +68,16 @@ export async function garanteConversa(ctx: Contexto, waId: string, nome: string)
 async function ligada(ctx: Contexto): Promise<boolean> {
   const cfg = await ctx.bd.doc('config/atendimento').get();
   return cfg.data()?.abreTarefaNaTriagem !== false;
+}
+
+/* A etiqueta do assunto é pendurada na conversa SEMPRE que o sinal é forte, mesmo
+   quando a tarefa ja existe: é ela que deixa a lista legivel de longe e alimenta o
+   filtro por assunto. Nunca tira etiqueta que gente pos a mao. */
+export async function marcaAssunto(
+  ctx: Contexto, conversa: DocumentReference, etiquetas: string[], texto: string,
+) {
+  const nova = comEtiqueta(etiquetas, etiquetaDoAssunto(leAssunto(texto).assunto));
+  if (nova) await conversa.update({ etiquetas: nova });
 }
 
 export async function abreTarefaPelaTriagem(
@@ -147,9 +157,11 @@ export async function recebeDoContato(
       : {}),
   });
 
-  if (!naoViraFala(tipo)) {
-    const nome = (conversa.data()?.nome as string) || waId;
-    /* a tarefa é um extra: se ela falhar, a mensagem ja esta gravada e o time atende */
+  if (!naoViraFala(tipo) && texto.trim()) {
+    const dados = conversa.data() || {};
+    const nome = (dados.nome as string) || waId;
+    /* etiqueta e tarefa sao extras: se falharem, a mensagem ja esta gravada e o time atende */
+    try { await marcaAssunto(ctx, ref, (dados.etiquetas as string[]) || [], texto); } catch { /* segue */ }
     try { await abreTarefaPelaTriagem(ctx, ref, nome, texto); } catch { /* segue */ }
   }
   return ref;

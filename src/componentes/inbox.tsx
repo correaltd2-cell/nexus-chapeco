@@ -9,11 +9,14 @@ import { Ic } from '@/componentes/icones';
 import PainelContato from '@/componentes/painel-contato';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
 import { NOME_CURTO_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
-import { buscaCasou, passaNoFiltro, situacao, type Filtro } from '@/lib/dominio/conversas';
+import {
+  buscaCasou, etiquetasEmUso, passaNaEtiqueta, passaNoFiltro, passaNoSetor, situacao, type Filtro,
+} from '@/lib/dominio/conversas';
+import { corDaEtiqueta } from '@/lib/dominio/quadros';
 import {
   corta, diaPorExtenso, hora, iniciais, janelaAberta, mesmoDia, paraCampoDeHora, quando,
 } from '@/lib/dominio/formato';
-import type { Conversa, Mensagem, MensagemAgendada } from '@/lib/dominio/tipos';
+import type { Conversa, Mensagem, MensagemAgendada, Setor } from '@/lib/dominio/tipos';
 
 function Avatar({ nome, foto, c }: { nome: string; foto?: string; c?: string }) {
   return (
@@ -43,6 +46,9 @@ export default function Inbox() {
   const [todasMensagens, setTodasMensagens] = useState<Mensagem[]>([]);
   const [abertaId, setAbertaId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<Filtro>('todas');
+  const [etiqueta, setEtiqueta] = useState<string | null>(null);
+  const [setor, setSetor] = useState<Setor | null>(null);
+  const [filtroAberto, setFiltroAberto] = useState(false);
   const [busca, setBusca] = useState('');
   const [rascunho, setRascunho] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -88,8 +94,15 @@ export default function Inbox() {
     return conversas
       .filter((c) => veSetor(perfil.papel, perfil.setores, c.setor))
       .filter((c) => passaNoFiltro(c, filtro))
+      .filter((c) => passaNoSetor(c, setor))
+      .filter((c) => passaNaEtiqueta(c, etiqueta))
       .filter((c) => buscaCasou(c, busca));
-  }, [conversas, perfil, filtro, busca]);
+  }, [conversas, perfil, filtro, setor, etiqueta, busca]);
+
+  /* a lista de assuntos se monta do que existe, nao de uma lista fixa */
+  const assuntos = useMemo(() => etiquetasEmUso(
+    conversas.filter((c) => (perfil ? veSetor(perfil.papel, perfil.setores, c.setor) : false)),
+  ), [conversas, perfil]);
 
   const aberta = conversas.find((c) => c.id === abertaId) || null;
   const janela = aberta ? janelaAberta(aberta) : false;
@@ -172,40 +185,85 @@ export default function Inbox() {
     { k: 'retornos', r: 'Retornos', n: conversas.filter((c) => c.estado !== 'encerrada' && c.retorno).length },
     { k: 'encerradas', r: 'Encerradas', n: 0 },
   ];
-  const chipsSetor: { k: Filtro; r: string; n: number }[] = SETORES
+  const setoresQueVejo: { s: Setor; r: string; n: number }[] = SETORES
     .filter((s) => (perfil ? veSetor(perfil.papel, perfil.setores, s) : false))
     .map((s) => ({
-      k: s as Filtro, r: NOME_CURTO_SETOR[s],
+      s, r: NOME_CURTO_SETOR[s],
       n: conversas.filter((c) => c.estado !== 'encerrada' && c.setor === s).length,
     }));
+  const refinos = (setor ? 1 : 0) + (etiqueta ? 1 : 0);
 
   return (
     <div className={aberta ? 'wa' : 'wa vazia'}>
       <section className="lst" aria-label="Conversas">
-        <header className="lh"><b>Conversas</b></header>
-        <div className="busca">
-          <Ic n="busca" />
-          <input type="search" placeholder="Pesquisar" autoComplete="off" value={busca}
-                 aria-label="Pesquisar conversa por nome ou telefone"
-                 onChange={(e) => setBusca(e.target.value)} />
+        <header className="lh">
+          <b>Conversas</b>
+          <span className="conta num" aria-live="polite">
+            {visiveis.length}{visiveis.length === 1 ? ' conversa' : ' conversas'}
+          </span>
+        </header>
+        <div className="busca-ln">
+          <div className="busca">
+            <Ic n="busca" />
+            <input type="search" placeholder="Pesquisar" autoComplete="off" value={busca}
+                   aria-label="Pesquisar conversa por nome ou telefone"
+                   onChange={(e) => setBusca(e.target.value)} />
+          </div>
+          <button className="ib" aria-expanded={filtroAberto} title="Filtrar por assunto"
+                  aria-label="Filtrar por assunto" onClick={() => setFiltroAberto(!filtroAberto)}>
+            <Ic n="filtro" />
+            {refinos > 0 && <span className="q">{refinos}</span>}
+          </button>
         </div>
+
+        {filtroAberto && (
+          <div className="pfl">
+            {setoresQueVejo.length > 1 && (
+              <>
+                <h3>Setor</h3>
+                <div className="tags">
+                  {setoresQueVejo.map((x) => (
+                    <button key={x.s} className="chip" aria-pressed={setor === x.s}
+                            onClick={() => setSetor(setor === x.s ? null : x.s)}>
+                      {x.r}{x.n > 0 && <span className="num">{x.n}</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            <h3>Assunto</h3>
+            {assuntos.length ? (
+              <div className="tags">
+                {assuntos.map((a) => (
+                  <button key={a} className={`lbp lb-${corDaEtiqueta(a)}`}
+                          aria-pressed={etiqueta === a} style={{ opacity: etiqueta && etiqueta !== a ? 0.45 : 1 }}
+                          onClick={() => setEtiqueta(etiqueta === a ? null : a)}>
+                    {a}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="obs">
+                Nenhum assunto ainda. A triagem marca sozinha conforme as mensagens chegam.
+              </p>
+            )}
+            <div className="rodape-f">
+              <button className="tx-btn" disabled={!refinos}
+                      onClick={() => { setEtiqueta(null); setSetor(null); }}>
+                Limpar
+              </button>
+              <button className="btn" onClick={() => setFiltroAberto(false)}>Fechar</button>
+            </div>
+          </div>
+        )}
         <div className="filtros">
-          <div className="chips" role="group" aria-label="Filtrar por situação">
+          <div className="chips" role="group" aria-label="Filtrar conversas">
             {chipsEstado.map((c) => (
               <button key={c.k} className="chip" aria-pressed={filtro === c.k} onClick={() => setFiltro(c.k)}>
                 {c.r}{c.n > 0 && <span className="num">{c.n}</span>}
               </button>
             ))}
           </div>
-          {chipsSetor.length > 1 && (
-            <div className="chips" role="group" aria-label="Filtrar por setor">
-              {chipsSetor.map((c) => (
-                <button key={c.k} className="chip" aria-pressed={filtro === c.k} onClick={() => setFiltro(c.k)}>
-                  {c.r}{c.n > 0 && <span className="num">{c.n}</span>}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <div className="lista">
           {visiveis.map((c) => (
@@ -222,6 +280,9 @@ export default function Inbox() {
                   {c.naoLidas > 0 && <span className="bdg num">{c.naoLidas}</span>}
                 </span>
                 <span className="l3">
+                  {c.etiquetas.map((e) => (
+                    <span key={e} className={`lbp lb-${corDaEtiqueta(e)}`}>{e}</span>
+                  ))}
                   <span>{situacao(c)}</span>
                   {c.retorno && <span className="rt"><Ic n="relogio" />retorno {c.retorno.quando}</span>}
                 </span>

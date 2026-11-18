@@ -39,10 +39,10 @@ export const PERFIS: Perfil[] = [
 
 export const CONVERSAS: Conversa[] = [
   { id: 'c-giovana', waId: '5549991542207', nome: 'Giovana Lazzari', alunoId: 'a-giovana',
-    setor: 'recepcao', estado: 'aberta', agenteAtivo: true, naoLidas: 1, etiquetas: [],
+    setor: 'recepcao', estado: 'aberta', agenteAtivo: true, naoLidas: 1, etiquetas: ['Financeiro'],
     ultimaEm: hm(10, 40), ultimaPreviaTexto: 'Oi, preciso do boleto desse mês', janelaAte: janela(), criadaEm: diasAtras(40) },
   { id: 'c-renan', waId: '5549997310856', nome: 'Renan Antunes', alunoId: 'a-renan',
-    setor: 'recepcao', estado: 'aberta', agenteAtivo: true, naoLidas: 1, etiquetas: [],
+    setor: 'recepcao', estado: 'aberta', agenteAtivo: true, naoLidas: 1, etiquetas: ['Marcação'],
     ultimaEm: hm(10, 38), ultimaPreviaTexto: 'Não vou conseguir ir na aula de quinta, dá pra remarcar?',
     janelaAte: janela(), criadaEm: diasAtras(25) },
   { id: 'c-claudia', waId: '5549988453310', nome: 'Cláudia Bortoli', alunoId: 'a-pedro',
@@ -53,7 +53,7 @@ export const CONVERSAS: Conversa[] = [
     setor: 'financeiro', estado: 'ia', agenteAtivo: true, naoLidas: 0, etiquetas: ['Financeiro'],
     ultimaEm: hm(10, 22), ultimaPreviaTexto: 'Como você prefere resolver?', janelaAte: janela(), criadaEm: diasAtras(60) },
   { id: 'c-jonas', waId: '5549996671298', nome: 'Jonas Pereira', alunoId: 'a-jonas',
-    setor: 'coordenacao', estado: 'aberta', agenteAtivo: false, naoLidas: 1, etiquetas: [],
+    setor: 'coordenacao', estado: 'aberta', agenteAtivo: false, naoLidas: 1, etiquetas: ['Renovação'],
     ultimaEm: hm(10, 12), ultimaPreviaTexto: 'Quero sim! Muda algo na mensalidade?', janelaAte: janela(), criadaEm: diasAtras(30) },
   { id: 'c-eduardo', waId: '5549998124410', nome: 'Eduardo Lunardi', alunoId: 'a-eduardo',
     setor: 'recepcao', estado: 'aberta', agenteAtivo: true, naoLidas: 2, etiquetas: ['Cancelamento'],
@@ -64,7 +64,7 @@ export const CONVERSAS: Conversa[] = [
     ultimaEm: diasAtras(2, 16, 21), ultimaPreviaTexto: 'Combinado! Te chamo na terça pra confirmar.',
     retorno: { quando: 'hoje às 14h00', nota: 'Confirmar a reposição de sexta' }, criadaEm: diasAtras(70) },
   { id: 'c-marina', waId: '5549994785021', nome: 'Marina Teles', alunoId: 'a-marina',
-    setor: 'financeiro', estado: 'encerrada', agenteAtivo: false, naoLidas: 0, etiquetas: [],
+    setor: 'financeiro', estado: 'encerrada', agenteAtivo: false, naoLidas: 0, etiquetas: ['Financeiro'],
     ultimaEm: hm(8, 44), ultimaPreviaTexto: 'Combinado! Qualquer coisa é só chamar.',
     encerradaEm: hm(8, 44), encerradaPor: 'cliente', criadaEm: diasAtras(55) },
 ];

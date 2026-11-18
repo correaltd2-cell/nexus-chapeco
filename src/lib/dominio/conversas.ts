@@ -31,16 +31,20 @@ export function esperandoResposta(c: Conversa, ultima?: Mensagem) {
   return Boolean(ultima && ultima.direcao === 'entrada');
 }
 
-export type Filtro = 'todas' | 'nao_lidas' | Setor | 'retornos' | 'encerradas';
+/* Situação e refinamento sao coisas diferentes: a situação é o que o time alterna
+   o dia inteiro e fica à vista; setor e assunto refinam e moram no funil, para
+   poderem ser combinados com qualquer situação. */
+export type Filtro = 'todas' | 'nao_lidas' | 'retornos' | 'encerradas';
 
 export function passaNoFiltro(c: Conversa, f: Filtro) {
   if (f === 'encerradas') return c.estado === 'encerrada';
   if (c.estado === 'encerrada') return false;
-  if (f === 'todas') return true;
   if (f === 'nao_lidas') return c.naoLidas > 0;
   if (f === 'retornos') return Boolean(c.retorno);
-  return c.setor === f;
+  return true;
 }
+
+export const passaNoSetor = (c: Conversa, setor: Setor | null) => !setor || c.setor === setor;
 
 export function buscaCasou(c: Conversa, busca: string) {
   const q = busca.trim().toLowerCase();
@@ -68,3 +72,11 @@ export function esperandoDesde(c: Conversa, ms: Mensagem[]): string | undefined 
   }
   return desde.criadaEm;
 }
+
+/** As etiquetas que existem de verdade nas conversas, para o filtro se montar
+    sozinho em vez de listar assunto que ninguém usa. */
+export const etiquetasEmUso = (cs: Conversa[]) =>
+  [...new Set(cs.filter((c) => c.estado !== 'encerrada').flatMap((c) => c.etiquetas))].sort();
+
+export const passaNaEtiqueta = (c: Conversa, etiqueta: string | null) =>
+  !etiqueta || c.etiquetas.includes(etiqueta);

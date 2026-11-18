@@ -71,6 +71,7 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 | 17/11/2026 | **Firebase e Vercel**, não Supabase. |
 | 18/11/2026 | **A triagem abre a tarefa, nunca responde o contato.** Mensagem que chega com assunto claro abre um cartão no quadro do setor. Sinal fraco não abre nada, e só existe uma tarefa aberta por conversa. Quem responde e quem move continua sendo gente. |
 | 18/11/2026 | **A foto do contato mora no próprio documento da conversa**, reduzida para 256px em JPEG. É leve o bastante para caber no limite de 1 MB e aparecer na lista sem segunda ida ao servidor. |
+| 18/11/2026 | **A etiqueta de assunto é automática.** A triagem pendura o assunto na conversa toda vez que o sinal é forte (Cancelamento, Financeiro, Marcação, Matrícula, Prova, Reposição, Coordenação), e ela aparece colorida na linha da lista. Nunca tira etiqueta que gente pôs à mão. |
 | 18/11/2026 | **O telefone do contato não se edita na tela.** Ele é a chave que casa a conversa com o que a Meta manda. Nome, foto e observação se editam; telefone novo é conversa nova. |
 
 ## 3.2 O que já está de pé no atendimento (18/11/2026)
@@ -88,6 +89,11 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
   novo) e `recebimento.ts` abre o cartão no quadro certo. Prova em `testes/triagem.ts`:
   `node --experimental-strip-types testes/triagem.ts`. **Rodar antes de mexer nos sinais.**
   `config/atendimento.abreTarefaNaTriagem = false` desliga sem deploy.
+- **Os filtros da lista**: situação fica à vista numa fileira só (Todas, Não lidas,
+  Retornos, Encerradas) e setor e assunto moram no funil ao lado da busca, para poderem
+  ser combinados com qualquer situação. A lista de assuntos do funil se monta do que
+  existe nas conversas, não de uma lista fixa. O cabeçalho mostra quantas conversas o
+  filtro deixou, que é a leitura do resultado.
 - **O relógio da tela** é `useAgora()` (`src/componentes/relogio.ts`), fonte externa que
   anda a cada meio minuto. Ler a hora no corpo do componente não é permitido pelas regras
   novas do React, e no servidor ela é outra: antes da hidratação devolve zero, e quem usa

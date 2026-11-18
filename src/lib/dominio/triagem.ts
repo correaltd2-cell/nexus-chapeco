@@ -49,7 +49,7 @@ export const REGRAS: Record<Assunto, Regra> = {
     fracos: ['falta', 'faltar'],
   },
   marcacao: {
-    setor: 'recepcao', rotulo: 'Marcação de aula',
+    setor: 'recepcao', rotulo: 'Marcação de aula', etiqueta: 'Marcação',
     quadro: 'Recepcao',
     fortes: ['marcar a aula', 'marcar aula', 'marcar minha aula', 'agendar a aula',
       'agendar aula', 'remarcar', 'trocar o horario', 'mudar o horario', 'outro horario'],
@@ -64,14 +64,14 @@ export const REGRAS: Record<Assunto, Regra> = {
     fracos: ['preco', 'valores', 'curso', 'turma', 'aula experimental'],
   },
   prova: {
-    setor: 'coordenacao', rotulo: 'Prova',
+    setor: 'coordenacao', rotulo: 'Prova', etiqueta: 'Prova',
     quadro: 'Coordenacao', lista: 'Demandas',
     fortes: ['prova', 'avaliacao', 'minha nota', 'a nota', 'resultado da prova',
       'refazer a prova', 'segunda chamada'],
     fracos: ['nota', 'modulo', 'correcao'],
   },
   pedagogico: {
-    setor: 'coordenacao', rotulo: 'Coordenação',
+    setor: 'coordenacao', rotulo: 'Coordenação', etiqueta: 'Coordenação',
     quadro: 'Coordenacao', lista: 'Demandas',
     fortes: ['falar com a coordenacao', 'coordenador', 'coordenadora', 'reclamacao',
       'nao estou aprendendo', 'trocar de professor', 'mudar de nivel', 'pular de nivel'],
@@ -157,6 +157,15 @@ export function tarefaDoAssunto(
     descricao: dito ? `O contato escreveu: "${dito}"` : '',
     etiquetas: regra.etiqueta ? [regra.etiqueta] : [],
   };
+}
+
+/** A etiqueta do assunto lido. É ela que o sistema pendura na conversa sozinho. */
+export const etiquetaDoAssunto = (a: Assunto | null) => (a ? REGRAS[a].etiqueta : undefined);
+
+/** Junta a etiqueta nova às que a conversa já tem, sem repetir. */
+export function comEtiqueta(atuais: string[], nova?: string): string[] | null {
+  if (!nova || atuais.includes(nova)) return null;
+  return [...atuais, nova];
 }
 
 /** O cartao aberto que já cuida desta conversa, para a triagem não abrir outro. */
