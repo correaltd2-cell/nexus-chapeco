@@ -77,9 +77,16 @@ export const LISTAS_PADRAO = ['A fazer', 'Em andamento', 'Feito'];
 /** As etiquetas que a escola usa, e a cor de cada uma. */
 export const ETIQUETAS_PADRAO: { nome: string; cor: string }[] = [
   { nome: 'Matrícula', cor: 'vd' },
-  { nome: 'Renovação', cor: 'az' },
+  { nome: 'Marcação', cor: 'az' },
   { nome: 'Reposição', cor: 'lr' },
   { nome: 'Financeiro', cor: 'am' },
+  { nome: 'Prova', cor: 'rx' },
+  { nome: 'Coordenação', cor: 'ci' },
   { nome: 'Cancelamento', cor: 'vm' },
-  { nome: 'Responsável', cor: 'rx' },
+  { nome: 'Renovação', cor: 'cz' },
+  { nome: 'Responsável', cor: 'cz' },
 ];
+
+/** A cor da etiqueta, para a lista de conversas pintar igual ao cartão. */
+export const corDaEtiqueta = (nome: string) =>
+  ETIQUETAS_PADRAO.find((e) => e.nome === nome)?.cor || 'cz';

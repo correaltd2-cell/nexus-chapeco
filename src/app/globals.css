@@ -30,6 +30,7 @@
   --lb-vd:#E4EFE6; --lb-vd-t:#2C5637;  --lb-am:#FBF0CE; --lb-am-t:#6A5205;
   --lb-vm:#FBEBE9; --lb-vm-t:#B5392B;  --lb-rx:#E9E5F4; --lb-rx-t:#4B3E7A;
   --lb-az:#E2E8EE; --lb-az-t:#3A4D5E;
+  --lb-ci:#DCEAE9; --lb-ci-t:#2A5753;  --lb-cz:#E6E6E2; --lb-cz-t:#55554F;
   /* tipografia: as três famílias vêm por <link> no documento, como no modelo da LPA.
      Quem não alcançar o Google cai numa pilha de sistema que não quebra a página. */
   --fonte-display:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -60,6 +61,7 @@
   --lb-vd:#2D4D36; --lb-vd-t:#A6DCB5;  --lb-am:#4A3C17; --lb-am-t:#EDD47E;
   --lb-vm:#4E2620; --lb-vm-t:#F7AE9F;  --lb-rx:#3A3354; --lb-rx-t:#CCC0F2;
   --lb-az:#30404B; --lb-az-t:#B3CADB;
+  --lb-ci:#284842; --lb-ci-t:#9DD6CF;  --lb-cz:#4A4A44; --lb-cz-t:#C4C4BA;
   --wall:#2A2A27; --balao-in:#3B3B37; --balao-out:#4F3A16; --nota:#483C1B;
   --shadow:0 1px 2px rgba(0,0,0,.34), 0 8px 24px -12px rgba(0,0,0,.5);
   --shadow-2:0 2px 6px rgba(0,0,0,.42), 0 18px 46px -20px rgba(0,0,0,.66);
@@ -76,6 +78,7 @@ body.t-escuro{
   --lb-vd:#2D4D36; --lb-vd-t:#A6DCB5;  --lb-am:#4A3C17; --lb-am-t:#EDD47E;
   --lb-vm:#4E2620; --lb-vm-t:#F7AE9F;  --lb-rx:#3A3354; --lb-rx-t:#CCC0F2;
   --lb-az:#30404B; --lb-az-t:#B3CADB;
+  --lb-ci:#284842; --lb-ci-t:#9DD6CF;  --lb-cz:#4A4A44; --lb-cz-t:#C4C4BA;
   --wall:#2A2A27; --balao-in:#3B3B37; --balao-out:#4F3A16; --nota:#483C1B;
   --shadow:0 1px 2px rgba(0,0,0,.34), 0 8px 24px -12px rgba(0,0,0,.5);
   --shadow-2:0 2px 6px rgba(0,0,0,.42), 0 18px 46px -20px rgba(0,0,0,.66);
@@ -271,7 +274,7 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   --gutter:clamp(16px,5%,56px);
   /* a largura das laterais muda por tela; o resto lê daqui, e a lista não pula de
      largura quando a primeira conversa abre ou o painel é recolhido */
-  --lista:340px; --painel:320px;
+  --lista:360px; --painel:320px;
   display:grid;grid-template-columns:var(--lista) minmax(0,1fr) var(--painel);height:100%;position:relative;background:var(--surface);
 }
 .wa.vazia .pnl{display:none}
@@ -285,9 +288,10 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 }
 .wa>*{min-width:0;min-height:0}
 
-.lst{display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--surface)}
+.lst{display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--surface);position:relative}
 .lh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 18px 10px}
 .lh b{font-family:var(--fonte-display);font-size:19px;font-weight:600;letter-spacing:-.02em}
+.lh .conta{color:var(--muted-2);font-size:11.5px;flex:none}
 .busca{display:flex;align-items:center;gap:9px;margin:0 16px 10px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:0 13px;color:var(--muted-2)}
 .busca .ic{width:16px;height:16px}
 .busca input{flex:1;min-width:0;border:0;background:none;padding:8px 0;outline:0}
@@ -309,7 +313,7 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .l2 .pv{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
 .it.nl .l2 .pv{color:var(--text)}
 .bdg{background:var(--solar);color:#141414;border-radius:10px;min-width:20px;height:20px;padding:0 6px;font-size:11.5px;font-weight:700;display:grid;place-items:center;flex:none}
-.l3{display:flex;gap:12px;margin-top:3px;font-size:11.5px;color:var(--muted-2);white-space:nowrap;overflow:hidden}
+.l3{display:flex;gap:7px;align-items:center;margin-top:4px;font-size:11.5px;color:var(--muted-2);white-space:nowrap;overflow:hidden}
 .l3 .rt{display:inline-flex;align-items:center;gap:4px;color:var(--solar-deep)}
 .l3 .ic{width:12px;height:12px}
 .vazio{padding:30px 22px;color:var(--muted);text-align:center;font-size:13px}
@@ -384,10 +388,45 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 
 /* Os filtros da lista em duas fileiras: estado em cima, setor embaixo. Numa fileira
    so eles passavam da borda e a pessoa via o filtro cortado no meio da palavra. */
-.filtros{display:flex;flex-direction:column;gap:6px;padding:0 16px 12px;flex:none}
-.filtros .chips{flex-wrap:wrap;overflow:visible;gap:6px}
+/* Os filtros numa fileira so. Ela rola de lado quando nao cabe, e a borda direita
+   esmaece para dizer que tem mais: quebrar em varias fileiras deixava o topo da
+   lista com cara de defeito. */
+.filtros{flex:none;position:relative;padding:0 0 12px}
+.filtros .chips{padding:0 16px;gap:6px}
 .filtros .chip{padding:5px 10px;font-size:12px}
+@media (max-width:1180px){
+  .filtros{
+    -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
+    mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
+  }
+}
+.filtros .sep{flex:none;width:1px;background:var(--line);margin:3px 2px}
 .kv dd.atr{color:var(--alert);font-weight:600}
+
+/* funil ao lado da busca, com a conta de filtros ligados */
+.busca-ln{display:flex;align-items:center;gap:6px;margin:0 16px 10px}
+.busca-ln .busca{flex:1;margin:0}
+.busca-ln .ib{border:1px solid var(--line);border-radius:50%;width:34px}
+.busca-ln .ib[aria-expanded="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.busca-ln .ib .q{
+  position:absolute;margin:-18px 0 0 16px;background:var(--solar);color:#141414;
+  font-family:var(--fonte-dados);font-size:9.5px;font-weight:700;line-height:14px;
+  min-width:14px;border-radius:7px;padding:0 3px;
+}
+.pfl{
+  position:absolute;z-index:70;top:96px;left:16px;right:16px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow-2);padding:13px 15px 15px;
+}
+.pfl h3{
+  font-family:var(--fonte-corpo);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--muted-2);font-weight:600;margin:12px 0 7px;
+}
+.pfl h3:first-child{margin-top:0}
+.pfl .rodape-f{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+
+/* a etiqueta do assunto na linha da conversa */
+.l3 .lbp{line-height:16px;font-size:10px;padding:0 7px}
 
 /* ----- painel do contato ----- */
 .av img{width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block}
@@ -519,6 +558,8 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .lb-vm{background:var(--lb-vm);color:var(--lb-vm-t)}
 .lb-rx{background:var(--lb-rx);color:var(--lb-rx-t)}
 .lb-az{background:var(--lb-az);color:var(--lb-az-t)}
+.lb-ci{background:var(--lb-ci);color:var(--lb-ci-t)}
+.lb-cz{background:var(--lb-cz);color:var(--lb-cz-t)}
 .mbs{margin-left:auto;display:inline-flex;padding-left:4px}
 .mb{
   width:22px;height:22px;border-radius:50%;background:var(--surface-3);color:var(--muted);
@@ -610,8 +651,9 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 /* ================= larguras ================= */
 /* A escola trabalha com a tela dividida: metade de um monitor de 2560 dá 1280 de
    largura, e com o rail inteiro a conversa ficava com menos de 400. Até 1440 o rail
-   vira só ícones (o nome aparece ao passar o mouse) e as laterais da conversa
-   afinam, para o meio ficar com mais de 600. */
+   vira só ícones (o nome aparece ao passar o mouse) e o painel do contato afina.
+   A lista fica nos 360 que os quatro filtros pedem para caber inteiros; abaixo de
+   1180 ela estreita e a fileira de filtros rola com a borda esmaecida. */
 @media (max-width:1440px){
   :root{--rail:76px}
   .brand{padding:18px 0 15px;display:grid;place-items:center}
@@ -622,10 +664,10 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   .nav-item{position:relative}
   .rail-foot{flex-direction:column;gap:4px;padding:10px 8px}
   .me{justify-content:center;flex:none}
-  .wa{--lista:300px;--painel:288px}
+  .wa{--lista:360px;--painel:288px}
 }
 @media (max-width:1180px){
-  .wa{grid-template-columns:var(--lista) minmax(0,1fr)}
+  .wa{--lista:300px;grid-template-columns:var(--lista) minmax(0,1fr)}
   .pnl{position:absolute;top:0;right:0;bottom:0;width:min(330px,100%);z-index:50;display:none;box-shadow:var(--shadow-2)}
   .wa.p-open .pnl{display:block}
   .abre{display:grid}
