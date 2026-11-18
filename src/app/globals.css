@@ -45,20 +45,22 @@
 }
 
 /* Tema escuro. O claro vira escuro e o rail continua sendo o mais preto de todos.
+   A interface é grafite, não preto: o time passa o dia nela, e o preto cansava
+   (clareado em 18/11/2026, com o contraste do texto conferido fundo por fundo).
    Duas portas para o mesmo lugar: o aparelho no automático, e a escolha feita em
    Configurações, que vale por cima nos dois sentidos. */
 @media (prefers-color-scheme: dark){
   body:not(.t-claro){
   --ink:#141414; --ink-2:#1C1C1C; --ink-3:#2A2A2A; --ink-line:#303030;
-  --canvas:#222220; --surface:#2B2B28; --surface-2:#262623; --surface-3:#34342F;
-  --line:#3C3C37; --line-2:#4A4A44;
-  --text:#F0F0ED; --muted:#ABABA3; --muted-2:#99988F;
-  --solar-wash:#46290A; --solar-line:#7A4D16; --solar-deep:#FFB266;
-  --alert:#F08A79; --alert-wash:#42201A;
-  --lb-vd:#24402C; --lb-vd-t:#9BD2AB;  --lb-am:#3E3211; --lb-am-t:#E7CB70;
-  --lb-vm:#42201A; --lb-vm-t:#F3A294;  --lb-rx:#302A48; --lb-rx-t:#C2B5EC;
-  --lb-az:#27323A; --lb-az-t:#A9C0D1;
-  --wall:#1C1C1A; --balao-in:#2E2E2B; --balao-out:#43310F; --nota:#3B3113;
+  --canvas:#2F2F2C; --surface:#393935; --surface-2:#343431; --surface-3:#45453F;
+  --line:#4B4B45; --line-2:#5C5C55;
+  --text:#F2F2EF; --muted:#B8B8B0; --muted-2:#AEADA4;
+  --solar-wash:#54320F; --solar-line:#8A5A1E; --solar-deep:#FFB266;
+  --alert:#F59A8A; --alert-wash:#4E2620;
+  --lb-vd:#2D4D36; --lb-vd-t:#A6DCB5;  --lb-am:#4A3C17; --lb-am-t:#EDD47E;
+  --lb-vm:#4E2620; --lb-vm-t:#F7AE9F;  --lb-rx:#3A3354; --lb-rx-t:#CCC0F2;
+  --lb-az:#30404B; --lb-az-t:#B3CADB;
+  --wall:#2A2A27; --balao-in:#3B3B37; --balao-out:#4F3A16; --nota:#483C1B;
   --shadow:0 1px 2px rgba(0,0,0,.34), 0 8px 24px -12px rgba(0,0,0,.5);
   --shadow-2:0 2px 6px rgba(0,0,0,.42), 0 18px 46px -20px rgba(0,0,0,.66);
   color-scheme:dark;
@@ -66,15 +68,15 @@
 }
 body.t-escuro{
   --ink:#141414; --ink-2:#1C1C1C; --ink-3:#2A2A2A; --ink-line:#303030;
-  --canvas:#222220; --surface:#2B2B28; --surface-2:#262623; --surface-3:#34342F;
-  --line:#3C3C37; --line-2:#4A4A44;
-  --text:#F0F0ED; --muted:#ABABA3; --muted-2:#99988F;
-  --solar-wash:#46290A; --solar-line:#7A4D16; --solar-deep:#FFB266;
-  --alert:#F08A79; --alert-wash:#42201A;
-  --lb-vd:#24402C; --lb-vd-t:#9BD2AB;  --lb-am:#3E3211; --lb-am-t:#E7CB70;
-  --lb-vm:#42201A; --lb-vm-t:#F3A294;  --lb-rx:#302A48; --lb-rx-t:#C2B5EC;
-  --lb-az:#27323A; --lb-az-t:#A9C0D1;
-  --wall:#1C1C1A; --balao-in:#2E2E2B; --balao-out:#43310F; --nota:#3B3113;
+  --canvas:#2F2F2C; --surface:#393935; --surface-2:#343431; --surface-3:#45453F;
+  --line:#4B4B45; --line-2:#5C5C55;
+  --text:#F2F2EF; --muted:#B8B8B0; --muted-2:#AEADA4;
+  --solar-wash:#54320F; --solar-line:#8A5A1E; --solar-deep:#FFB266;
+  --alert:#F59A8A; --alert-wash:#4E2620;
+  --lb-vd:#2D4D36; --lb-vd-t:#A6DCB5;  --lb-am:#4A3C17; --lb-am-t:#EDD47E;
+  --lb-vm:#4E2620; --lb-vm-t:#F7AE9F;  --lb-rx:#3A3354; --lb-rx-t:#CCC0F2;
+  --lb-az:#30404B; --lb-az-t:#B3CADB;
+  --wall:#2A2A27; --balao-in:#3B3B37; --balao-out:#4F3A16; --nota:#483C1B;
   --shadow:0 1px 2px rgba(0,0,0,.34), 0 8px 24px -12px rgba(0,0,0,.5);
   --shadow-2:0 2px 6px rgba(0,0,0,.42), 0 18px 46px -20px rgba(0,0,0,.66);
   color-scheme:dark;
