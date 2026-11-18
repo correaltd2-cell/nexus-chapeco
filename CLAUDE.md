@@ -61,6 +61,15 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 - **Todo valor monetário é inteiro em centavos.** Nunca `float`.
 - **Mensagem para aluno fora da janela de 24 horas só sai por template aprovado.**
 
+## 3.1 Decisões já tomadas (não reabrir sem motivo novo)
+
+| Quando | Decisão |
+|---|---|
+| 17/11/2026 | **O número é o da recepção que já existe, com coexistência.** A recepção segue atendendo pelo celular e o sistema enxerga tudo. Foi descartado número novo porque conta recém-criada não é elegível para coexistência, e porque número que entra direto na API nunca mais volta para o app. Detalhes e passo a passo em `docs/whatsapp-coexistencia.md`. |
+| 17/11/2026 | **As provas são construídas aqui dentro**, exclusivas da unidade Chapecó. Não dependem do Nexus Hub nem de sistema de terceiro. |
+| 17/11/2026 | **A grade de aulas continua no Google Sheets** enquanto a planilha for a fonte. O sistema lê e escreve nela; não existe cópia paralela. |
+| 17/11/2026 | **Firebase e Vercel**, não Supabase. |
+
 ## 4. Arquitetura
 
 ```

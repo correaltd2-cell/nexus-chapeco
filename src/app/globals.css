@@ -668,3 +668,7 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.4}
 
 /* falha de entrega no lugar do tique */
 .tk-x{color:var(--danger);font-weight:700;font-size:12px;line-height:11px;width:16px;text-align:center}
+
+/* quadro ainda sem nada dentro */
+.qd-vazio{flex:1;display:grid;place-items:center;align-content:center;gap:14px;padding:24px;text-align:center;color:var(--ink-2)}
+.qd-vazio p{max-width:420px}
