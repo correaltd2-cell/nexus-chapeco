@@ -10,6 +10,7 @@ import { adminBd } from '@/lib/firebase/admin';
 import { mandaTexto, temConfig } from '@/lib/whatsapp/cloud';
 import { janelaAberta } from '@/lib/dominio/formato';
 import { camposDaFalaDaEscola } from '@/lib/whatsapp/automatico';
+import { bate, descreveErro, falhou } from '@/lib/saude';
 import type { Conversa, MensagemAgendada } from '@/lib/dominio/tipos';
 
 export const dynamic = 'force-dynamic';
@@ -24,6 +25,16 @@ export async function GET(req: Request) {
   if (!autorizado(req)) {
     return NextResponse.json({ ok: false, erro: 'Sem autorização.' }, { status: 401 });
   }
+  await bate('agendadasEm');
+  try {
+    return await esvaziaFila();
+  } catch (e) {
+    await falhou('agendadas', descreveErro(e));
+    return NextResponse.json({ ok: false, erro: 'A fila falhou nesta rodada.' }, { status: 500 });
+  }
+}
+
+async function esvaziaFila() {
   if (!temConfig()) {
     return NextResponse.json({ ok: false, erro: 'WhatsApp não conectado.' }, { status: 200 });
   }

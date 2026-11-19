@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
 import { adminBd } from '@/lib/firebase/admin';
 import { marcaLida } from '@/lib/whatsapp/cloud';
+import { bate, descreveErro, falhou } from '@/lib/saude';
 import {
   garanteConversa, naoViraFala, processaStatus, recebeDoContato, recebeEcoDoCelular,
   sincronizaContatos, type Contexto,
@@ -53,6 +54,12 @@ interface Mudanca {
 export async function POST(req: Request) {
   const bruto = await req.text();
   if (!assinaturaConfere(bruto, req.headers.get('x-hub-signature-256'))) {
+    /* Só vira alarme quando parece mesmo a Meta: com assinatura e corpo de conta do
+       WhatsApp. Aí o segredo daqui está errado e NENHUMA mensagem entra. Robô
+       qualquer batendo na porta só leva o 401. */
+    if (req.headers.get('x-hub-signature-256') && bruto.includes('whatsapp_business_account')) {
+      await falhou('assinatura', 'A Meta chamou o webhook e a assinatura não conferiu com o META_APP_SECRET.');
+    }
     return new NextResponse('assinatura inválida', { status: 401 });
   }
 
@@ -60,12 +67,24 @@ export async function POST(req: Request) {
   try { corpo = JSON.parse(bruto); } catch { return NextResponse.json({ ok: true }); }
 
   /* responde 200 agora e trabalha depois: a Meta reenvia se demorar */
-  waitUntil(processa(corpo).catch((e) => console.error('[webhook]', e)));
+  waitUntil(processa(corpo).catch((e) => falhou('webhook', descreveErro(e))));
   return NextResponse.json({ ok: true });
+}
+
+/** Uma mensagem que quebra não leva junto as outras do mesmo lote. */
+async function protegido(trabalho: () => Promise<unknown>) {
+  try {
+    await trabalho();
+    return true;
+  } catch (e) {
+    await falhou('webhook', descreveErro(e));
+    return false;
+  }
 }
 
 async function processa(corpo: { entry?: { changes?: Mudanca[] }[] }) {
   const ctx: Contexto = { bd: adminBd() };
+  let entrou = false;
 
   for (const entrada of corpo.entry || []) {
     for (const mudanca of entrada.changes || []) {
@@ -75,32 +94,35 @@ async function processa(corpo: { entry?: { changes?: Mudanca[] }[] }) {
       /* mensagens que o contato mandou, e o estado das que a gente mandou */
       if (campo === 'messages') {
         for (const m of v.messages || []) {
-          const tipo = String(m.type || '');
-          const ref = naoViraFala(tipo)
-            ? await garanteConversa(ctx, String(m.from || ''), '')
-            : await recebeDoContato(ctx, m, v.contacts || []);
-          if (naoViraFala(tipo) && ref) {
-            /* reação, figurinha e formato não suportado entram no histórico sem virar fala */
-            await ctx.bd.collection('mensagens').add({
-              conversaId: ref.id,
-              direcao: 'entrada',
-              autor: 'cliente',
-              texto: tipo === 'reaction' ? 'reagiu a uma mensagem'
-                : tipo === 'sticker' ? 'figurinha'
-                : 'mensagem que o WhatsApp não mostra ao sistema',
-              tipoBruto: tipo,
-              waMessageId: String(m.id || ''),
-              criadaEm: new Date().toISOString(),
-            });
-          }
+          const feito = await protegido(async () => {
+            const tipo = String(m.type || '');
+            const ref = naoViraFala(tipo)
+              ? await garanteConversa(ctx, String(m.from || ''), '')
+              : await recebeDoContato(ctx, m, v.contacts || []);
+            if (naoViraFala(tipo) && ref) {
+              /* reação, figurinha e formato não suportado entram no histórico sem virar fala */
+              await ctx.bd.collection('mensagens').add({
+                conversaId: ref.id,
+                direcao: 'entrada',
+                autor: 'cliente',
+                texto: tipo === 'reaction' ? 'reagiu a uma mensagem'
+                  : tipo === 'sticker' ? 'figurinha'
+                  : 'mensagem que o WhatsApp não mostra ao sistema',
+                tipoBruto: tipo,
+                waMessageId: String(m.id || ''),
+                criadaEm: new Date().toISOString(),
+              });
+            }
+          });
+          if (feito) entrou = true;
           if (m.id) void marcaLida(String(m.id));
         }
-        for (const s of v.statuses || []) await processaStatus(ctx, s);
+        for (const s of v.statuses || []) await protegido(() => processaStatus(ctx, s));
       }
 
       /* coexistencia: o que a recepção mandou pelo celular */
       if (campo === 'smb_message_echoes' || campo === 'message_echoes') {
-        for (const m of v.message_echoes || []) await recebeEcoDoCelular(ctx, m);
+        for (const m of v.message_echoes || []) await protegido(() => recebeEcoDoCelular(ctx, m));
       }
 
       /* coexistencia: a agenda de contatos do celular, uma vez so */
@@ -132,4 +154,7 @@ async function processa(corpo: { entry?: { changes?: Mudanca[] }[] }) {
       }
     }
   }
+
+  /* a Meta alcançou o sistema; e se entrou fala de contato, o caminho inteiro está de pé */
+  await (entrou ? bate('webhookEm', 'entradaEm') : bate('webhookEm'));
 }

@@ -9,8 +9,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Ic, SpriteDeIcones } from '@/componentes/icones';
 import { useSessao, useTema } from '@/componentes/sessao';
-import { MODULOS, NOME_MODULO, NOME_PAPEL, modulosDoPapel, type Modulo } from '@/lib/dominio/acessos';
+import { MODULOS, NOME_MODULO, NOME_PAPEL, ehGestao, modulosDoPapel, type Modulo } from '@/lib/dominio/acessos';
 import { modoDemo } from '@/lib/dados/fonte';
+import { FaixaDeSaude } from '@/componentes/saude';
 
 const ROTA: Record<Modulo, string> = {
   conversas: '/conversas', quadros: '/quadros', provas: '/provas',
@@ -123,6 +124,7 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
               some ao recarregar a página.
             </p>
           )}
+          <FaixaDeSaude gestao={ehGestao(perfil.papel)} />
           {children}
         </main>
 

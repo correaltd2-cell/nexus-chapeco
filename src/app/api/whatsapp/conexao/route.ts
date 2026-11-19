@@ -125,9 +125,28 @@ async function confereWebhook(origem: string): Promise<Conferencia> {
   }
 }
 
+/* o servidor roda em UTC; a escola lê no horário de Chapecó */
+const horaDaEscola = (iso: string) => new Date(iso).toLocaleString('pt-BR', {
+  timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+}).replace(',', ' às');
+
 async function confereMensagens(): Promise<Conferencia> {
-  const desde = new Date(Date.now() - 7 * 864e5).toISOString();
   try {
+    /* a batida que o webhook anota em config/saude diz a hora exata da última */
+    const saude = (await adminBd().doc('config/saude').get()).data() as { entradaEm?: string } | undefined;
+    if (saude?.entradaEm) {
+      const dias = (Date.now() - new Date(saude.entradaEm).getTime()) / 864e5;
+      return {
+        chave: 'mensagens',
+        titulo: `Última mensagem de contato: ${horaDaEscola(saude.entradaEm)}`,
+        estado: dias > 7 ? 'aviso' : 'ok',
+        detalhe: dias > 7
+          ? 'Faz mais de uma semana. Pode ser só silêncio, ou o webhook não estar chegando aqui.'
+          : 'O caminho Meta, webhook e banco está de pé.',
+        conserto: dias > 7 ? 'Mande um "oi" de outro celular para o número da escola e recarregue esta tela.' : undefined,
+      };
+    }
+    const desde = new Date(Date.now() - 7 * 864e5).toISOString();
     const achadas = await adminBd().collection('mensagens')
       .where('direcao', '==', 'entrada').where('criadaEm', '>=', desde)
       .limit(1).get();
@@ -138,7 +157,7 @@ async function confereMensagens(): Promise<Conferencia> {
         conserto: 'Mande um "oi" de outro celular para o número da escola e recarregue esta tela.',
       };
     }
-    return { chave: 'mensagens', titulo: 'Chegou mensagem de contato nos últimos 7 dias', estado: 'ok', detalhe: 'O caminho Meta → webhook → banco está de pé.' };
+    return { chave: 'mensagens', titulo: 'Chegou mensagem de contato nos últimos 7 dias', estado: 'ok', detalhe: 'O caminho Meta, webhook e banco está de pé.' };
   } catch {
     return { chave: 'mensagens', titulo: 'Não consegui ler as mensagens', estado: 'erro', detalhe: 'O banco não respondeu.' };
   }
