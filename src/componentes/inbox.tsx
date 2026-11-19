@@ -16,13 +16,18 @@ import {
 } from '@/lib/dominio/conversas';
 import { corDaEtiqueta } from '@/lib/dominio/quadros';
 import {
-  corta, diaPorExtenso, hora, iniciais, janelaAberta, mesmoDia, paraCampoDeHora, quando,
+  corta, diaPorExtenso, hora, iniciais, janelaAberta, mesmoDia, paraCampoDeHora, quando, tomDoNome,
 } from '@/lib/dominio/formato';
 import type { Conversa, Mensagem, MensagemAgendada, Setor } from '@/lib/dominio/tipos';
 
+/* os emojis de toda hora, numa grade só: sem biblioteca, sem rede */
+const EMOJIS = ['😊', '🙂', '😉', '😄', '😂', '🥰', '😍', '🤗', '🙏', '👍', '👏', '🙌', '💪', '👋', '✅', '🎉',
+  '❤️', '🧡', '⭐', '🔥', '💯', '🤔', '😅', '😢', '📚', '✏️', '📝', '📅', '⏰', '📍', '📞', '💬'];
+
 function Avatar({ nome, foto, c }: { nome: string; foto?: string; c?: string }) {
+  const classe = ['av', c, !foto && tomDoNome(nome)].filter(Boolean).join(' ');
   return (
-    <span className={c ? `av ${c}` : 'av'} aria-hidden="true">
+    <span className={classe} aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {foto ? <img src={foto} alt="" /> : iniciais(nome)}
     </span>
@@ -57,6 +62,7 @@ export default function Inbox() {
   const [filtroAberto, setFiltroAberto] = useState(false);
   const [busca, setBusca] = useState('');
   const [rascunho, setRascunho] = useState('');
+  const [emojis, setEmojis] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState('');
   /* no celular e na tela estreita: a conversa por cima da lista, e o painel por cima
@@ -250,6 +256,7 @@ export default function Inbox() {
       'wa', !aberta && 'vazia', recolhido && 'recolhido', naConversa && 'c-open', painel && 'p-open',
     ].filter(Boolean).join(' ')}>
       <section className="lst" aria-label="Conversas">
+        <div className="lst-topo">
         <header className="lh">
           <b>Conversas</b>
           <span className="conta num" aria-live="polite">
@@ -268,6 +275,7 @@ export default function Inbox() {
             <Ic n="filtro" />
             {refinos > 0 && <span className="q">{refinos}</span>}
           </button>
+        </div>
         </div>
 
         {filtroAberto && (
@@ -391,7 +399,7 @@ export default function Inbox() {
                   return (
                     <Fragment key={m.id}>
                       {novoDia && <div className="cp">{diaPorExtenso(m.criadaEm)}</div>}
-                      <div className="cp">{m.texto}</div>
+                      <div className="cp rec">{m.texto}</div>
                     </Fragment>
                   );
                 }
@@ -408,10 +416,14 @@ export default function Inbox() {
                           </span>
                         )}
                         {m.texto && <span className="tx">{m.texto}</span>}
-                        {m.botoes?.length ? <span className="bts-msg">{m.botoes.join('  ·  ')}</span> : null}
                         {!m.texto && m.midiaNome && <span className="tx">{m.midiaNome}</span>}
-                        <span className="mt num">{hora(m.criadaEm)}<Ticks m={m} /></span>
+                        <span className="mt">{hora(m.criadaEm)}<Ticks m={m} /></span>
                       </div>
+                      {m.botoes?.length ? (
+                        <div className="bts-msg" aria-label="Botões enviados com a mensagem">
+                          {m.botoes.map((b) => <span key={b}>{b}</span>)}
+                        </div>
+                      ) : null}
                     </div>
                   </Fragment>
                 );
@@ -446,16 +458,30 @@ export default function Inbox() {
             )}
 
             {janela ? (
-              <form className="cmp" onSubmit={enviar}>
-                <button type="button" className="ib prog" aria-expanded={programando}
-                        title={naFila ? `${naFila} mensagem programada nesta conversa` : 'Programar mensagem'}
-                        aria-label="Programar mensagem"
-                        onClick={() => setProgramando(!programando)}>
-                  <Ic n={naFila ? 'check' : 'relogio'} />
-                </button>
-                <input type="text" value={rascunho} autoComplete="off" aria-label="Mensagem"
-                       placeholder="Digite uma mensagem" onChange={(e) => setRascunho(e.target.value)} />
-                <button type="submit" className="ib" title="Enviar" aria-label="Enviar" disabled={enviando}>
+              <form className="cmp" onSubmit={(e) => { setEmojis(false); void enviar(e); }}>
+                {emojis && (
+                  <div className="emo" role="group" aria-label="Emojis">
+                    {EMOJIS.map((e) => (
+                      <button key={e} type="button" aria-label={`Inserir ${e}`}
+                              onClick={() => setRascunho((r) => r + e)}>{e}</button>
+                    ))}
+                  </div>
+                )}
+                <div className="campo">
+                  <button type="button" className="ib" aria-expanded={emojis} title="Emojis" aria-label="Emojis"
+                          onClick={() => setEmojis(!emojis)}>
+                    <Ic n="emoji" />
+                  </button>
+                  <input type="text" value={rascunho} autoComplete="off" aria-label="Mensagem"
+                         placeholder="Digite uma mensagem" onChange={(e) => setRascunho(e.target.value)} />
+                  <button type="button" className={naFila ? 'ib tem' : 'ib'} aria-expanded={programando}
+                          title={naFila ? `${naFila} mensagem programada nesta conversa` : 'Programar mensagem'}
+                          aria-label="Programar mensagem"
+                          onClick={() => setProgramando(!programando)}>
+                    <Ic n="relogio" />
+                  </button>
+                </div>
+                <button type="submit" className="envia" title="Enviar" aria-label="Enviar" disabled={enviando}>
                   <Ic n="envia" />
                 </button>
               </form>

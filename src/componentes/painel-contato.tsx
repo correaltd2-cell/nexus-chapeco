@@ -12,7 +12,7 @@ import { NOME_SETOR, SETORES } from '@/lib/dominio/acessos';
 import { leAtendimento } from '@/lib/dominio/config';
 import { esperandoDesde, situacao } from '@/lib/dominio/conversas';
 import {
-  dataBR, dataHoraBR, duracao, iniciais, janelaAberta, paraCampoDeData, telefoneLegivel,
+  dataBR, dataHoraBR, duracao, iniciais, janelaAberta, paraCampoDeData, telefoneLegivel, tomDoNome,
 } from '@/lib/dominio/formato';
 import { reduzFoto } from '@/lib/dominio/foto';
 import { ETIQUETAS_PADRAO, cartoesDaLista, novoId, ordemEntre, vencido } from '@/lib/dominio/quadros';
@@ -195,7 +195,7 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
 
       <div className="bl cab">
         <span className="pf">
-          <span className="av l" aria-hidden="true">
+          <span className={conversa.foto ? 'av l' : `av l ${tomDoNome(conversa.nome)}`} aria-hidden="true">
             {conversa.foto
               ? /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={conversa.foto} alt="" />

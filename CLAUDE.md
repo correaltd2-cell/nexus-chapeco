@@ -74,6 +74,7 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 | 18/11/2026 | **A foto do contato mora no próprio documento da conversa**, reduzida para 256px em JPEG. É leve o bastante para caber no limite de 1 MB e aparecer na lista sem segunda ida ao servidor. |
 | 18/11/2026 | **A etiqueta de assunto é automática.** A triagem pendura o assunto na conversa toda vez que o sinal é forte (Cancelamento, Financeiro, Marcação, Matrícula, Prova, Reposição, Coordenação), e ela aparece colorida na linha da lista. Nunca tira etiqueta que gente pôs à mão. |
 | 18/11/2026 | **O atendimento automático responde o contato** (decidido com a Nádia). Conversa nova recebe saudação com 3 botões (Minhas aulas, Financeiro/contrato, Outro assunto); aulas e outro assunto vão para a Recepção, financeiro e contrato para o assistente (botões ou IA). **A Coordenação nunca é botão:** só recebe por transferência de dentro do sistema, com aviso no celular pessoal por modelo aprovado. Quem some recebe follow-up aos 15 min e encerramento aos 30, **escritos pela IA lendo a conversa, no jeito de falar da escola**, nunca texto engessado; sem IA sai o texto de reserva. O relógio só corre quando a escola falou por último. Setor que não responde em 2 h devolve para a Recepção. Atendimento encerrado recomeça pela Recepção. Tudo editável em Configurações e **nasce desligado**. |
+| 19/11/2026 | **Redesenho: cara de aplicativo, e a conversa com o jeito e as cores do WhatsApp** (pedido do cliente, com o app da Smiles como referência de estilo). Cantos bem redondos, cartões soltos sobre o fundo, botão e filtro em pílula, laranja forte onde se age; no celular, faixa laranja no alto da lista e barra de abas branca. Na conversa: bolha verde de quem envia e branca de quem chega, com a pontinha; papel de parede bege com **desenho próprio** de escola (nada copiado do WhatsApp, nem logo); visto azul; os botões da mensagem embaixo da bolha; emoji na caixa de escrever e botão redondo verde de enviar. Substitui o "não imita o WhatsApp" de 17/11: o time e os alunos já leem esse arranjo sem pensar. |
 | 18/11/2026 | **O telefone do contato não se edita na tela.** Ele é a chave que casa a conversa com o que a Meta manda. Nome, foto e observação se editam; telefone novo é conversa nova. |
 
 ## 3.2 O que já está de pé no atendimento (18/11/2026)
@@ -172,7 +173,14 @@ telas com o cliente, não as cores: aquelas foram substituídas.
   O laranja (`--solar` `#F6821F`) é a marca E o único acento forte: nada mais compete
   com ele. O resto é branco, cinza e as escalas de texto.
 - **A única cor fora da paleta é o vermelho** (`--alert`), e só para prazo estourado e
-  mensagem que não entregou. Não dá para dizer "deu errado" com cinza.
+  mensagem que não entregou. Não dá para dizer "deu errado" com cinza. **Dentro da
+  conversa** valem as cores do WhatsApp (tokens `--balao-*`, `--wa-*`, `--visto`):
+  verde da bolha e do enviar, bege do fundo, azul do visto. Fora da conversa, não.
+- **Forma de aplicativo** (19/11/2026): cartão com canto de 18px e sombra leve em vez
+  de borda, campo com 12px, botão, filtro e etiqueta em pílula, título de tela grande
+  em Bricolage 800. No computador o inbox são três cartões soltos sobre o fundo; no
+  celular o alto da lista é a faixa laranja (`--solar-hero`, escura o bastante para o
+  branco ler em cima) e a barra de abas é branca, com a aba atual em laranja.
 - **Rail escuro com os nomes das seções** à esquerda, agrupadas (Atendimento, Escola,
   Gestão), e a interface clara ao lado. **Até 1440px o rail vira só ícones** (nome ao
   passar o mouse), porque a escola trabalha com a tela dividida (decidido em
@@ -183,16 +191,19 @@ telas com o cliente, não as cores: aquelas foram substituídas.
   nunca de `classList` na mão: o React reescreve o `className` e apaga.
 - **Tipografia:** Bricolage Grotesque nos títulos e números grandes, com moderação;
   Instrument Sans no corpo; JetBrains Mono em todo dado numérico, sempre com
-  `tabular-nums` (a classe `.num`). As três entram por `<link>` no documento, como no
+  `tabular-nums` (a classe `.num`). A exceção é a hora na bolha e na linha da lista,
+  em Instrument Sans com `tabular-nums`, como no WhatsApp. As três entram por `<link>` no documento, como no
   modelo da LPA, porque `next/font` busca a fonte no build e a rede daqui não alcança
   o Google. A pilha de reserva vive dentro do próprio token, então
   `font-family:var(--fonte-display)` sozinho já basta.
 - **Tema claro, escuro ou automático.** O automático segue o aparelho; a escolha feita
   em Configurações vale por cima, pela classe `t-escuro` ou `t-claro` no `body`.
 - Interface clara por padrão, porque o time usa isso oito horas por dia.
-- A tela de atendimento tem o arranjo de um aplicativo de mensagens (lista, conversa,
-  dados do contato) porque o time já sabe usar isso. O que ela **não** faz é imitar o
-  WhatsApp: nada de bolha verde nem papel de parede bege.
+- A tela de atendimento tem o arranjo e o visual do WhatsApp (lista, conversa com
+  bolhas verdes e brancas sobre o fundo bege, dados do contato) porque o time e os
+  alunos já sabem ler isso. O papel de parede é desenho nosso (`--wall-desenho`), e o
+  emoji é uma grade fixa dos de toda hora, sem biblioteca. Botão que ainda não faz
+  nada (anexo, áudio) não entra antes de funcionar.
 
 ### Escrita da interface
 Português brasileiro, tom direto, frase em caixa baixa. O botão diz o que acontece:

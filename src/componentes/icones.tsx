@@ -1,6 +1,6 @@
 /* Os desenhos de icone, num sprite so. Vieram da demonstracao aprovada.
    Use <Ic n="chat"/> onde precisar; o sprite entra uma vez na casca. */
-export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "doc", "envia", "filtro", "grade", "grafico", "info", "lista", "lua", "mais", "menu", "moeda", "nota", "pessoas", "play", "pontos", "quadro", "raio", "relogio", "seta", "sol", "tag", "texto", "troca", "volta", "x"] as const;
+export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "doc", "emoji", "envia", "filtro", "grade", "grafico", "info", "lista", "lua", "mais", "menu", "moeda", "nota", "pessoas", "play", "pontos", "quadro", "raio", "relogio", "seta", "sol", "tag", "texto", "troca", "volta", "x"] as const;
 export type NomeIcone = (typeof NOMES_ICONE)[number];
 
 export function Ic({ n, c }: { n: NomeIcone | string; c?: string }) {
@@ -15,6 +15,7 @@ export function SpriteDeIcones() {
   return (
     <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 5.5h15v11h-9l-4.5 3.5v-3.5h-1.5z"/></symbol>
+  <symbol id="i-emoji" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14c.8 1.4 2 2.1 3.5 2.1s2.7-.7 3.5-2.1M9.2 9.6v.6M14.8 9.6v.6"/></symbol>
   <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
   <symbol id="i-busca" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></symbol>
   <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>

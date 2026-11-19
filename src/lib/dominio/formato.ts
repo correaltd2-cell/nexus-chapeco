@@ -114,3 +114,12 @@ export function paraCampoDeData(d: Date) {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+/* Cada contato com um tom fixo, tirado do nome: a mesma pessoa tem sempre a mesma
+   cor no avatar, e a lista não vira um mar de cinza. */
+const TONS = ['vd', 'am', 'rx', 'az', 'ci', 'lr'] as const;
+export function tomDoNome(nome: string) {
+  let h = 0;
+  for (const letra of nome) h = (h * 31 + letra.charCodeAt(0)) >>> 0;
+  return `tom-${TONS[h % TONS.length]}`;
+}
