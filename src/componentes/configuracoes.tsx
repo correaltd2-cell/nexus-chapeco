@@ -3,13 +3,15 @@
    So entra aqui botao que faz alguma coisa de verdade. O que ainda nao existe fica
    de fora, porque interruptor que nao liga nada ensina o time a nao confiar na tela. */
 import { useEffect, useMemo, useState } from 'react';
-import { assina, define, modoDemo } from '@/lib/dados/fonte';
+import { assina, atualiza, define, modoDemo } from '@/lib/dados/fonte';
 import { useSessao, useTema, type Tema } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
 import { ehGestao, NOME_PAPEL, NOME_SETOR, SETORES } from '@/lib/dominio/acessos';
 import { leAtendimento } from '@/lib/dominio/config';
-import { dataBR } from '@/lib/dominio/formato';
+import { leAutomatico, type ConfigAutomatico } from '@/lib/dominio/automatico';
+import AtendimentoAutomatico from '@/componentes/config-automatico';
+import { dataBR, telefoneLegivel } from '@/lib/dominio/formato';
 import type { Papel, Perfil, Setor } from '@/lib/dominio/tipos';
 
 interface Conferencia {
@@ -33,6 +35,11 @@ export default function Configuracoes() {
   const atendimento = useMemo(() => {
     const doc = configs.find((c) => c.id === 'atendimento');
     return leAtendimento(doc as Parameters<typeof leAtendimento>[0]);
+  }, [configs]);
+
+  const automatico = useMemo(() => {
+    const doc = configs.find((c) => c.id === 'automatico');
+    return leAutomatico(doc as Partial<ConfigAutomatico> | undefined);
   }, [configs]);
 
   async function salvaAtendimento(campos: Partial<typeof atendimento>) {
@@ -59,6 +66,7 @@ export default function Configuracoes() {
       </header>
 
       <Atendimento valor={atendimento} podeMexer={gestao} aoSalvar={salvaAtendimento} />
+      <AtendimentoAutomatico salva={automatico} podeMexer={gestao} chama={chama} perfis={perfis} />
       <Aparencia tema={tema} setTema={setTema} />
       {gestao && <Equipe perfis={perfis} eu={perfil} chama={chama} />}
       {gestao && <WhatsApp chama={chama} />}
@@ -149,6 +157,25 @@ function Equipe({ perfis, eu, chama }: {
   const [deQuem, setDeQuem] = useState('');
   const [erro, setErro] = useState('');
   const [indo, setIndo] = useState(false);
+  /* o aviso de conversa nova chega no celular pessoal de quem é da coordenação */
+  const [avisoDe, setAvisoDe] = useState<string | null>(null);
+  const [fone, setFone] = useState('');
+  const [avisar, setAvisar] = useState(false);
+
+  function abreAviso(p: Perfil) {
+    if (avisoDe === p.id) { setAvisoDe(null); return; }
+    setAvisoDe(p.id); setFone(p.telefone || ''); setAvisar(p.avisaNoWhats);
+  }
+
+  async function salvaAviso(p: Perfil) {
+    let digitos = fone.replace(/\D/g, '');
+    if (digitos.length === 10 || digitos.length === 11) digitos = `55${digitos}`;
+    if (avisar && digitos.length < 12) { setErro('Escreva o celular com DDD, por exemplo 49 99123-4567.'); return; }
+    setErro('');
+    await atualiza('perfis', p.id, { telefone: digitos, avisaNoWhats: avisar && Boolean(digitos) });
+    setAvisoDe(null);
+    avisa(avisar ? `${p.nome} recebe o aviso no WhatsApp` : `${p.nome} não recebe mais o aviso`);
+  }
 
   const lista = [...perfis].sort((a, b) => Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome));
 
@@ -224,7 +251,8 @@ function Equipe({ perfis, eu, chama }: {
       {erro && <p className="erro" style={{ padding: '0 18px 10px' }}>{erro}</p>}
 
       {lista.map((p) => (
-        <div key={p.id} className="lin">
+        <div key={p.id}>
+        <div className="lin">
           <Ic n="pessoas" />
           <span className="co">
             <b>{p.nome}{p.id === eu?.id ? ' (você)' : ''}</b>
@@ -233,8 +261,12 @@ function Equipe({ perfis, eu, chama }: {
               {p.setores.length ? `, ${p.setores.map((s) => NOME_SETOR[s]).join(', ')}` : ''}
               {p.ativo ? '' : ', sem acesso'}
               {p.criadoEm ? `, desde ${dataBR(p.criadoEm)}` : ''}
+              {p.avisaNoWhats && p.telefone ? `, aviso no WhatsApp ${telefoneLegivel(p.telefone)}` : ''}
             </small>
           </span>
+          <button className="tx-btn" aria-expanded={avisoDe === p.id} onClick={() => abreAviso(p)}>
+            Aviso no WhatsApp
+          </button>
           {p.id !== eu?.id && (
             <>
               <button className="tx-btn" disabled={indo}
@@ -247,6 +279,28 @@ function Equipe({ perfis, eu, chama }: {
               </button>
             </>
           )}
+        </div>
+        {avisoDe === p.id && (
+          <div className="frm">
+            <p className="obs forte">
+              Quando alguém passa uma conversa para o setor de {p.nome.split(' ')[0]}, chega neste
+              celular um aviso com o botão que abre a conversa no sistema. Vale para Coordenação e
+              Coordenação Kids, com o aviso ligado no atendimento automático.
+            </p>
+            <div className="ln">
+              <input className="cx" inputMode="tel" aria-label={`Celular de ${p.nome}`} placeholder="49 99123-4567"
+                     value={fone} onChange={(e) => setFone(e.target.value)} />
+            </div>
+            <label className="lig">
+              <input type="checkbox" checked={avisar} onChange={(e) => setAvisar(e.target.checked)} />
+              <span><b>Receber o aviso no WhatsApp</b>A mensagem sai pelo número da escola, por modelo aprovado.</span>
+            </label>
+            <div className="acoes">
+              <button className="btn" onClick={() => setAvisoDe(null)}>Cancelar</button>
+              <button className="btn p" onClick={() => void salvaAviso(p)}>Salvar aviso</button>
+            </div>
+          </div>
+        )}
         </div>
       ))}
       <p className="vz">

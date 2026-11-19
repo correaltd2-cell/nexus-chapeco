@@ -4,7 +4,8 @@ import 'server-only';
 import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
 import { comEtiqueta, etiquetaDoAssunto, leAssunto, tarefaDoAssunto } from '@/lib/dominio/triagem';
 import { PASSO, novoId } from '@/lib/dominio/quadros';
-import type { Lista, Quadro } from '@/lib/dominio/tipos';
+import type { Conversa, Lista, Quadro } from '@/lib/dominio/tipos';
+import { atendeAoVivo, camposDaFalaDaEscola } from './automatico';
 
 export interface Contexto { bd: Firestore }
 
@@ -56,6 +57,8 @@ export async function garanteConversa(ctx: Contexto, waId: string, nome: string)
     etiquetas: [],
     ultimaEm: agora,
     ultimaPreviaTexto: '',
+    /* conversa nova: a primeira mensagem ao vivo começa o atendimento automático */
+    etapa: 'inicio',
     criadaEm: agora,
   });
 }
@@ -120,11 +123,13 @@ export async function abreTarefaPelaTriagem(
   });
 }
 
-/** Mensagem que o contato mandou. */
+/** Mensagem que o contato mandou. O histórico antigo que vem do celular na coexistência
+    entra com origem 'historico' e nunca dispara o atendimento automático. */
 export async function recebeDoContato(
   ctx: Contexto,
   m: Record<string, unknown>,
   contatos: { wa_id?: string; profile?: { name?: string } }[],
+  origem: 'ao_vivo' | 'historico' = 'ao_vivo',
 ) {
   const waId = String(m.from || '');
   if (!waId) return;
@@ -164,11 +169,22 @@ export async function recebeDoContato(
     try { await marcaAssunto(ctx, ref, (dados.etiquetas as string[]) || [], texto); } catch { /* segue */ }
     try { await abreTarefaPelaTriagem(ctx, ref, nome, texto); } catch { /* segue */ }
   }
+
+  /* o atendimento automático responde só a quem está escrevendo agora */
+  if (origem === 'ao_vivo' && !naoViraFala(tipo)) {
+    try {
+      await atendeAoVivo(ctx.bd, ref, (conversa.data() || {}) as Partial<Conversa>, m, texto, quando, janelaDe(quando));
+    } catch (e) {
+      console.error('[automatico]', ref.id, e);
+    }
+  }
   return ref;
 }
 
 /** Eco de coexistencia: o que a recepção mandou pelo celular aparece aqui. */
-export async function recebeEcoDoCelular(ctx: Contexto, m: Record<string, unknown>) {
+export async function recebeEcoDoCelular(
+  ctx: Contexto, m: Record<string, unknown>, origem: 'ao_vivo' | 'historico' = 'ao_vivo',
+) {
   const waId = String(m.to || '');
   if (!waId) return;
   const ref = await garanteConversa(ctx, waId, '');
@@ -192,8 +208,13 @@ export async function recebeEcoDoCelular(ctx: Contexto, m: Record<string, unknow
     entregueEm: quando,
     criadaEm: quando,
   });
-  /* alguem do time ja respondeu pelo celular: o Lumi nao interrompe */
-  await ref.update({ ultimaEm: quando, ultimaPreviaTexto: texto, agenteAtivo: false, naoLidas: 0 });
+  /* alguem do time ja respondeu pelo celular: o atendimento automático nao interrompe,
+     e o relógio do follow-up conta desta fala */
+  await ref.update({
+    ultimaEm: quando, ultimaPreviaTexto: texto, agenteAtivo: false, naoLidas: 0,
+    /* histórico antigo não liga relógio: senão a conversa de meses atrás seria encerrada */
+    ...(origem === 'ao_vivo' ? camposDaFalaDaEscola(quando) : {}),
+  });
 }
 
 /** entregue, lido e falhou. O estado so anda para frente. */

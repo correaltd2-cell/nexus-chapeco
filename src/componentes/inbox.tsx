@@ -3,6 +3,7 @@
    Le do Firestore em tempo real; manda pela rota /api/whatsapp/enviar, que é quem
    tem o segredo. */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { assina, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
@@ -43,9 +44,13 @@ function Ticks({ m }: { m: Mensagem }) {
 
 export default function Inbox() {
   const { perfil, usuario } = useSessao();
+  /* /conversas?conversa=ID abre essa conversa: é o link do cartão no quadro, da tela de
+     aulas e do aviso que chega no celular do coordenador */
+  const pedida = useSearchParams().get('conversa');
+  const [pedidaVista, setPedidaVista] = useState(pedida);
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [todasMensagens, setTodasMensagens] = useState<Mensagem[]>([]);
-  const [abertaId, setAbertaId] = useState<string | null>(null);
+  const [abertaId, setAbertaId] = useState<string | null>(pedida);
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [etiqueta, setEtiqueta] = useState<string | null>(null);
   const [setor, setSetor] = useState<Setor | null>(null);
@@ -57,7 +62,7 @@ export default function Inbox() {
   /* no celular e na tela estreita: a conversa por cima da lista, e o painel por cima
      da conversa. Vem do estado, e nao de classe posta a mao no HTML: o React reescreve
      o className a cada mudanca e apagava a classe, e o primeiro toque se perdia. */
-  const [naConversa, setNaConversa] = useState(false);
+  const [naConversa, setNaConversa] = useState(Boolean(pedida));
   const [painel, setPainel] = useState(false);
   const [recolhido, setRecolhido] = usePainelRecolhido();
   const [agendadas, setAgendadas] = useState<MensagemAgendada[]>([]);
@@ -66,6 +71,14 @@ export default function Inbox() {
   const [progTexto, setProgTexto] = useState('');
   const [progQuando, setProgQuando] = useState('');
   const rolo = useRef<HTMLDivElement>(null);
+  const [confirmaEncerrar, setConfirmaEncerrar] = useState<string | null>(null);
+  const [encerrando, setEncerrando] = useState(false);
+
+  /* o link mudou com a tela aberta: abre a conversa nova */
+  if (pedida !== pedidaVista) {
+    setPedidaVista(pedida);
+    if (pedida) { setAbertaId(pedida); setNaConversa(true); setPainel(false); }
+  }
 
   /* lista de conversas, em tempo real */
   useEffect(() => assina('conversas', (docs) => {
@@ -119,6 +132,40 @@ export default function Inbox() {
       try { await atualiza('conversas', c.id, { naoLidas: 0 }); } catch { /* sem permissão, segue */ }
     }
   }, []);
+
+  /* Encerrar na mão pede dois toques: o primeiro arma, o segundo encerra. Com a chave
+     do atendimento automático ligada, o servidor manda antes uma despedida curta. */
+  async function encerrar() {
+    if (!aberta) return;
+    if (confirmaEncerrar !== aberta.id) { setConfirmaEncerrar(aberta.id); return; }
+    setConfirmaEncerrar(null); setEncerrando(true); setAviso('');
+    try {
+      if (modoDemo) {
+        const quando = new Date().toISOString();
+        const quem = perfil?.nome || 'Equipe';
+        await atualiza('conversas', aberta.id, {
+          estado: 'encerrada', encerradaEm: quando, encerradaPor: 'atendente', encerradaPorNome: quem, setor: 'recepcao',
+        });
+        await cria('mensagens', {
+          conversaId: aberta.id, direcao: 'saida', autor: 'sistema', texto: `${quem} encerrou o atendimento.`, criadaEm: quando,
+        });
+        return;
+      }
+      if (!usuario) return;
+      const token = await usuario.getIdToken();
+      const r = await fetch('/api/conversas/encerrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ conversaId: aberta.id }),
+      });
+      const resposta = (await r.json()) as { ok?: boolean; erro?: string };
+      if (!r.ok || !resposta.ok) setAviso(resposta.erro || 'Não consegui encerrar agora.');
+    } catch {
+      setAviso('Não consegui falar com o servidor. Tente de novo.');
+    } finally {
+      setEncerrando(false);
+    }
+  }
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
@@ -321,6 +368,14 @@ export default function Inbox() {
                 <Avatar nome={aberta.nome} foto={aberta.foto} c="s" />
                 <span><b>{aberta.nome}</b><small>{situacao(aberta)}</small></span>
               </button>
+              {aberta.estado !== 'encerrada' && (
+                <button className={confirmaEncerrar === aberta.id ? 'btn enc confirma' : 'btn enc'}
+                        disabled={encerrando} onBlur={() => setConfirmaEncerrar(null)}
+                        title={confirmaEncerrar === aberta.id ? 'Toque de novo para encerrar' : 'Encerrar este atendimento'}
+                        onClick={() => void encerrar()}>
+                  {confirmaEncerrar === aberta.id ? 'Confirmar encerramento' : <>Encerrar<span className="so-largo"> atendimento</span></>}
+                </button>
+              )}
               <button className="ib abre" title="Abrir dados do contato" aria-label="Abrir dados do contato"
                       onClick={() => { setRecolhido(false); setPainel(!painel); }}>
                 <Ic n="info" />
@@ -348,11 +403,12 @@ export default function Inbox() {
                       <div className="b">
                         {lado === 'out' && primeira && (
                           <span className="nm">
-                            {m.autor === 'lumi' ? 'Lumi' : m.autorNome || 'Equipe'}
+                            {m.autor === 'lumi' ? m.autorNome || 'Atendimento automático' : m.autorNome || 'Equipe'}
                             {m.template ? ', modelo aprovado' : ''}
                           </span>
                         )}
                         {m.texto && <span className="tx">{m.texto}</span>}
+                        {m.botoes?.length ? <span className="bts-msg">{m.botoes.join('  ·  ')}</span> : null}
                         {!m.texto && m.midiaNome && <span className="tx">{m.midiaNome}</span>}
                         <span className="mt num">{hora(m.criadaEm)}<Ticks m={m} /></span>
                       </div>

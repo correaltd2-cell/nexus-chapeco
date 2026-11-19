@@ -69,9 +69,10 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 | 17/11/2026 | **As provas são construídas aqui dentro**, exclusivas da unidade Chapecó. Não dependem do Nexus Hub nem de sistema de terceiro. |
 | 17/11/2026 | **A grade de aulas continua no Google Sheets** enquanto a planilha for a fonte. O sistema lê e escreve nela; não existe cópia paralela. |
 | 17/11/2026 | **Firebase e Vercel**, não Supabase. |
-| 18/11/2026 | **A triagem abre a tarefa, nunca responde o contato.** Mensagem que chega com assunto claro abre um cartão no quadro do setor. Sinal fraco não abre nada, e só existe uma tarefa aberta por conversa. Quem responde e quem move continua sendo gente. |
+| 18/11/2026 | **A triagem por palavra abre a tarefa, nunca responde o contato.** (Quem responde é o atendimento automático, decisão abaixo.) Mensagem que chega com assunto claro abre um cartão no quadro do setor. Sinal fraco não abre nada, e só existe uma tarefa aberta por conversa. Quem responde e quem move continua sendo gente. |
 | 18/11/2026 | **A foto do contato mora no próprio documento da conversa**, reduzida para 256px em JPEG. É leve o bastante para caber no limite de 1 MB e aparecer na lista sem segunda ida ao servidor. |
 | 18/11/2026 | **A etiqueta de assunto é automática.** A triagem pendura o assunto na conversa toda vez que o sinal é forte (Cancelamento, Financeiro, Marcação, Matrícula, Prova, Reposição, Coordenação), e ela aparece colorida na linha da lista. Nunca tira etiqueta que gente pôs à mão. |
+| 18/11/2026 | **O atendimento automático responde o contato** (decidido com a Nádia). Conversa nova recebe saudação com 3 botões (Minhas aulas, Financeiro/contrato, Outro assunto); aulas e outro assunto vão para a Recepção, financeiro e contrato para o assistente (botões ou IA). **A Coordenação nunca é botão:** só recebe por transferência de dentro do sistema, com aviso no celular pessoal por modelo aprovado. Quem some recebe follow-up aos 15 min e encerramento aos 30, **escritos pela IA lendo a conversa, no jeito de falar da escola**, nunca texto engessado; sem IA sai o texto de reserva. O relógio só corre quando a escola falou por último. Setor que não responde em 2 h devolve para a Recepção. Atendimento encerrado recomeça pela Recepção. Tudo editável em Configurações e **nasce desligado**. |
 | 18/11/2026 | **O telefone do contato não se edita na tela.** Ele é a chave que casa a conversa com o que a Meta manda. Nome, foto e observação se editam; telefone novo é conversa nova. |
 
 ## 3.2 O que já está de pé no atendimento (18/11/2026)
@@ -98,6 +99,14 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
   anda a cada meio minuto. Ler a hora no corpo do componente não é permitido pelas regras
   novas do React, e no servidor ela é outra: antes da hidratação devolve zero, e quem usa
   trata como "ainda não sei a hora" em vez de mostrar 1970.
+- **Atendimento automático**: as regras são puras em `src/lib/dominio/automatico.ts`
+  (configuração, roteamento, relógio, textos para a IA) e provadas em
+  `node --experimental-strip-types testes/automatico.ts`. **Rodar antes de mexer nas
+  regras.** Quem fala com banco, Meta e IA é `src/lib/whatsapp/automatico.ts`; a IA mora
+  em `src/lib/ia/claude.ts` (saída estruturada, esforço baixo, texto de reserva quando
+  falha). A configuração é `config/automatico`, editada na seção de Configurações com
+  área de teste que não envia nada. Histórico importado do celular nunca dispara nada.
+  Passo a passo para ligar: `docs/atendimento-automatico.md`.
 
 ## 4. Arquitetura
 
@@ -111,9 +120,11 @@ Next.js (App Router) ──► Vercel
               ├── /api/whatsapp/webhook     recebe da Cloud API
               ├── /api/whatsapp/enviar      manda pela Cloud API
               ├── /api/whatsapp/conexao     confere e configura a conexão
+              ├── /api/conversas/*          encerrar e passar de setor (com aviso)
+              ├── /api/automatico/testar    a IA escreve sem enviar, para testar
               ├── /api/sheets/*             lê e escreve a grade no Google Sheets
               ├── /api/provas/*             envio e correção
-              └── /api/cron/*               réguas, marcação da semana, cobrança
+              └── /api/cron/*               programadas, relógio do atendimento, réguas
 ```
 
 **Tempo real:** as telas que mudam sozinhas (inbox, quadros, grade) usam `onSnapshot`

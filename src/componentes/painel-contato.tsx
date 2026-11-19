@@ -4,7 +4,7 @@
    programado para sair. Cada acao deixa recado na conversa, para quem pegar depois
    saber o que aconteceu. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { APAGAR, assina, atualiza, cria } from '@/lib/dados/fonte';
+import { APAGAR, assina, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
 import { useAgora, horaConhecida } from '@/componentes/relogio';
@@ -29,7 +29,7 @@ interface Props {
 }
 
 export default function PainelContato({ conversa, mensagens, agendadas, aoFechar }: Props) {
-  const { perfil } = useSessao();
+  const { perfil, usuario } = useSessao();
   const agora = useAgora();
   const [quadros, setQuadros] = useState<Quadro[]>([]);
   const [listas, setListas] = useState<Lista[]>([]);
@@ -109,13 +109,33 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
     }
   }
 
+  /* Passar de setor vai pelo servidor: a Coordenação e a Coordenação Kids recebem o
+     aviso no celular pessoal, e isso usa o token do WhatsApp. Na demonstração não tem
+     servidor, entao muda direto na base de memória. */
   async function transfere(setor: Setor) {
     if (setor === conversa.setor) return;
-    await atualiza('conversas', conversa.id, {
-      setor, estado: 'aguardando', agenteAtivo: false,
-      aguardandoDesde: new Date().toISOString(),
-    });
-    await recado(`${nomeDoAutor} passou a conversa para ${NOME_SETOR[setor]}.`);
+    setAviso('');
+    if (modoDemo) {
+      await atualiza('conversas', conversa.id, {
+        setor, estado: 'aguardando', agenteAtivo: false,
+        aguardandoDesde: new Date().toISOString(),
+      });
+      await recado(`${nomeDoAutor} passou a conversa para ${NOME_SETOR[setor]}.`);
+      return;
+    }
+    if (!usuario) return;
+    try {
+      const token = await usuario.getIdToken();
+      const r = await fetch('/api/conversas/transferir', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ conversaId: conversa.id, setor }),
+      });
+      const resposta = (await r.json()) as { ok?: boolean; erro?: string };
+      if (!r.ok || !resposta.ok) setAviso(resposta.erro || 'Não consegui passar a conversa agora.');
+    } catch {
+      setAviso('Não consegui falar com o servidor. Tente de novo.');
+    }
   }
 
   async function abreTarefa(e: React.FormEvent) {

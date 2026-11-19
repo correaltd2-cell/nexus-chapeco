@@ -117,8 +117,8 @@ async function processa(corpo: { entry?: { changes?: Mudanca[] }[] }) {
         for (const pedaco of v.history || []) {
           for (const thread of pedaco.threads || []) {
             for (const m of thread.messages || []) {
-              if (m.from) await recebeDoContato(ctx, m, []);
-              else if (m.to) await recebeEcoDoCelular(ctx, m);
+              if (m.from) await recebeDoContato(ctx, m, [], 'historico');
+              else if (m.to) await recebeEcoDoCelular(ctx, m, 'historico');
             }
           }
         }
