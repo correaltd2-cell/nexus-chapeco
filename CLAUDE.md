@@ -109,6 +109,19 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
   área de teste que não envia nada. Histórico importado do celular nunca dispara nada.
   Passo a passo para ligar: `docs/atendimento-automatico.md`.
 
+- **Saúde do sistema** (19/11/2026, depois de um dia com o servidor sem gravar e
+  ninguém sabendo): o servidor anota em `config/saude` a última vez que cada parte
+  andou (chamada da Meta, mensagem de contato, envio aceito, relógio, fila) e a última
+  falha de cada uma (`src/lib/saude.ts`: `bate` e `falhou`). As regras do aviso são
+  puras em `src/lib/dominio/saude.ts`, provadas em
+  `node --experimental-strip-types testes/saude.ts`. A gestão vê uma faixa vermelha no
+  topo de todas as telas quando algo grave parou, e a seção Saúde do sistema nas
+  Configurações. A Meta calada se percebe pelo envio: todo envio aceito volta como
+  "enviado" pelo webhook em segundos. A falha do próprio banco não se anota nele: a
+  tela pergunta à rota pública `/api/saude`, que responde só uma palavra. Recusa do dia
+  a dia (janela fechada, número sem WhatsApp) não vira alarme. **Toda rota nova que
+  fala com a Meta, a IA ou o banco anota a falha com `falhou`, nunca só `console.error`.**
+
 ## 4. Arquitetura
 
 ```
@@ -123,6 +136,7 @@ Next.js (App Router) ──► Vercel
               ├── /api/whatsapp/conexao     confere e configura a conexão
               ├── /api/conversas/*          encerrar e passar de setor (com aviso)
               ├── /api/automatico/testar    a IA escreve sem enviar, para testar
+              ├── /api/saude                o servidor alcança o banco? (público, uma palavra)
               ├── /api/sheets/*             lê e escreve a grade no Google Sheets
               ├── /api/provas/*             envio e correção
               └── /api/cron/*               programadas, relógio do atendimento, réguas

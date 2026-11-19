@@ -9,6 +9,7 @@ import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
+import { falhou } from '@/lib/saude';
 
 const MODELO = 'claude-opus-5-5';
 
@@ -36,9 +37,26 @@ export type RespostaDoAssistente = z.infer<typeof RespostaSchema>;
 
 type Turno = { role: 'user' | 'assistant'; content: string };
 
-function anota(e: unknown) {
+/* A falha da IA vai para a saúde do sistema com o motivo em português. O aluno não
+   percebe (sai o texto de reserva), mas a gestão precisa saber se é chave ou saldo. */
+function motivoDaFalha(e: unknown) {
+  if (e instanceof Anthropic.APIConnectionTimeoutError) return 'A IA demorou demais para responder.';
+  if (e instanceof Anthropic.APIConnectionError) return 'Não consegui falar com a IA.';
+  if (e instanceof Anthropic.APIError) {
+    if (e.status === 401) return 'A chave da IA foi recusada (ANTHROPIC_API_KEY).';
+    if (e.status === 403) return 'A chave da IA não tem permissão para este modelo.';
+    if (e.status === 429) return 'A IA chegou no limite de uso da conta.';
+    if (e.status === 529 || e.status === 503) return 'A IA está sobrecarregada agora.';
+    if (e.status === 400 && /credit|balance/i.test(e.message)) return 'A conta da IA está sem saldo.';
+    return `A IA recusou o pedido (${e.status ?? 'sem código'}).`;
+  }
+  return 'A IA falhou sem explicar.';
+}
+
+async function anota(e: unknown) {
   if (e instanceof Anthropic.APIError) console.error('[ia]', e.status, e.message);
   else console.error('[ia]', e);
+  await falhou('ia', motivoDaFalha(e));
 }
 
 /* Mensagens curtas: esforço baixo responde rapido e basta para escrever duas frases.
@@ -58,7 +76,7 @@ async function pergunta<T>(turnos: Turno[], formato: ReturnType<typeof betaZodOu
     if (r.stop_reason === 'refusal' || r.stop_reason === 'max_tokens') return null;
     return (r.parsed_output as T | null) ?? null;
   } catch (e) {
-    anota(e);
+    await anota(e);
     return null;
   }
 }

@@ -11,6 +11,7 @@ import { ehGestao, NOME_PAPEL, NOME_SETOR, SETORES } from '@/lib/dominio/acessos
 import { leAtendimento } from '@/lib/dominio/config';
 import { leAutomatico, type ConfigAutomatico } from '@/lib/dominio/automatico';
 import AtendimentoAutomatico from '@/componentes/config-automatico';
+import { SaudeDoSistema } from '@/componentes/saude';
 import { dataBR, telefoneLegivel } from '@/lib/dominio/formato';
 import type { Papel, Perfil, Setor } from '@/lib/dominio/tipos';
 
@@ -69,6 +70,7 @@ export default function Configuracoes() {
       <AtendimentoAutomatico salva={automatico} podeMexer={gestao} chama={chama} perfis={perfis} />
       <Aparencia tema={tema} setTema={setTema} />
       {gestao && <Equipe perfis={perfis} eu={perfil} chama={chama} />}
+      {gestao && <SaudeDoSistema />}
       {gestao && <WhatsApp chama={chama} />}
       {!gestao && (
         <section className="bl">

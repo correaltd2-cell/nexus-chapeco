@@ -1,5 +1,7 @@
 /* Conversa com a Cloud API da Meta. So roda no servidor: o token nunca vai ao navegador. */
 import 'server-only';
+import { classificaRecusa } from '@/lib/dominio/saude';
+import { bate, falhou } from '@/lib/saude';
 
 const VERSAO = 'v23.0';
 const BASE = `https://graph.facebook.com/${VERSAO}`;
@@ -38,6 +40,17 @@ export function explicaRecusa(codigo?: number, mensagem?: string) {
   }
 }
 
+/* Recusa da conta ou do modelo acorda a gestão (config/saude); janela fechada e
+   número sem WhatsApp são do dia a dia e ficam só na mensagem. */
+async function anotaRecusa(corpo: Record<string, unknown>, erro: string, codigo?: number) {
+  const tipo = classificaRecusa(codigo);
+  if (tipo === 'conta') await falhou('envio', erro);
+  if (tipo === 'modelo') {
+    const nome = (corpo.template as { name?: string } | undefined)?.name;
+    await falhou('modelo', nome ? `${erro} Modelo: ${nome}.` : erro);
+  }
+}
+
 async function manda(corpo: Record<string, unknown>): Promise<RespostaEnvio> {
   if (!temConfig()) return { ok: false, erro: 'O WhatsApp ainda não está conectado.' };
   try {
@@ -52,11 +65,16 @@ async function manda(corpo: Record<string, unknown>): Promise<RespostaEnvio> {
     };
     if (!r.ok || dados.error) {
       const e = dados.error || {};
-      return { ok: false, erro: explicaRecusa(e.code, e.message), codigo: e.code, subcodigo: e.error_subcode };
+      const erro = explicaRecusa(e.code, e.message);
+      await anotaRecusa(corpo, erro, e.code ?? r.status);
+      return { ok: false, erro, codigo: e.code, subcodigo: e.error_subcode };
     }
+    await bate('saidaEm');
     return { ok: true, waMessageId: dados.messages?.[0]?.id };
   } catch {
-    return { ok: false, erro: 'Não consegui falar com a Meta agora.' };
+    const erro = 'Não consegui falar com a Meta agora.';
+    await falhou('envio', erro);
+    return { ok: false, erro };
   }
 }
 

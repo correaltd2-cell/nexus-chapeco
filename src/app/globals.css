@@ -111,7 +111,7 @@ a{color:inherit;text-decoration:none}
 /* ================= casca ================= */
 .app{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);height:100%}
 .views{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--canvas)}
-.views>*:not(.fita-demo){flex:1;min-height:0}
+.views>*:not(.fita-demo):not(.fita-saude){flex:1;min-height:0}
 
 .rail{
   background:var(--ink);color:var(--ink-soft);height:100%;
@@ -162,6 +162,18 @@ a{color:inherit;text-decoration:none}
   font-size:12px;line-height:1.35;text-align:center;
   padding:7px max(16px,env(safe-area-inset-right,0px)) 7px max(16px,env(safe-area-inset-left,0px));
 }
+/* a faixa da saúde: só aparece quando algo grave parou, e é o único vermelho largo */
+.fita-saude{
+  flex:none;display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;
+  background:var(--alert-wash);color:var(--alert);border-bottom:1px solid var(--alert);
+  font-size:12.5px;line-height:1.4;
+  padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));
+}
+.fita-saude .fs-txt{flex:1 1 260px;min-width:0;color:var(--text)}
+.fita-saude .fs-txt b{color:var(--alert);font-weight:600}
+.fita-saude .fs-mais{color:var(--muted)}
+.fita-saude a,.fita-saude button{color:var(--alert);font-weight:600;white-space:nowrap;text-decoration:underline;text-underline-offset:2px}
+.fita-saude button{background:none;border:0;padding:0;font:inherit;cursor:pointer}
 .carregando{height:100%;display:grid;place-items:center;color:var(--muted);background:var(--canvas)}
 
 /* ================= átomos ================= */
@@ -518,6 +530,11 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .lin .pt.aviso{background:var(--solar)}
 .lin .pt.erro,.lin .pt.falta{background:var(--alert)}
 .lin small.cons{color:var(--solar-deep);margin-top:4px}
+.batidas{margin:0;padding:6px 18px 12px;border-top:1px solid var(--line);display:grid;gap:2px}
+.batidas div{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:4px 0}
+.batidas dt{color:var(--muted)}
+.batidas dd{margin:0;color:var(--text);text-align:right;white-space:nowrap}
+.batidas dd.nunca{color:var(--muted-2)}
 
 /* ================= quadros ================= */
 .qd{display:flex;flex-direction:column;height:100%;position:relative;min-width:0}
