@@ -43,7 +43,11 @@ export async function quemChamou(req: Request) {
     const dados = perfil.data() as { papel?: string; ativo?: boolean; nome?: string };
     if (!dados.ativo) return null;
     return { uid: d.uid, papel: dados.papel || 'recepcao', nome: dados.nome || '' };
-  } catch {
+  } catch (e) {
+    // Sem isto o login recusado vira so "faca login de novo" e ninguem sabe o porque.
+    // Registra o codigo e a mensagem do erro, nunca o token.
+    const err = e as { code?: string; message?: string };
+    console.error('quemChamou recusou:', err.code || '', (err.message || '').slice(0, 300));
     return null;
   }
 }
