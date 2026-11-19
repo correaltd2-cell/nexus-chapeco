@@ -8,11 +8,12 @@ import { assina, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
 import PainelContato from '@/componentes/painel-contato';
+import { SetorTag } from '@/componentes/setor';
 import { usePainelRecolhido } from '@/componentes/painel-recolhido';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
 import { NOME_CURTO_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
 import {
-  buscaCasou, etiquetasEmUso, passaNaEtiqueta, passaNoFiltro, passaNoSetor, situacao, type Filtro,
+  buscaCasou, detalheDaSituacao, etiquetasEmUso, passaNaEtiqueta, passaNoFiltro, passaNoSetor, type Filtro,
 } from '@/lib/dominio/conversas';
 import { corDaEtiqueta } from '@/lib/dominio/quadros';
 import {
@@ -329,7 +330,7 @@ export default function Inbox() {
         </div>
         <div className="lista">
           {visiveis.map((c) => (
-            <button key={c.id} className={c.naoLidas ? 'it nl' : 'it'} aria-current={c.id === abertaId}
+            <button key={c.id} className={`it st-${c.setor}${c.naoLidas ? ' nl' : ''}`} aria-current={c.id === abertaId}
                     onClick={() => void abrir(c)}>
               <Avatar nome={c.nome} foto={c.foto} />
               <span className="bd">
@@ -342,10 +343,11 @@ export default function Inbox() {
                   {c.naoLidas > 0 && <span className="bdg num">{c.naoLidas}</span>}
                 </span>
                 <span className="l3">
+                  <SetorTag setor={c.setor} />
                   {c.etiquetas.map((e) => (
                     <span key={e} className={`lbp lb-${corDaEtiqueta(e)}`}>{e}</span>
                   ))}
-                  <span>{situacao(c)}</span>
+                  {detalheDaSituacao(c) && <span>{detalheDaSituacao(c)}</span>}
                   {c.retorno && <span className="rt"><Ic n="relogio" />retorno {c.retorno.quando}</span>}
                 </span>
               </span>
@@ -374,7 +376,13 @@ export default function Inbox() {
               <button className="cab-btn" aria-label={`Dados de ${aberta.nome}`}
                       onClick={() => { setRecolhido(false); setPainel(!painel); }}>
                 <Avatar nome={aberta.nome} foto={aberta.foto} c="s" />
-                <span><b>{aberta.nome}</b><small>{situacao(aberta)}</small></span>
+                <span>
+                  <b>{aberta.nome}</b>
+                  <small className="cab-sit">
+                    <SetorTag setor={aberta.setor} />
+                    {detalheDaSituacao(aberta) && <span>{detalheDaSituacao(aberta)}</span>}
+                  </small>
+                </span>
               </button>
               {aberta.estado !== 'encerrada' && (
                 <button className={confirmaEncerrar === aberta.id ? 'btn enc confirma' : 'btn enc'}

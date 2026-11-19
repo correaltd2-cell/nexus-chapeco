@@ -12,6 +12,7 @@ import { leAtendimento } from '@/lib/dominio/config';
 import { leAutomatico, type ConfigAutomatico } from '@/lib/dominio/automatico';
 import AtendimentoAutomatico from '@/componentes/config-automatico';
 import { SaudeDoSistema } from '@/componentes/saude';
+import { useCorDoMenu, useLarguraDoMenu, type CorDoMenu, type LarguraDoMenu } from '@/componentes/menu-lateral';
 import { dataBR, telefoneLegivel } from '@/lib/dominio/formato';
 import type { Papel, Perfil, Setor } from '@/lib/dominio/tipos';
 
@@ -125,22 +126,53 @@ function Atendimento({ valor, podeMexer, aoSalvar }: {
 
 /* ================= aparência ================= */
 function Aparencia({ tema, setTema }: { tema: Tema; setTema: (t: Tema) => void }) {
-  const opcoes: { k: Tema; r: string; d: string }[] = [
+  const [largura, setLargura] = useLarguraDoMenu();
+  const [corDoMenu, setCorDoMenu] = useCorDoMenu();
+  const temas: { k: Tema; r: string; d: string }[] = [
     { k: 'auto', r: 'Automático', d: 'segue o aparelho' },
     { k: 'claro', r: 'Claro', d: 'sempre claro' },
     { k: 'escuro', r: 'Escuro', d: 'sempre escuro' },
   ];
+  const larguras: { k: LarguraDoMenu; r: string; d: string }[] = [
+    { k: 'auto', r: 'Automático', d: 'recolhe em tela pequena' },
+    { k: 'aberto', r: 'Aberto', d: 'sempre com os nomes' },
+    { k: 'recolhido', r: 'Recolhido', d: 'só ícone e nome curto' },
+  ];
+  const cores: { k: CorDoMenu; r: string }[] = [
+    { k: 'escuro', r: 'Escuro' },
+    { k: 'claro', r: 'Claro' },
+  ];
   return (
     <section className="bl">
       <p className="bt">Aparência</p>
+      <p className="sub-bt">Tema</p>
       <div className="esc">
-        {opcoes.map((o) => (
+        {temas.map((o) => (
           <button key={o.k} className="chip" aria-pressed={tema === o.k} onClick={() => setTema(o.k)}>
             {o.r}<span className="num">{o.d}</span>
           </button>
         ))}
       </div>
-      <p className="vz">A escolha vale neste aparelho e fica guardada nele.</p>
+      <p className="sub-bt">Menu lateral</p>
+      <div className="esc">
+        {larguras.map((o) => (
+          <button key={o.k} className="chip" aria-pressed={largura === o.k} onClick={() => setLargura(o.k)}>
+            {o.r}<span className="num">{o.d}</span>
+          </button>
+        ))}
+      </div>
+      <p className="sub-bt">Cor do menu</p>
+      <div className="esc">
+        {cores.map((o) => (
+          <button key={o.k} className="chip" aria-pressed={corDoMenu === o.k} onClick={() => setCorDoMenu(o.k)}>
+            {o.r}
+          </button>
+        ))}
+      </div>
+      <p className="vz">
+        As escolhas valem neste aparelho e ficam guardadas nele. O menu também abre e
+        recolhe pelo botão logo acima do seu nome.
+      </p>
     </section>
   );
 }

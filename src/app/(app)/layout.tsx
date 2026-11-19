@@ -12,6 +12,7 @@ import { useSessao, useTema } from '@/componentes/sessao';
 import { MODULOS, NOME_MODULO, NOME_PAPEL, ehGestao, modulosDoPapel, type Modulo } from '@/lib/dominio/acessos';
 import { modoDemo } from '@/lib/dados/fonte';
 import { FaixaDeSaude } from '@/componentes/saude';
+import { useCorDoMenu, useLarguraDoMenu } from '@/componentes/menu-lateral';
 
 const ROTA: Record<Modulo, string> = {
   conversas: '/conversas', quadros: '/quadros', provas: '/provas',
@@ -36,6 +37,8 @@ const NO_CELULAR: Modulo[] = ['conversas', 'quadros', 'aulas', 'ajustes'];
 export default function CascaDoSistema({ children }: { children: React.ReactNode }) {
   const { estado, perfil, sair } = useSessao();
   const { escuro, setTema } = useTema();
+  const [largura, setLargura] = useLarguraDoMenu();
+  const [corDoMenu] = useCorDoMenu();
   const rota = usePathname();
   const router = useRouter();
 
@@ -66,11 +69,16 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
   }
 
   const rotulo = escuro ? 'Mudar para o tema claro' : 'Mudar para o tema escuro';
+  /* a largura e a cor do menu são escolha de quem usa (menu-lateral.ts); no automático
+     o CSS recolhe sozinho até 1440px, e os dois botões abaixo aparecem conforme o caso */
+  const classeDaCasca = [
+    'app', largura !== 'auto' && `menu-${largura}`, corDoMenu === 'claro' && 'menu-claro',
+  ].filter(Boolean).join(' ');
 
   return (
     <>
       <SpriteDeIcones />
-      <div className="app">
+      <div className={classeDaCasca}>
         <aside className="rail">
           <div className="brand">
             <div className="brand-mark">
@@ -101,6 +109,17 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
               );
             })}
           </nav>
+
+          <div className="rail-tg">
+            <button className="menu-recolhe" onClick={() => setLargura('recolhido')}
+                    title="Recolher o menu" aria-label="Recolher o menu">
+              <Ic n="recolher" /><span>Recolher menu</span>
+            </button>
+            <button className="menu-abre" onClick={() => setLargura('aberto')}
+                    title="Abrir o menu com os nomes" aria-label="Abrir o menu com os nomes">
+              <Ic n="expandir" /><span>Abrir menu</span>
+            </button>
+          </div>
 
           <div className="rail-foot">
             <button className="me" onClick={() => void sair()} title={`${perfil.nome}. Sair`}>

@@ -10,7 +10,8 @@ import { Ic } from '@/componentes/icones';
 import { useAgora, horaConhecida } from '@/componentes/relogio';
 import { NOME_SETOR, SETORES } from '@/lib/dominio/acessos';
 import { leAtendimento } from '@/lib/dominio/config';
-import { esperandoDesde, situacao } from '@/lib/dominio/conversas';
+import { detalheDaSituacao, esperandoDesde } from '@/lib/dominio/conversas';
+import { SetorTag } from '@/componentes/setor';
 import {
   dataBR, dataHoraBR, duracao, iniciais, janelaAberta, paraCampoDeData, telefoneLegivel, tomDoNome,
 } from '@/lib/dominio/formato';
@@ -259,7 +260,11 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
       <div className="bl">
         <p className="bt">Atendimento</p>
         <dl className="kv">
-          <dt>Situação</dt><dd>{situacao(conversa)}</dd>
+          <dt>Setor</dt>
+          <dd className="dd-setor">
+            <SetorTag setor={conversa.setor} />
+            {detalheDaSituacao(conversa) && <small>{detalheDaSituacao(conversa)}</small>}
+          </dd>
           <dt>Janela de 24 horas</dt><dd>{janela ? 'aberta' : 'fechada'}</dd>
           <dt>Esperando há</dt>
           <dd className={demais ? 'atr' : undefined}>

@@ -10,6 +10,15 @@ export function situacao(c: Conversa): string {
   return NOME_SETOR[c.setor];
 }
 
+/** A situação sem o nome do setor, para ir ao lado da etiqueta colorida do setor. */
+export function detalheDaSituacao(c: Conversa): string {
+  if (c.estado === 'encerrada') return 'encerrada';
+  if (c.setor === 'financeiro' && c.estado === 'ia') return 'com a IA';
+  if (c.estado === 'aguardando') return 'esperando o time';
+  if (c.etapa === 'menu') return 'escolhendo o assunto';
+  return '';
+}
+
 /** A última fala de gente ou do contato, que vira a prévia na lista. */
 export const ultimaFala = (ms: Mensagem[]) =>
   [...ms].reverse().find((m) => m.autor !== 'sistema');
