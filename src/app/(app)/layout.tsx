@@ -12,7 +12,9 @@ import { useSessao, useTema } from '@/componentes/sessao';
 import { MODULOS, NOME_MODULO, NOME_PAPEL, ehGestao, modulosDoPapel, type Modulo } from '@/lib/dominio/acessos';
 import { modoDemo } from '@/lib/dados/fonte';
 import { FaixaDeSaude } from '@/componentes/saude';
-import { useCorDoMenu, useLarguraDoMenu } from '@/componentes/menu-lateral';
+import Festa from '@/componentes/festa';
+import Logo from '@/componentes/logo';
+import { useCorDoMenu, useLarguraDoMenu } from '@/componentes/preferencias';
 
 const ROTA: Record<Modulo, string> = {
   conversas: '/conversas', quadros: '/quadros', provas: '/provas',
@@ -82,10 +84,10 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
         <aside className="rail">
           <div className="brand">
             <div className="brand-mark">
-              <span className="bulb" aria-hidden="true">N</span>
+              <Logo tamanho={42} />
               <div>
-                <div className="brand-name">Nexus English Center</div>
-                <div className="brand-sub">Chapecó</div>
+                <div className="brand-name">Nexus Chapecó</div>
+                <div className="brand-sub">Central de atendimento</div>
               </div>
             </div>
           </div>
@@ -157,6 +159,7 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
         </nav>
       </div>
       <div className="toast" id="toast" role="status" aria-live="polite" />
+      <Festa />
     </>
   );
 }

@@ -12,6 +12,7 @@ import { NOME_SETOR, SETORES } from '@/lib/dominio/acessos';
 import { leAtendimento } from '@/lib/dominio/config';
 import { detalheDaSituacao, esperandoDesde } from '@/lib/dominio/conversas';
 import { SetorTag } from '@/componentes/setor';
+import { comemoraTransferencia } from '@/componentes/festa';
 import {
   dataBR, dataHoraBR, duracao, iniciais, janelaAberta, paraCampoDeData, telefoneLegivel, tomDoNome,
 } from '@/lib/dominio/formato';
@@ -122,6 +123,7 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
         aguardandoDesde: new Date().toISOString(),
       });
       await recado(`${nomeDoAutor} passou a conversa para ${NOME_SETOR[setor]}.`);
+      comemoraTransferencia(setor);
       return;
     }
     if (!usuario) return;
@@ -134,6 +136,7 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
       });
       const resposta = (await r.json()) as { ok?: boolean; erro?: string };
       if (!r.ok || !resposta.ok) setAviso(resposta.erro || 'Não consegui passar a conversa agora.');
+      else comemoraTransferencia(setor);
     } catch {
       setAviso('Não consegui falar com o servidor. Tente de novo.');
     }

@@ -9,6 +9,7 @@ import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
 import PainelContato from '@/componentes/painel-contato';
 import { SetorTag } from '@/componentes/setor';
+import Logo from '@/componentes/logo';
 import { usePainelRecolhido } from '@/componentes/painel-recolhido';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
 import { NOME_CURTO_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
@@ -365,7 +366,10 @@ export default function Inbox() {
 
       <section className="cht" aria-label="Conversa">
         {!aberta ? (
-          <div className="sem"><p>Escolha uma conversa para atender.</p></div>
+          <div className="sem">
+            <Logo tamanho={104} flutua />
+            <p>Escolha uma conversa para atender.</p>
+          </div>
         ) : (
           <>
             <header className="ch">

@@ -155,13 +155,16 @@ a{color:inherit;text-decoration:none}
 }
 .brand{padding:20px 18px 16px;border-bottom:1px solid var(--ink-line)}
 .brand-mark{display:flex;align-items:center;gap:11px}
-.bulb{
-  width:36px;height:36px;border-radius:12px;background:var(--solar);color:#141414;
-  display:grid;place-items:center;flex:none;font-family:var(--fonte-display);
-  font-weight:800;font-size:17px;letter-spacing:-.03em;
-  box-shadow:0 0 0 1px rgba(246,130,31,.35), 0 0 22px -4px rgba(246,130,31,.8);
-}
-.brand-name{font-family:var(--fonte-display);font-weight:800;font-size:14.5px;letter-spacing:-.02em;color:#fff;line-height:1.15}
+/* a logo 3D (componentes/logo.tsx): a faixa de luz passa a cada 6 s, o ponto verde
+   pulsa dizendo "ao vivo", e na entrada e na tela vazia ela flutua */
+.logo{display:block;flex:none;overflow:visible;filter:drop-shadow(0 4px 10px rgba(220,87,11,.35))}
+.logo-faixa{animation:logo-faixa 6s ease-in-out infinite}
+.logo-onda{transform-origin:55px 9px;animation:logo-onda 2.4s ease-out infinite}
+.logo.flutua{animation:logo-flutua 4.5s ease-in-out infinite}
+@keyframes logo-faixa{0%{transform:translateX(0) skewX(-18deg)}22%,100%{transform:translateX(120px) skewX(-18deg)}}
+@keyframes logo-onda{0%{transform:scale(.8);opacity:.75}80%,100%{transform:scale(2.1);opacity:0}}
+@keyframes logo-flutua{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
+.brand-name{font-family:var(--fonte-display);font-weight:800;font-size:16px;letter-spacing:-.025em;color:#fff;line-height:1.15}
 .brand-sub{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
 
 .nav{padding:12px 10px;flex:1;overflow-y:auto}
@@ -173,7 +176,10 @@ a{color:inherit;text-decoration:none}
 .nav-item .ic{color:var(--ink-dim);transition:color .13s}
 .nav-item:hover{background:var(--ink-2);color:#fff}
 .nav-item:hover .ic{color:var(--ink-soft)}
-.nav-item[aria-current="page"]{background:var(--solar);color:#141414;font-weight:600}
+.nav-item[aria-current="page"]{
+  background:linear-gradient(180deg,#FF9C42 0%,var(--solar) 60%,#EC7212 100%);color:#141414;font-weight:600;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 18px -10px rgba(246,130,31,.9);
+}
 .nav-item[aria-current="page"] .ic{color:#141414}
 .nav-badge{margin-left:auto;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:20px;background:var(--solar);color:#141414}
 
@@ -247,7 +253,10 @@ a{color:inherit;text-decoration:none}
 }
 .btn:hover{border-color:var(--line-2);background:var(--surface-2)}
 .btn[aria-expanded="true"]{background:var(--surface-3);border-color:var(--line-2)}
-.btn.p{background:var(--solar);color:#141414;border-color:var(--solar);font-weight:700;box-shadow:0 6px 16px -8px rgba(246,130,31,.8)}
+.btn.p{
+  background:linear-gradient(180deg,#FF9C42 0%,var(--solar) 55%,#EC7212 100%);color:#141414;border-color:#E9700F;font-weight:700;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 6px 16px -8px rgba(246,130,31,.8);
+}
 .btn.p:hover{background:var(--solar-deep);border-color:var(--solar-deep);color:#fff}
 .btn:disabled{opacity:.55;cursor:default}
 .btn.larga{width:100%;justify-content:center}
@@ -339,7 +348,9 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   width:min(390px,100%);background:var(--surface);border-radius:26px;
   padding:32px 28px 28px;display:flex;flex-direction:column;gap:5px;box-shadow:var(--shadow-2);
 }
-.login-c .eu-foto.grande{width:52px;height:52px;border-radius:16px;font-family:var(--fonte-display);font-size:22px;font-weight:800}
+.login-c .logo{margin:0 auto 4px}
+.login-c .kicker{text-align:center;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--solar-deep);font-weight:700;margin-top:10px}
+.login-c h1{text-align:center}
 .login-c h1{font-size:26px;font-weight:800;letter-spacing:-.035em;margin:14px 0 2px}
 .login-c .cmp-l{font-size:11.5px;color:var(--muted);margin-top:12px;font-weight:500}
 .login-c .cx{padding:12px 14px}
@@ -405,6 +416,7 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 }
 .sem{margin:auto;text-align:center;color:var(--wa-chip-txt);padding:24px;max-width:340px}
 .sem p{background:var(--wa-chip);border-radius:14px;padding:12px 18px;box-shadow:var(--balao-sombra)}
+.sem .logo{margin:0 auto 18px}
 .ch{
   display:flex;align-items:center;gap:6px;padding:0 12px 0 16px;height:64px;flex:none;
   background:var(--wa-barra);
@@ -413,6 +425,7 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .cab-btn b{display:block;font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* encerrar o atendimento na mão: o primeiro toque arma, o segundo encerra */
 .ch .enc{flex:none;padding:7px 13px;font-size:12.5px;color:var(--muted);background:var(--surface);gap:0}
+.ch .enc .so-largo{margin-left:.3em}
 .ch .enc.confirma{background:var(--solar-wash);border-color:var(--solar-line);color:var(--solar-deep);font-weight:600}
 /* os botões que a mensagem levou, embaixo da bolha, como o contato vê */
 .bts-msg{display:flex;flex-direction:column;gap:2px;margin-top:2px}
@@ -473,7 +486,12 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .cmp .campo .ib:hover,.cmp .campo .ib[aria-expanded="true"]{background:var(--wa-sel);color:var(--text)}
 .cmp .campo .ib.tem{color:var(--wa-verde)}
 .cmp input{flex:1;min-width:0;border:0;background:none;padding:9px 4px;outline:0;font-size:15px}
-.cmp .envia{width:46px;height:46px;border-radius:50%;background:var(--wa-verde);color:#fff;display:grid;place-items:center;flex:none;box-shadow:var(--balao-sombra)}
+.cmp .envia{
+  width:46px;height:46px;border-radius:50%;color:#fff;display:grid;place-items:center;flex:none;
+  background:radial-gradient(circle at 35% 28%,rgba(255,255,255,.35),transparent 45%),var(--wa-verde);
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.15),0 6px 14px -6px rgba(0,168,132,.8);transition:transform .12s;
+}
+.cmp .envia:active{transform:scale(.92)}
 .cmp .envia .ic{width:20px;height:20px;stroke-width:2}
 .cmp .envia:hover{filter:brightness(1.07)}
 .cmp .envia:disabled{opacity:.5;cursor:default}
@@ -555,6 +573,7 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   display:inline-flex;align-items:center;gap:4px;flex:none;white-space:nowrap;
   padding:0 9px 0 7px;border-radius:999px;font-size:11px;font-weight:700;line-height:20px;
   background:var(--st-cor);color:var(--st-txt);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.12);
 }
 .setor .ic,.l3 .setor .ic{width:12px;height:12px;stroke-width:2.2}
 .cab-btn small.cab-sit{display:flex;align-items:center;gap:7px;margin-top:2px}
@@ -683,7 +702,8 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   border:1px solid transparent;border-radius:14px;padding:11px 12px 10px;box-shadow:0 1px 2px rgba(20,20,20,.06);
   font-size:13.5px;line-height:1.4;transition:border-color .12s,box-shadow .12s;
 }
-.kc:hover{border-color:var(--line-2);box-shadow:var(--shadow)}
+.kc{transition:border-color .12s,box-shadow .12s,transform .12s}
+.kc:hover{border-color:var(--line-2);box-shadow:var(--shadow);transform:translateY(-2px)}
 .kc.arr{opacity:.35}
 .kph{height:38px;border-radius:var(--r-sm);background:var(--line);flex:none}
 .kc-lb{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px}
@@ -932,3 +952,45 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   .qd-abas{flex:1 1 100%;order:3}
   input,select,textarea{font-size:16px}
 }
+
+/* ================= comemoração de passar a conversa ================= */
+/* Cartão que salta em 3D com o avatar de quem recebe, aviãozinho e confete. Não pega
+   clique e some sozinho em menos de dois segundos (componentes/festa.tsx). */
+.festa{position:fixed;left:50%;bottom:clamp(96px,18vh,170px);z-index:90;pointer-events:none;transform:translateX(-50%);perspective:700px}
+.festa-c{
+  position:relative;display:flex;align-items:center;gap:15px;padding:14px 24px 14px 14px;
+  min-width:270px;max-width:min(390px,calc(100vw - 32px));border-radius:26px;background:var(--surface);
+  box-shadow:0 22px 50px -14px rgba(20,20,20,.5),0 0 0 1px var(--line);transform-origin:50% 100%;
+  animation:festa-entra 1.85s cubic-bezier(.2,.9,.3,1.15) both;
+}
+.festa-av{
+  position:relative;width:60px;height:60px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-family:var(--fonte-display);font-weight:800;font-size:27px;color:var(--st-txt);
+  background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.6),transparent 42%),var(--st-cor);
+  box-shadow:inset 0 -5px 0 rgba(0,0,0,.18),0 10px 20px -8px var(--st-cor);
+  animation:festa-pula 1.85s ease both;
+}
+.festa-av>.ic{width:28px;height:28px;stroke-width:2}
+.festa-aviao{position:absolute;left:-44px;top:4px;color:var(--st-cor);animation:festa-voa .7s .05s ease-in both}
+.festa-aviao .ic{width:24px;height:24px;stroke-width:2}
+.festa-confete{position:absolute;left:50%;top:50%;width:0;height:0}
+.festa-confete i{
+  position:absolute;left:-3px;top:-3px;width:7px;height:7px;border-radius:2px;background:var(--st-cor);opacity:0;
+  animation:festa-confete .95s .5s ease-out both;
+}
+.festa-confete i:nth-child(3n){background:var(--solar)}
+.festa-confete i:nth-child(3n+1){background:#FFD166}
+.festa-tx{min-width:0}
+.festa-tx b{display:block;font-family:var(--fonte-display);font-size:18px;font-weight:800;letter-spacing:-.025em;line-height:1.2}
+.festa-tx small{display:block;color:var(--muted);font-size:13.5px;margin-top:2px}
+@keyframes festa-entra{
+  0%{opacity:0;transform:translateY(26px) rotateX(60deg) scale(.7)}
+  14%{opacity:1;transform:translateY(0) rotateX(-8deg) scale(1.04)}
+  22%{transform:rotateX(0) scale(1)}
+  80%{opacity:1;transform:none}
+  100%{opacity:0;transform:translateY(-16px) scale(.96)}
+}
+@keyframes festa-pula{0%,24%{transform:scale(.55)}38%{transform:scale(1.2) rotate(-6deg)}48%{transform:scale(.95) rotate(3deg)}58%,100%{transform:scale(1) rotate(0)}}
+@keyframes festa-voa{0%{opacity:0;transform:translate(-34px,20px) rotate(-12deg)}30%{opacity:1}100%{opacity:0;transform:translate(48px,6px) rotate(8deg) scale(.5)}}
+@keyframes festa-confete{0%{opacity:1;transform:rotate(var(--a)) translateY(-26px) scale(1)}100%{opacity:0;transform:rotate(var(--a)) translateY(-62px) scale(.4)}}
+@media (prefers-reduced-motion:reduce){.festa-aviao,.festa-confete{display:none}}

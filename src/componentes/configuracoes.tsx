@@ -12,7 +12,9 @@ import { leAtendimento } from '@/lib/dominio/config';
 import { leAutomatico, type ConfigAutomatico } from '@/lib/dominio/automatico';
 import AtendimentoAutomatico from '@/componentes/config-automatico';
 import { SaudeDoSistema } from '@/componentes/saude';
-import { useCorDoMenu, useLarguraDoMenu, type CorDoMenu, type LarguraDoMenu } from '@/componentes/menu-lateral';
+import {
+  useAnimacao, useCorDoMenu, useLarguraDoMenu, type CorDoMenu, type LarguraDoMenu,
+} from '@/componentes/preferencias';
 import { dataBR, telefoneLegivel } from '@/lib/dominio/formato';
 import type { Papel, Perfil, Setor } from '@/lib/dominio/tipos';
 
@@ -128,6 +130,7 @@ function Atendimento({ valor, podeMexer, aoSalvar }: {
 function Aparencia({ tema, setTema }: { tema: Tema; setTema: (t: Tema) => void }) {
   const [largura, setLargura] = useLarguraDoMenu();
   const [corDoMenu, setCorDoMenu] = useCorDoMenu();
+  const [animacao, setAnimacao] = useAnimacao();
   const temas: { k: Tema; r: string; d: string }[] = [
     { k: 'auto', r: 'Automático', d: 'segue o aparelho' },
     { k: 'claro', r: 'Claro', d: 'sempre claro' },
@@ -169,9 +172,19 @@ function Aparencia({ tema, setTema }: { tema: Tema; setTema: (t: Tema) => void }
           </button>
         ))}
       </div>
+      <p className="sub-bt">Animação ao passar a conversa de setor</p>
+      <div className="esc">
+        <button className="chip" aria-pressed={animacao === 'ligada'} onClick={() => setAnimacao('ligada')}>
+          Ligada<span className="num">menos de 2 segundos</span>
+        </button>
+        <button className="chip" aria-pressed={animacao === 'desligada'} onClick={() => setAnimacao('desligada')}>
+          Desligada
+        </button>
+      </div>
       <p className="vz">
         As escolhas valem neste aparelho e ficam guardadas nele. O menu também abre e
-        recolhe pelo botão logo acima do seu nome.
+        recolhe pelo botão logo acima do seu nome. A animação não trava nada: dá para
+        seguir clicando por baixo dela.
       </p>
     </section>
   );

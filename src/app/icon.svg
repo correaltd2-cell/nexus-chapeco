@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB45E"/><stop offset=".45" stop-color="#F6821F"/><stop offset="1" stop-color="#DC570B"/>
+    </linearGradient>
+    <linearGradient id="lado" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B4450A"/><stop offset="1" stop-color="#7A2C05"/>
+    </linearGradient>
+    <linearGradient id="brilho" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".6"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M20 4H44a14 14 0 0 1 14 14v16a14 14 0 0 1-14 14H26l-11 8.5 2.5-8.7A14 14 0 0 1 6 34V18A14 14 0 0 1 20 4z" transform="translate(0 3.5)" fill="url(#lado)"/>
+  <path d="M20 4H44a14 14 0 0 1 14 14v16a14 14 0 0 1-14 14H26l-11 8.5 2.5-8.7A14 14 0 0 1 6 34V18A14 14 0 0 1 20 4z" fill="url(#face)"/>
+  <path d="M20 6.5H44a11.5 11.5 0 0 1 11.5 11.5v1.5c-8 4.5-39 4.5-47 0V18A11.5 11.5 0 0 1 20 6.5z" fill="url(#brilho)"/>
+  <path d="M19 38V14h6.5l13 15.5V14H45v24h-6.5l-13-15.5V38z" transform="translate(1.3 2.3)" fill="#7A2C05" opacity=".5"/>
+  <path d="M19 38V14h6.5l13 15.5V14H45v24h-6.5l-13-15.5V38z" fill="#fff"/>
+  <circle cx="55" cy="9" r="5" fill="#25D366" stroke="#fff" stroke-width="2"/>
+</svg>

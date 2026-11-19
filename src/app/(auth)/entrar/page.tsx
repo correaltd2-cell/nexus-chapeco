@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, configurado } from '@/lib/firebase/cliente';
 import { useSessao } from '@/componentes/sessao';
+import Logo from '@/componentes/logo';
 
 export default function Entrar() {
   const [email, setEmail] = useState('');
@@ -39,7 +40,7 @@ export default function Entrar() {
     return (
       <div className="login">
         <div className="login-c">
-          <span className="eu-foto grande" aria-hidden="true">N</span>
+          <Logo tamanho={78} flutua />
           <h1>Nexus Chapecó</h1>
           <p className="obs forte">O sistema ainda não está ligado ao Firebase.</p>
           <p className="obs">Preencha o arquivo .env.local com as chaves do projeto e recarregue a página.</p>
@@ -52,7 +53,7 @@ export default function Entrar() {
     return (
       <div className="login">
         <div className="login-c">
-          <span className="eu-foto grande" aria-hidden="true">N</span>
+          <Logo tamanho={78} flutua />
           <h1>Acesso ainda não liberado</h1>
           <p className="obs forte">Seu login existe, mas ninguém liberou o acesso ainda.</p>
           <p className="obs">Peça para a administração liberar em Configurações, Equipe.</p>
@@ -65,7 +66,8 @@ export default function Entrar() {
   return (
     <div className="login">
       <form className="login-c" onSubmit={enviar}>
-        <span className="eu-foto grande" aria-hidden="true">N</span>
+        <Logo tamanho={78} flutua />
+        <p className="kicker">Central de atendimento</p>
         <h1>Nexus Chapecó</h1>
         <p className="obs">Entre com o e-mail da escola.</p>
         <label className="cmp-l" htmlFor="email">E-mail</label>

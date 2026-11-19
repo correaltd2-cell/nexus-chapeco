@@ -5,14 +5,14 @@ import { Ic } from '@/componentes/icones';
 import { NOME_SETOR } from '@/lib/dominio/acessos';
 import type { Setor } from '@/lib/dominio/tipos';
 
-const ICONE: Record<Setor, string> = {
+export const ICONE_DO_SETOR: Record<Setor, string> = {
   recepcao: 'balao', financeiro: 'moeda', coordenacao: 'pessoas', kids: 'sol',
 };
 
 export function SetorTag({ setor }: { setor: Setor }) {
   return (
     <span className={`setor st-${setor}`} title={`Setor: ${NOME_SETOR[setor]}`}>
-      <Ic n={ICONE[setor]} />{NOME_SETOR[setor]}
+      <Ic n={ICONE_DO_SETOR[setor]} />{NOME_SETOR[setor]}
     </span>
   );
 }

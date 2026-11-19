@@ -1,14 +1,16 @@
 'use client';
-/* Como o menu lateral aparece, escolhido por quem usa e guardado no aparelho, como o
-   tema e o painel do contato.
+/* Preferências de quem usa, guardadas no aparelho, como o tema e o painel do contato.
+   Como o menu lateral aparece:
    - largura: "auto" recolhe sozinho até 1440px (tela dividida, decisão de 18/11);
      "aberto" mostra sempre os nomes; "recolhido" deixa sempre só ícone e nome curto.
    - cor: o escuro da marca, ou claro, da cor da interface.
+   E se a comemoração de passar a conversa de setor aparece (festa.tsx).
    Se o navegador não deixar guardar (janela anônima), vale até recarregar. */
 import { useSyncExternalStore } from 'react';
 
 export type LarguraDoMenu = 'auto' | 'aberto' | 'recolhido';
 export type CorDoMenu = 'escuro' | 'claro';
+export type Animacao = 'ligada' | 'desligada';
 
 function preferencia<T extends string>(chave: string, padrao: T, validos: readonly T[]) {
   const ouvintes = new Set<() => void>();
@@ -52,6 +54,10 @@ function preferencia<T extends string>(chave: string, padrao: T, validos: readon
 
 const largura = preferencia<LarguraDoMenu>('nexus-menu', 'auto', ['auto', 'aberto', 'recolhido']);
 const cor = preferencia<CorDoMenu>('nexus-menu-cor', 'escuro', ['escuro', 'claro']);
+const animacao = preferencia<Animacao>('nexus-animacao', 'ligada', ['ligada', 'desligada']);
+
+/** Para quem decide fora de componente (a festa é chamada no clique). */
+export const animacaoLigada = () => animacao.le() === 'ligada';
 
 /* no servidor não há aparelho para perguntar: nasce no padrão */
 export function useLarguraDoMenu(): [LarguraDoMenu, (v: LarguraDoMenu) => void] {
@@ -59,4 +65,7 @@ export function useLarguraDoMenu(): [LarguraDoMenu, (v: LarguraDoMenu) => void] 
 }
 export function useCorDoMenu(): [CorDoMenu, (v: CorDoMenu) => void] {
   return [useSyncExternalStore(cor.assina, cor.le, () => cor.padrao), cor.define];
+}
+export function useAnimacao(): [Animacao, (v: Animacao) => void] {
+  return [useSyncExternalStore(animacao.assina, animacao.le, () => animacao.padrao), animacao.define];
 }
