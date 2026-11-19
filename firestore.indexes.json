@@ -1,27 +1,153 @@
 {
   "indexes": [
-    { "collectionGroup": "conversas", "queryScope": "COLLECTION", "fields": [
-      { "fieldPath": "encerradaEm", "order": "ASCENDING" },
-      { "fieldPath": "ultimaEm", "order": "DESCENDING" } ] },
-    { "collectionGroup": "conversas", "queryScope": "COLLECTION", "fields": [
-      { "fieldPath": "setor", "order": "ASCENDING" },
-      { "fieldPath": "ultimaEm", "order": "DESCENDING" } ] },
-    { "collectionGroup": "mensagens", "queryScope": "COLLECTION", "fields": [
-      { "fieldPath": "conversaId", "order": "ASCENDING" },
-      { "fieldPath": "criadaEm", "order": "ASCENDING" } ] },
-    { "collectionGroup": "cartoes", "queryScope": "COLLECTION", "fields": [
-      { "fieldPath": "quadroId", "order": "ASCENDING" },
-      { "fieldPath": "arquivado", "order": "ASCENDING" },
-      { "fieldPath": "ordem", "order": "ASCENDING" } ] },
-    { "collectionGroup": "marcacoes", "queryScope": "COLLECTION", "fields": [
-      { "fieldPath": "semana", "order": "ASCENDING" },
-      { "fieldPath": "alunoNome", "order": "ASCENDING" } ] },
-    { "collectionGroup": "provas_envios", "queryScope": "COLLECTION", "fields": [
-      { "fieldPath": "alunoId", "order": "ASCENDING" },
-      { "fieldPath": "enviadaEm", "order": "DESCENDING" } ] },
-    { "collectionGroup": "provas_envios", "queryScope": "COLLECTION", "fields": [
-      { "fieldPath": "estado", "order": "ASCENDING" },
-      { "fieldPath": "enviadaEm", "order": "DESCENDING" } ] }
+    {
+      "collectionGroup": "conversas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "encerradaEm",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ultimaEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "conversas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "setor",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ultimaEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mensagens",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "conversaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadaEm",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mensagens",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "direcao",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadaEm",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cartoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "quadroId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "arquivado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ordem",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "marcacoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "semana",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "alunoNome",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "provas_envios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "alunoId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "enviadaEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "provas_envios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "enviadaEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "agendadas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quando",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cartoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "listaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "arquivado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ordem",
+          "order": "ASCENDING"
+        }
+      ]
+    }
   ],
   "fieldOverrides": []
 }
