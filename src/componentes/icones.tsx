@@ -1,6 +1,6 @@
 /* Os desenhos de icone, num sprite so. Vieram da demonstracao aprovada.
    Use <Ic n="chat"/> onde precisar; o sprite entra uma vez na casca. */
-export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "doc", "emoji", "envia", "expandir", "filtro", "grade", "grafico", "info", "lista", "lua", "mais", "menu", "modelo", "moeda", "nota", "pessoas", "play", "pontos", "quadro", "raio", "recolher", "relogio", "seta", "sol", "tag", "texto", "troca", "volta", "x"] as const;
+export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "clipe", "doc", "emoji", "envia", "expandir", "filtro", "grade", "grafico", "info", "lista", "lixo", "lua", "mais", "menu", "mic", "modelo", "moeda", "nota", "pausa", "pessoas", "play", "pontos", "quadro", "raio", "recolher", "relogio", "seta", "sol", "tag", "texto", "toca", "troca", "volta", "x"] as const;
 export type NomeIcone = (typeof NOMES_ICONE)[number];
 
 export function Ic({ n, c }: { n: NomeIcone | string; c?: string }) {
@@ -14,6 +14,11 @@ export function Ic({ n, c }: { n: NomeIcone | string; c?: string }) {
 export function SpriteDeIcones() {
   return (
     <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+  <symbol id="i-clipe" viewBox="0 0 24 24"><path d="M19 11.5 12 18.5a4.6 4.6 0 0 1-6.5-6.5l7.6-7.6a3.1 3.1 0 0 1 4.4 4.4L10 16.3a1.5 1.5 0 0 1-2.2-2.2l7-7"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3"/></symbol>
+  <symbol id="i-lixo" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13M10.5 10.5v6M13.5 10.5v6"/></symbol>
+  <symbol id="i-toca" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></symbol>
+  <symbol id="i-pausa" viewBox="0 0 24 24"><path d="M8 5.5h2.6v13H8zM13.4 5.5H16v13h-2.6z" fill="currentColor"/></symbol>
   <symbol id="i-modelo" viewBox="0 0 24 24"><path d="M4.5 5h15v11h-9L6 19.5V16H4.5z"/><path d="M8 8.8h8M8 12.2h5"/></symbol>
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 5.5h15v11h-9l-4.5 3.5v-3.5h-1.5z"/></symbol>
   <symbol id="i-emoji" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14c.8 1.4 2 2.1 3.5 2.1s2.7-.7 3.5-2.1M9.2 9.6v.6M14.8 9.6v.6"/></symbol>

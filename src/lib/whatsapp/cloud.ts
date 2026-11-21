@@ -33,6 +33,7 @@ export function explicaRecusa(codigo?: number, mensagem?: string) {
     case 132001: return 'O modelo não existe nessa conta, ou o nome e o idioma não batem.';
     case 132000: return 'A quantidade de variáveis do modelo não bate com o que foi enviado.';
     case 131051: return 'Tipo de mensagem não suportado.';
+    case 131053: return 'A Meta não aceitou o arquivo. Confira o formato (foto JPG ou PNG, PDF, áudio) e o tamanho.';
     case 100: return 'A Meta recusou os dados do envio. Confira o número e o conteúdo.';
     case 190: return 'O token do WhatsApp expirou ou foi revogado. Gere outro em Configurações.';
     case 200: return 'O aplicativo não tem permissão de enviar por essa conta do WhatsApp.';
@@ -96,6 +97,43 @@ export function mandaTemplate(para: string, nome: string, idioma: string, variav
     type: 'template',
     template: { name: nome, language: { code: idioma }, ...(componentes.length ? { components: componentes } : {}) },
   });
+}
+
+/** Sobe o arquivo para a Meta e devolve o id da mídia, que vale para mandar por 30 dias. */
+export async function sobeMidia(bytes: Uint8Array, mime: string, nome: string): Promise<{ ok: true; id: string } | { ok: false; erro: string }> {
+  if (!temConfig()) return { ok: false, erro: 'O WhatsApp ainda não está conectado.' };
+  try {
+    const form = new FormData();
+    form.append('messaging_product', 'whatsapp');
+    form.append('type', mime);
+    form.append('file', new Blob([new Uint8Array(bytes)], { type: mime }), nome);
+    const r = await fetch(`${BASE}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/media`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
+      body: form,
+    });
+    const dados = (await r.json()) as { id?: string; error?: { message?: string; code?: number } };
+    if (!r.ok || !dados.id) {
+      const erro = explicaRecusa(dados.error?.code, dados.error?.message);
+      if (classificaRecusa(dados.error?.code) === 'conta') await falhou('envio', erro);
+      return { ok: false, erro };
+    }
+    return { ok: true, id: dados.id };
+  } catch {
+    const erro = 'Não consegui mandar o arquivo para a Meta agora.';
+    await falhou('envio', erro);
+    return { ok: false, erro };
+  }
+}
+
+/** Foto, vídeo, áudio ou documento já subido. Áudio não leva legenda no WhatsApp. */
+export function mandaMidia(
+  para: string, tipo: 'image' | 'video' | 'audio' | 'document', id: string, o: { legenda?: string; nome?: string } = {},
+) {
+  const midia: Record<string, string> = { id };
+  if (o.legenda && tipo !== 'audio') midia.caption = o.legenda.slice(0, 1024);
+  if (tipo === 'document' && o.nome) midia.filename = o.nome;
+  return manda({ to: para, type: tipo, [tipo]: midia });
 }
 
 /** Botões de resposta. O id volta no webhook quando o contato toca; sem ids, b1, b2, b3. */

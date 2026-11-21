@@ -13,6 +13,7 @@ import { leAutomatico, type ConfigAutomatico } from '@/lib/dominio/automatico';
 import AtendimentoAutomatico from '@/componentes/config-automatico';
 import { SaudeDoSistema } from '@/componentes/saude';
 import { ModelosDeMensagem } from '@/componentes/modelos';
+import { AvisosNoAparelho } from '@/componentes/avisos';
 import {
   useAnimacao, useCorDoMenu, useLarguraDoMenu, type CorDoMenu, type LarguraDoMenu,
 } from '@/componentes/preferencias';
@@ -74,6 +75,7 @@ export default function Configuracoes() {
       <AtendimentoAutomatico salva={automatico} podeMexer={gestao} chama={chama} perfis={perfis} />
       <ModelosDeMensagem gestao={gestao} chama={chama} />
       <Aparencia tema={tema} setTema={setTema} />
+      <AvisosNoAparelho gestao={gestao} />
       {gestao && <Equipe perfis={perfis} eu={perfil} chama={chama} />}
       {gestao && <SaudeDoSistema />}
       {gestao && <WhatsApp chama={chama} />}

@@ -27,3 +27,5 @@ function pegaApp(): FirebaseApp {
 export const auth = (): Auth => getAuth(pegaApp());
 export const bd = (): Firestore => getFirestore(pegaApp());
 export const arquivos = (): FirebaseStorage => getStorage(pegaApp());
+/** Para quem carrega o Firebase Messaging só quando precisa (avisos.tsx). */
+export const appFirebase = (): FirebaseApp => pegaApp();

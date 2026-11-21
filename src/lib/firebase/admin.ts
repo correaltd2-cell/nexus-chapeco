@@ -6,6 +6,7 @@ import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
+import { getMessaging } from 'firebase-admin/messaging';
 
 let app: App | null = null;
 
@@ -30,6 +31,7 @@ function pegaApp(): App {
 export const adminAuth = () => getAuth(pegaApp());
 export const adminBd = () => getFirestore(pegaApp());
 export const adminArquivos = () => getStorage(pegaApp());
+export const adminMensageiro = () => getMessaging(pegaApp());
 
 /** Confere o token que veio do navegador e devolve o uid e o papel. */
 export async function quemChamou(req: Request) {

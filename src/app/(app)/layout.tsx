@@ -13,6 +13,7 @@ import { MODULOS, NOME_MODULO, NOME_PAPEL, ehGestao, modulosDoPapel, type Modulo
 import { modoDemo } from '@/lib/dados/fonte';
 import { FaixaDeSaude } from '@/componentes/saude';
 import Festa from '@/componentes/festa';
+import { AvisoDeMensagem } from '@/componentes/avisos';
 import Logo from '@/componentes/logo';
 import { useCorDoMenu, useLarguraDoMenu } from '@/componentes/preferencias';
 
@@ -160,6 +161,7 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
       </div>
       <div className="toast" id="toast" role="status" aria-live="polite" />
       <Festa />
+      <AvisoDeMensagem />
     </>
   );
 }

@@ -6,6 +6,11 @@ import { comEtiqueta, etiquetaDoAssunto, leAssunto, tarefaDoAssunto } from '@/li
 import { PASSO, novoId } from '@/lib/dominio/quadros';
 import type { Conversa, Lista, Quadro } from '@/lib/dominio/tipos';
 import { atendeAoVivo, camposDaFalaDaEscola } from './automatico';
+import { baixaMidia } from './cloud';
+import { adminArquivos } from '@/lib/firebase/admin';
+import { caminhoDaMidia, mimeLimpo, previaDaMidia } from '@/lib/dominio/midia';
+import { descreveErro, falhou } from '@/lib/saude';
+import { avisaEquipe } from '@/lib/avisos';
 
 export interface Contexto { bd: Firestore }
 
@@ -34,6 +39,33 @@ export function textoDaMensagem(m: Record<string, unknown>): string {
   if (tipo === 'location') return '📍 localização';
   if (tipo === 'contacts') return '📇 cartão de contato';
   return '';
+}
+
+/** A mídia que veio na mensagem: o id para baixar, o tipo e o nome do documento. */
+export function midiaDaMensagem(m: Record<string, unknown>) {
+  const tipo = String(m.type || '');
+  if (!['image', 'video', 'audio', 'document'].includes(tipo)) return null;
+  const o = m[tipo] as { id?: string; mime_type?: string; filename?: string } | undefined;
+  if (!o?.id) return null;
+  return { id: o.id, mime: mimeLimpo(o.mime_type || 'application/octet-stream'), nome: o.filename || '' };
+}
+
+/* Baixa da Meta e guarda no Storage, dentro da pasta da conversa. A mensagem já está
+   na tela com o tipo; o arquivo aparece quando chega. Falhou: a mensagem diz que não
+   veio, e a gestão vê na Saúde do sistema. */
+async function guardaMidia(conversaId: string, msg: DocumentReference, midia: { id: string; mime: string; nome: string }) {
+  try {
+    const baixado = await baixaMidia(midia.id);
+    if (!baixado) throw new Error('a Meta não entregou o arquivo');
+    const caminho = caminhoDaMidia(conversaId, msg.id, midia.mime, midia.nome);
+    await adminArquivos().bucket().file(caminho).save(baixado.bytes, {
+      contentType: mimeLimpo(baixado.mime) || midia.mime, resumable: false,
+    });
+    await msg.update({ midiaPath: caminho });
+  } catch (e) {
+    await msg.update({ midiaFalhou: true }).catch(() => undefined);
+    await falhou('midia', descreveErro(e));
+  }
 }
 
 /** Mensagem que a Meta avisa mas nao entrega o conteudo, ou que nao vira fala. */
@@ -138,13 +170,15 @@ export async function recebeDoContato(
   const quando = emIso(m.timestamp as string | undefined);
   const tipo = String(m.type || 'text');
   const texto = textoDaMensagem(m);
+  const midia = midiaDaMensagem(m);
 
-  await ctx.bd.collection('mensagens').add({
+  const msg = await ctx.bd.collection('mensagens').add({
     conversaId: ref.id,
     direcao: 'entrada',
     autor: 'cliente',
     texto,
     tipoBruto: tipo,
+    ...(midia ? { midiaMime: midia.mime, ...(midia.nome ? { midiaNome: midia.nome } : {}) } : {}),
     waMessageId: String(m.id || ''),
     criadaEm: quando,
   });
@@ -153,7 +187,7 @@ export async function recebeDoContato(
   const naoLidas = Number((conversa.data()?.naoLidas as number) || 0);
   await ref.update({
     ultimaEm: quando,
-    ultimaPreviaTexto: texto || tipo,
+    ultimaPreviaTexto: midia ? previaDaMidia(midia.mime, midia.nome, texto) : texto || tipo,
     janelaAte: janelaDe(quando),
     naoLidas: naoLidas + 1,
     /* mensagem nova reabre a conversa encerrada, na Recepção */
@@ -178,6 +212,11 @@ export async function recebeDoContato(
       console.error('[automatico]', ref.id, e);
     }
   }
+  /* o aviso no celular de quem é do setor, quando a conversa está com gente (depois do
+     atendimento automático, que pode ter mandado a conversa para a Recepção agora) */
+  if (origem === 'ao_vivo' && !naoViraFala(tipo)) await avisaEquipe(ctx.bd, ref.id);
+  /* por último: o arquivo pode demorar uns segundos, e a conversa não espera por ele */
+  if (midia) await guardaMidia(ref.id, msg, midia);
   return ref;
 }
 

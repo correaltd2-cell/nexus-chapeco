@@ -13,6 +13,11 @@ import Logo from '@/componentes/logo';
 import { usePainelRecolhido } from '@/componentes/painel-recolhido';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
 import { EscolheModelo } from '@/componentes/modelos';
+import { Cronometro, MidiaNaBolha, PreviaDoAnexo, useGravador } from '@/componentes/midia';
+import { marcaConversaNaTela } from '@/componentes/avisos';
+import { ref as refArquivo, uploadBytes } from 'firebase/storage';
+import { arquivos } from '@/lib/firebase/cliente';
+import { caminhoDaMidia, comoEnviar, previaDaMidia } from '@/lib/dominio/midia';
 import { preenche, type ModeloParaEnviar } from '@/lib/dominio/modelos';
 import { NOME_CURTO_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
 import {
@@ -78,12 +83,25 @@ export default function Inbox() {
   const [agendadas, setAgendadas] = useState<MensagemAgendada[]>([]);
   const [programando, setProgramando] = useState(false);
   const [escolhendoModelo, setEscolhendoModelo] = useState(false);
+  const [anexo, setAnexo] = useState<File | null>(null);
+  const seletor = useRef<HTMLInputElement>(null);
+  /* o áudio gravado sai sozinho quando a pessoa toca em enviar (quem envia é o
+     enviaArquivo, lá embaixo; o ref liga os dois sem depender da ordem) */
+  const aoGravar = useRef<(arquivo: File) => void>(() => undefined);
+  const gravador = useGravador((arquivo) => aoGravar.current(arquivo), (motivo) => setAviso(motivo));
+  const cancelaGravacao = gravador.cancela;
   const agora = useAgora();
   const [progTexto, setProgTexto] = useState('');
   const [progQuando, setProgQuando] = useState('');
   const rolo = useRef<HTMLDivElement>(null);
   const [confirmaEncerrar, setConfirmaEncerrar] = useState<string | null>(null);
   const [encerrando, setEncerrando] = useState(false);
+
+  /* quem está lendo a conversa não precisa de som avisando que ela mexeu */
+  useEffect(() => {
+    marcaConversaNaTela(abertaId);
+    return () => marcaConversaNaTela(null);
+  }, [abertaId]);
 
   /* o link mudou com a tela aberta: abre a conversa nova */
   if (pedida !== pedidaVista) {
@@ -139,10 +157,11 @@ export default function Inbox() {
 
   const abrir = useCallback(async (c: Conversa) => {
     setAbertaId(c.id); setNaConversa(true); setPainel(false); setRascunho(''); setEscolhendoModelo(false);
+    setAnexo(null); cancelaGravacao();
     if (c.naoLidas > 0) {
       try { await atualiza('conversas', c.id, { naoLidas: 0 }); } catch { /* sem permissão, segue */ }
     }
-  }, []);
+  }, [cancelaGravacao]);
 
   /* Encerrar na mão pede dois toques: o primeiro arma, o segundo encerra. Com a chave
      do atendimento automático ligada, o servidor manda antes uma despedida curta. */
@@ -181,6 +200,10 @@ export default function Inbox() {
   async function enviar(e: FormEvent) {
     e.preventDefault();
     const texto = rascunho.trim();
+    if (anexo) {
+      if (await enviaArquivo(anexo, texto)) { setAnexo(null); setRascunho(''); }
+      return;
+    }
     if (!texto || !aberta) return;
     setEnviando(true); setAviso('');
 
@@ -215,6 +238,59 @@ export default function Inbox() {
       setEnviando(false);
     }
   }
+
+  /* o arquivo escolhido no clipe: confere já se o WhatsApp aceita, antes de subir */
+  function escolheArquivo(lista: FileList | null) {
+    const arquivo = lista?.[0];
+    if (seletor.current) seletor.current.value = '';
+    if (!arquivo) return;
+    const como = comoEnviar(arquivo.type, arquivo.size);
+    if ('erro' in como) { setAviso(como.erro); return; }
+    setAviso(''); setEmojis(false); setAnexo(arquivo);
+  }
+
+  /* foto, áudio, vídeo ou documento: sobe para o Storage, na pasta da conversa, e o
+     servidor manda para a Meta. Devolve se deu certo. */
+  async function enviaArquivo(arquivo: File, legenda: string) {
+    if (!aberta) return false;
+    const como = comoEnviar(arquivo.type, arquivo.size);
+    if ('erro' in como) { setAviso(como.erro); return false; }
+    const texto = como.tipo === 'audio' ? '' : legenda.trim();
+    setEnviando(true); setAviso('');
+    try {
+      if (modoDemo) {
+        const quando = new Date().toISOString();
+        await cria('mensagens', {
+          conversaId: aberta.id, direcao: 'saida', autor: 'humano', autorNome: perfil?.nome || 'Equipe',
+          texto, midiaPath: URL.createObjectURL(arquivo), midiaMime: como.mime,
+          ...(como.tipo === 'document' ? { midiaNome: arquivo.name } : {}), entregueEm: quando, criadaEm: quando,
+        });
+        await atualiza('conversas', aberta.id, {
+          ultimaEm: quando, ultimaPreviaTexto: previaDaMidia(como.mime, arquivo.name, texto), agenteAtivo: false, naoLidas: 0,
+        });
+        return true;
+      }
+      if (!usuario) return false;
+      const caminho = caminhoDaMidia(aberta.id, `saida-${new Date().getTime()}`, como.mime, arquivo.name);
+      await uploadBytes(refArquivo(arquivos(), caminho), arquivo, { contentType: arquivo.type || como.mime });
+      const token = await usuario.getIdToken();
+      const r = await fetch('/api/whatsapp/enviar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ conversaId: aberta.id, texto, midia: { caminho, nome: arquivo.name, mime: arquivo.type } }),
+      });
+      const resposta = (await r.json()) as { ok?: boolean; erro?: string };
+      if (!r.ok || !resposta.ok) { setAviso(resposta.erro || 'Não consegui enviar o arquivo agora.'); return false; }
+      return true;
+    } catch {
+      setAviso('Não consegui subir o arquivo. Confira a internet e tente de novo.');
+      return false;
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  useEffect(() => { aoGravar.current = (arquivo) => { void enviaArquivo(arquivo, ''); }; });
 
   /* modelo aprovado: o servidor confere na Meta e grava o texto como o contato lê */
   async function enviaModelo(m: ModeloParaEnviar, valores: string[]) {
@@ -462,8 +538,8 @@ export default function Inbox() {
                             {m.template ? ', modelo aprovado' : ''}
                           </span>
                         )}
+                        {(m.midiaMime || m.midiaPath) && <MidiaNaBolha m={m} />}
                         {m.texto && <span className="tx">{m.texto}</span>}
-                        {!m.texto && m.midiaNome && <span className="tx">{m.midiaNome}</span>}
                         <span className="mt">{hora(m.criadaEm)}<Ticks m={m} /></span>
                       </div>
                       {m.botoes?.length ? (
@@ -510,8 +586,12 @@ export default function Inbox() {
             )}
 
             {/* com o modelo aberto, ele é a caixa de escrever: nada de dois "Enviar" na tela */}
+            {janela && anexo && !escolhendoModelo && (
+              <PreviaDoAnexo arquivo={anexo} subindo={enviando} aoTirar={() => setAnexo(null)} />
+            )}
             {escolhendoModelo ? null : janela ? (
-              <form className="cmp" onSubmit={(e) => { setEmojis(false); void enviar(e); }}>
+              <form className={gravador.gravandoDesde ? 'cmp grava' : 'cmp'}
+                    onSubmit={(e) => { setEmojis(false); void enviar(e); }}>
                 {emojis && (
                   <div className="emo" role="group" aria-label="Emojis">
                     {EMOJIS.map((e) => (
@@ -520,28 +600,57 @@ export default function Inbox() {
                     ))}
                   </div>
                 )}
-                <div className="campo">
-                  <button type="button" className="ib" aria-expanded={emojis} title="Emojis" aria-label="Emojis"
-                          onClick={() => setEmojis(!emojis)}>
-                    <Ic n="emoji" />
+                <input ref={seletor} type="file" hidden onChange={(e) => escolheArquivo(e.target.files)}
+                       accept="image/jpeg,image/png,video/mp4,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
+                {gravador.gravandoDesde ? (
+                  <div className="campo">
+                    <button type="button" className="ib" title="Apagar a gravação" aria-label="Apagar a gravação"
+                            onClick={gravador.cancela}>
+                      <Ic n="lixo" />
+                    </button>
+                    <span className="gravando" role="status"><i aria-hidden="true" />Gravando <Cronometro desde={gravador.gravandoDesde} /></span>
+                  </div>
+                ) : (
+                  <div className="campo">
+                    {/* no celular o teclado já tem emoji: o botão sai para sobrar lugar para escrever */}
+                    <button type="button" className="ib so-largo" aria-expanded={emojis} title="Emojis" aria-label="Emojis"
+                            onClick={() => setEmojis(!emojis)}>
+                      <Ic n="emoji" />
+                    </button>
+                    <button type="button" className="ib" title="Anexar foto ou documento" aria-label="Anexar foto ou documento"
+                            onClick={() => seletor.current?.click()}>
+                      <Ic n="clipe" />
+                    </button>
+                    <input type="text" value={rascunho} autoComplete="off" aria-label={anexo ? 'Legenda' : 'Mensagem'}
+                           placeholder={anexo ? 'Legenda (opcional)' : 'Digite uma mensagem'}
+                           onChange={(e) => setRascunho(e.target.value)} />
+                    <button type="button" className="ib" aria-expanded={escolhendoModelo} title="Enviar modelo"
+                            aria-label="Enviar modelo"
+                            onClick={() => { setEscolhendoModelo(!escolhendoModelo); setProgramando(false); setEmojis(false); }}>
+                      <Ic n="modelo" />
+                    </button>
+                    <button type="button" className={naFila ? 'ib tem' : 'ib'} aria-expanded={programando}
+                            title={naFila ? `${naFila} mensagem programada nesta conversa` : 'Programar mensagem'}
+                            aria-label="Programar mensagem"
+                            onClick={() => { setProgramando(!programando); setEscolhendoModelo(false); }}>
+                      <Ic n="relogio" />
+                    </button>
+                  </div>
+                )}
+                {gravador.gravandoDesde ? (
+                  <button type="button" className="envia" title="Enviar áudio" aria-label="Enviar áudio" onClick={gravador.termina}>
+                    <Ic n="envia" />
                   </button>
-                  <input type="text" value={rascunho} autoComplete="off" aria-label="Mensagem"
-                         placeholder="Digite uma mensagem" onChange={(e) => setRascunho(e.target.value)} />
-                  <button type="button" className="ib" aria-expanded={escolhendoModelo} title="Enviar modelo"
-                          aria-label="Enviar modelo"
-                          onClick={() => { setEscolhendoModelo(!escolhendoModelo); setProgramando(false); setEmojis(false); }}>
-                    <Ic n="modelo" />
+                ) : rascunho.trim() || anexo ? (
+                  <button type="submit" className="envia" title="Enviar" aria-label="Enviar" disabled={enviando}>
+                    <Ic n="envia" />
                   </button>
-                  <button type="button" className={naFila ? 'ib tem' : 'ib'} aria-expanded={programando}
-                          title={naFila ? `${naFila} mensagem programada nesta conversa` : 'Programar mensagem'}
-                          aria-label="Programar mensagem"
-                          onClick={() => { setProgramando(!programando); setEscolhendoModelo(false); }}>
-                    <Ic n="relogio" />
+                ) : (
+                  <button type="button" className="envia" title="Gravar áudio" aria-label="Gravar áudio" disabled={enviando}
+                          onClick={() => void gravador.comeca()}>
+                    <Ic n="mic" />
                   </button>
-                </div>
-                <button type="submit" className="envia" title="Enviar" aria-label="Enviar" disabled={enviando}>
-                  <Ic n="envia" />
-                </button>
+                )}
               </form>
             ) : (
               <div className="pe">

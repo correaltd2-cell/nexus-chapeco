@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react';
 export type LarguraDoMenu = 'auto' | 'aberto' | 'recolhido';
 export type CorDoMenu = 'escuro' | 'claro';
 export type Animacao = 'ligada' | 'desligada';
+export type Avisos = 'ligados' | 'desligados';
 
 function preferencia<T extends string>(chave: string, padrao: T, validos: readonly T[]) {
   const ouvintes = new Set<() => void>();
@@ -55,6 +56,7 @@ function preferencia<T extends string>(chave: string, padrao: T, validos: readon
 const largura = preferencia<LarguraDoMenu>('nexus-menu', 'auto', ['auto', 'aberto', 'recolhido']);
 const cor = preferencia<CorDoMenu>('nexus-menu-cor', 'escuro', ['escuro', 'claro']);
 const animacao = preferencia<Animacao>('nexus-animacao', 'ligada', ['ligada', 'desligada']);
+const avisos = preferencia<Avisos>('nexus-avisos', 'ligados', ['ligados', 'desligados']);
 
 /** Para quem decide fora de componente (a festa é chamada no clique). */
 export const animacaoLigada = () => animacao.le() === 'ligada';
@@ -68,4 +70,8 @@ export function useCorDoMenu(): [CorDoMenu, (v: CorDoMenu) => void] {
 }
 export function useAnimacao(): [Animacao, (v: Animacao) => void] {
   return [useSyncExternalStore(animacao.assina, animacao.le, () => animacao.padrao), animacao.define];
+}
+/** Se este aparelho quer o aviso de mensagem nova (componentes/avisos.tsx). */
+export function useAvisos(): [Avisos, (v: Avisos) => void] {
+  return [useSyncExternalStore(avisos.assina, avisos.le, () => avisos.padrao), avisos.define];
 }

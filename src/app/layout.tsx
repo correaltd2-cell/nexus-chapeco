@@ -5,6 +5,8 @@ import { ProvedorDeSessao } from '@/componentes/sessao';
 export const metadata: Metadata = {
   title: 'Nexus Chapecó',
   description: 'Atendimento, quadros, provas e aulas da Nexus English Center, unidade Chapecó.',
+  /* no iPhone, posto na tela de início abre como aplicativo (e só assim recebe aviso) */
+  appleWebApp: { capable: true, title: 'Nexus', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

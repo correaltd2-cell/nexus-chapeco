@@ -628,6 +628,48 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .prog .obs{flex:1;padding:0}
 .prog .obs.alerta{color:var(--alert)}
 
+/* ----- foto, áudio, vídeo e documento na bolha ----- */
+.b .mid-img{display:block;margin:-2px -4px 4px;border-radius:10px;overflow:hidden;width:280px;max-width:100%}
+.b .mid-img img{display:block;width:100%;max-height:360px;object-fit:cover}
+.b .mid-vid{display:block;width:300px;max-width:100%;border-radius:10px;margin:-2px -4px 4px;background:#000}
+.mid-aud{display:flex;align-items:center;gap:9px;width:270px;max-width:100%;padding:2px 0 4px}
+.mid-play{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none;color:#fff;background:var(--wa-verde)}
+.mid-play .ic{width:17px;height:17px}
+.mid-barra{
+  flex:1;min-width:70px;height:4px;appearance:none;-webkit-appearance:none;border-radius:4px;outline:none;cursor:pointer;
+  background:linear-gradient(to right,var(--wa-verde) var(--feito,0%),rgba(128,128,128,.32) var(--feito,0%));
+}
+.mid-barra::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--wa-verde)}
+.mid-barra::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:var(--wa-verde)}
+.mid-tempo{font-size:11.5px;color:var(--balao-meta);font-variant-numeric:tabular-nums;min-width:28px}
+.mid-vel{font-size:11px;font-weight:700;color:var(--balao-meta);border-radius:999px;padding:3px 7px;background:rgba(128,128,128,.16);flex:none}
+.mid-doc{
+  display:flex;align-items:center;gap:10px;padding:9px 11px;margin:0 -3px 4px;border-radius:10px;
+  background:rgba(128,128,128,.13);color:inherit;text-decoration:none;width:250px;max-width:100%;
+}
+.mid-doc .ic{width:28px;height:28px;color:var(--balao-meta)}
+.mid-doc b{display:block;font-weight:600;font-size:13.5px;overflow-wrap:anywhere}
+.mid-doc small{display:block;font-size:11.5px;color:var(--balao-meta)}
+a.mid-doc:hover{background:rgba(128,128,128,.2)}
+.mid-aviso{display:block;font-size:13px;color:var(--balao-meta);font-style:italic;padding:2px 0 4px}
+.mid-espera{display:block;width:240px;max-width:100%;height:150px;border-radius:10px;background:rgba(128,128,128,.14);margin-bottom:4px}
+.mid-espera.audio{height:42px}
+.mid-espera.document{height:50px}
+
+/* o arquivo escolhido no clipe, antes de sair */
+.anx{display:flex;align-items:center;gap:10px;flex:none;padding:8px max(12px,var(--gutter));background:var(--wa-barra);border-top:1px solid var(--line)}
+.anx img{width:52px;height:52px;object-fit:cover;border-radius:10px;flex:none}
+.anx-ic{width:52px;height:52px;border-radius:10px;display:grid;place-items:center;background:var(--surface);color:var(--muted);flex:none}
+.anx-ic .ic{width:24px;height:24px}
+.anx-tx{flex:1;min-width:0}
+.anx-tx b{display:block;font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.anx-tx small{color:var(--muted);font-size:12px}
+
+/* gravando áudio: o ponto vermelho do WhatsApp e o tempo correndo */
+.cmp .gravando{flex:1;display:flex;align-items:center;gap:8px;font-size:15px;color:var(--text);padding:9px 4px}
+.cmp .gravando i{width:10px;height:10px;border-radius:50%;background:var(--alert);animation:pulsa-grava 1s ease-in-out infinite}
+@keyframes pulsa-grava{50%{opacity:.25}}
+
 /* ----- modelo aprovado: escolher, preencher e ver como o contato lê ----- */
 .mdl{
   flex:none;background:var(--surface);border-top:1px solid var(--line);

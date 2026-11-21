@@ -78,6 +78,7 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 | 19/11/2026 | **Cada setor tem cor e ícone próprios, e o menu lateral é escolha de quem usa** (pedido do cliente: "não diz bem claro se está na Recepção ou na Coordenação" e "o menu ficou minimalista demais"). A etiqueta do setor tem cor cheia (Recepção laranja, Financeiro verde, Coordenação azul, Coordenação Kids roxo) e aparece na linha da lista, no topo da conversa e no painel; no celular a borda do cartão da conversa tem a cor do setor. O menu recolhido mostra ícone com nome curto embaixo, abre e recolhe por botão no próprio menu, e pode ser claro. |
 | 19/11/2026 | **Logo própria em 3D e comemoração ao passar a conversa** (pedido do cliente: "uma coisa meio zoeira, mas rápida, que não atrapalhe a recepção"). A logo da Central de Atendimento é um balão laranja com o N em relevo, que brilha e tem um ponto verde "ao vivo" pulsando. Passar de setor mostra por menos de 2 s um cartão com o avatar de quem recebe ("Transferido para Natan!") e uma frase de zoeira; não pega clique e desliga em Configurações, Aparência. |
 | 21/11/2026 | **Os modelos de mensagem nascem no sistema e vão sozinhos para a Meta** (pedido do cliente: "pode criar pra mim direto"). A biblioteca de 29 modelos (aulas, marcação, reposição, provas, financeiro, contrato, Kids para o responsável, chamar, urgente, retomar, aniversário e o aviso à coordenação) mora em `dominio/modelos.ts`; o relógio de hora em hora cria o que falta e anota a situação em `templates`. Apagado na Meta não volta sozinho. Texto aprovado não se edita: muda o nome. Na conversa só aparece o que a Meta aprovou, e o texto gravado vem do banco, não do navegador. |
+| 21/11/2026 | **Foto, áudio, vídeo e documento nos dois sentidos, e aviso de mensagem nova** (o que faltava antes de divulgar o número). O que chega é baixado da Meta para o Storage, na pasta da conversa; o que sai sobe do navegador para o Storage e o servidor manda. Áudio gravado no Chrome (WebM) é reembalado em OGG no servidor, sem ffmpeg e sem recodificar. O aviso vai para quem é do setor da conversa e só quando ela está com gente: som e notificação com o sistema aberto, e push pelo Firebase Cloud Messaging com ele fechado (no iPhone, só instalado na tela de início). O push precisa da chave de Web Push do Firebase em `NEXT_PUBLIC_FIREBASE_VAPID_KEY`. Passo a passo: `docs/midia-e-avisos.md`. |
 | 18/11/2026 | **O telefone do contato não se edita na tela.** Ele é a chave que casa a conversa com o que a Meta manda. Nome, foto e observação se editam; telefone novo é conversa nova. |
 
 ## 3.2 O que já está de pé no atendimento (18/11/2026)
@@ -121,6 +122,15 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
   fica ao lado do relógio e vira o principal quando a janela fecha. Passo a passo e os
   textos: `docs/modelos-de-mensagem.md`.
 
+- **Mídia e avisos** (21/11/2026): regras em `src/lib/dominio/midia.ts` e
+  `src/lib/dominio/ogg.ts`, provadas em `node --experimental-strip-types testes/midia.ts`
+  (com uma gravação real do Chrome em `testes/amostras/`); a tela em
+  `componentes/midia.tsx`. Quem recebe aviso e quando: `src/lib/dominio/avisos.ts`,
+  provado em `testes/avisos.ts`; push em `src/lib/avisos.ts`, aparelhos em
+  `dispositivos` (só o servidor grava, por `/api/avisos`), notificação em
+  `public/aviso-sw.js`. O sistema é instalável (`app/manifest.ts`). Passo a passo:
+  `docs/midia-e-avisos.md`.
+
 - **Saúde do sistema** (19/11/2026, depois de um dia com o servidor sem gravar e
   ninguém sabendo): o servidor anota em `config/saude` a última vez que cada parte
   andou (chamada da Meta, mensagem de contato, envio aceito, relógio, fila) e a última
@@ -148,6 +158,7 @@ Next.js (App Router) ──► Vercel
               ├── /api/whatsapp/conexao     confere e configura a conexão
               ├── /api/whatsapp/modelos     confere os modelos com a Meta e cria o que falta
               ├── /api/conversas/*          encerrar e passar de setor (com aviso)
+              ├── /api/avisos               liga o push do aparelho e manda aviso de teste
               ├── /api/automatico/testar    a IA escreve sem enviar, para testar
               ├── /api/saude                o servidor alcança o banco? (público, uma palavra)
               ├── /api/sheets/*             lê e escreve a grade no Google Sheets
@@ -233,8 +244,9 @@ telas com o cliente, não as cores: aquelas foram substituídas.
 - A tela de atendimento tem o arranjo e o visual do WhatsApp (lista, conversa com
   bolhas verdes e brancas sobre o fundo bege, dados do contato) porque o time e os
   alunos já sabem ler isso. O papel de parede é desenho nosso (`--wall-desenho`), e o
-  emoji é uma grade fixa dos de toda hora, sem biblioteca. Botão que ainda não faz
-  nada (anexo, áudio) não entra antes de funcionar.
+  emoji é uma grade fixa dos de toda hora, sem biblioteca (no celular o botão sai: o
+  teclado já tem). Botão que ainda não faz nada não entra antes de funcionar; o clipe e
+  o microfone entraram em 21/11/2026, quando passaram a mandar de verdade.
 
 ### Escrita da interface
 Português brasileiro, tom direto, frase em caixa baixa. O botão diz o que acontece:

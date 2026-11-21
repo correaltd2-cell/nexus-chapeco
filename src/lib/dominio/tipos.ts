@@ -101,6 +101,7 @@ export interface Mensagem {
   midiaPath?: string;
   midiaMime?: string;
   midiaNome?: string;
+  midiaFalhou?: boolean;   // chegou mídia e o servidor não conseguiu baixar
   botoes?: string[];       // reply buttons que foram enviados
   template?: string;       // nome do template, quando saiu por template
   waMessageId?: string;

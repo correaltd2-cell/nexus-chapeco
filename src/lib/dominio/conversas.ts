@@ -1,6 +1,7 @@
 /* Regras de leitura das conversas que valem na tela e no servidor. */
 import type { Conversa, Mensagem, Setor } from './tipos';
 import { NOME_SETOR } from './acessos';
+import { previaDaMidia } from './midia';
 
 /** A frase que descreve o estado da conversa, sempre igual em toda tela. */
 export function situacao(c: Conversa): string {
@@ -25,12 +26,8 @@ export const ultimaFala = (ms: Mensagem[]) =>
 
 export const previaDe = (m?: Mensagem) => {
   if (!m) return '';
-  if (m.texto) return m.texto;
-  if (!m.midiaMime) return 'Mensagem';
-  if (m.midiaMime.startsWith('image/')) return 'Foto';
-  if (m.midiaMime.startsWith('audio/')) return 'Áudio';
-  if (m.midiaMime.startsWith('video/')) return 'Vídeo';
-  return m.midiaNome || 'Documento';
+  if (m.midiaMime) return previaDaMidia(m.midiaMime, m.midiaNome, m.texto);
+  return m.texto || 'Mensagem';
 };
 
 /** Conversa esperando a gente: o contato falou por último e ninguém respondeu. */
