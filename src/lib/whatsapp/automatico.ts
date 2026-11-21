@@ -9,13 +9,12 @@
    - mensagem antiga importada do celular (historico da coexistencia) nunca chega aqui */
 import 'server-only';
 import { FieldValue, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
-import { mandaBotoes, mandaFigurinha, mandaLista, mandaTemplate, mandaTexto, temConfig } from './cloud';
-import { ENDERECO } from '@/lib/dominio/modelos';
-import { leAtendimento } from '@/lib/dominio/config';
+import { mandaBotoes, mandaLista, mandaTemplate, mandaTexto, temConfig } from './cloud';
 import { escreveMensagem, iaLigada, respondeComoAssistente, type Leitura } from '@/lib/ia/claude';
 import { leAssunto } from '@/lib/dominio/triagem';
 import { janelaAberta } from '@/lib/dominio/formato';
-import { FIGURINHA_DO_SETOR, NOME_SETOR } from '@/lib/dominio/acessos';
+import { NOME_SETOR } from '@/lib/dominio/acessos';
+import { leAtendimento } from '@/lib/dominio/config';
 import { respostaDasAulas } from '@/lib/dominio/agenda';
 import { aulasDoContato } from '@/lib/agenda-servidor';
 import { descreveErro, falhou } from '@/lib/saude';
@@ -24,7 +23,7 @@ import {
   BOTOES_DEPOIS_DA_DUVIDA, BOTOES_MAIS, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, avisaForaDoHorario, comNome,
   depoisDoMenuConfuso, destinoDoAssunto, deveVoltarParaRecepcao, escolhaDoMenu, idDaPergunta, idDoBotao, leAutomatico,
   menorEspera, pareceDespedida, primeiro, promptMensagem, recomecaAtendimento, reservaDo, respostaDoAlgoMais,
-  setorDoPassa, situacaoDoHorario, sobreOQue, turnosDoAssistente,
+  setorDoPassa, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
   type ConfigAutomatico, type ContextoDaConversa, type Destino, type Linha, type Momento, type SituacaoDoHorario,
 } from '@/lib/dominio/automatico';
 import type { Conversa, Mensagem, Perfil, QuemEncerrou, Setor } from '@/lib/dominio/tipos';
@@ -109,28 +108,6 @@ async function fala(bd: Firestore, ref: DocumentReference, c: { waId?: string; j
     Object.assign(campos, { relogioDesde: agora, relogioMotivo: APAGA(), followUpEm: APAGA() });
   }
   await ref.update(campos);
-  return r.ok;
-}
-
-/** A figurinha do setor ("Agora quem te atende é o Financeiro"), quando a conversa passa
-    para ele: o contato vê a troca sem ler mais uma mensagem. Só com a janela de 24 horas
-    aberta (figurinha não é modelo) e com a opção ligada em Configurações, Atendimento. */
-export async function mandaFigurinhaDoSetor(
-  bd: Firestore, ref: DocumentReference, c: { waId?: string; janelaAte?: string }, setor: Setor,
-) {
-  if (!c.waId || !janelaAberta(c) || !temConfig()) return false;
-  const cfg = leAtendimento((await bd.doc('config/atendimento').get()).data());
-  if (!cfg.figurinhaAoPassar) return false;
-  const caminho = FIGURINHA_DO_SETOR[setor];
-  const r = await mandaFigurinha(c.waId, `${ENDERECO}${caminho}`);
-  const agora = agoraIso();
-  await bd.collection('mensagens').add({
-    conversaId: ref.id, direcao: 'saida', autor: 'lumi', autorNome: 'Figurinha do setor', texto: '',
-    figurinha: true, midiaMime: 'image/webp', midiaLink: caminho, midiaNome: `Agora com ${NOME_SETOR[setor]}`,
-    waMessageId: r.waMessageId || null, falhouEm: r.ok ? null : agora, falhaMotivo: r.ok ? null : r.erro || null,
-    criadaEm: agora,
-  });
-  await ref.update({ ultimaEm: agora, ultimaPreviaTexto: `Figurinha: agora com ${NOME_SETOR[setor]}` });
   return r.ok;
 }
 
@@ -388,7 +365,6 @@ async function passaParaGente(r: Rodada, resumo: string, avisa: boolean) {
   });
   await recado(r.bd, r.ref.id, `O assistente passou a conversa para ${NOME_SETOR[setor]}. Resumo: ${resumo}`);
   if (avisa) await fala(r.bd, r.ref, r.c, { texto: reservaDo('encaminha', r.cfg, r.c.nome || '', r.horario), relogio: 'nao' });
-  await mandaFigurinhaDoSetor(r.bd, r.ref, r.c, setor);
   if (!r.horario.aberto) await r.ref.update({ avisoForaEm: agoraIso() });
 }
 
@@ -547,11 +523,19 @@ export async function transfere(
     relogioDesde: APAGA(), relogioMotivo: APAGA(), followUpEm: APAGA(),
   });
   await recado(bd, ref.id, `${quemNome} passou a conversa para ${NOME_SETOR[setor]}.`);
-  /* o contato vê a troca pela figurinha do setor, sem mais uma mensagem para ler */
-  if (setor !== c.setor) await mandaFigurinhaDoSetor(bd, ref, c, setor);
 
   const avisos: string[] = [];
   const cfg = await leConfig(bd);
+
+  /* o contato fica sabendo para onde a conversa foi, numa mensagem curta (só com a
+     janela de 24 horas aberta; desliga em Configurações, Atendimento) */
+  if (setor !== c.setor && temConfig() && janelaAberta(c)) {
+    const cfgAt = leAtendimento((await bd.doc('config/atendimento').get()).data());
+    if (cfgAt.avisaAoPassar) {
+      const texto = textoDaTransferencia(cfgAt.textoAoPassar, setor, c.nome || '', situacaoDoHorario(cfg, new Date()));
+      await fala(bd, ref, c, { texto, relogio: 'nao' });
+    }
+  }
   if ((setor === 'coordenacao' || setor === 'kids') && cfg.avisoLigado && temConfig()) {
     const ps = await bd.collection('perfis').where('ativo', '==', true).get();
     for (const d of ps.docs) {

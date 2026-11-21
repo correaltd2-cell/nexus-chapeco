@@ -98,6 +98,7 @@ function Atendimento({ valor, podeMexer, aoSalvar }: {
   aoSalvar: (c: Partial<ConfigDoAtendimento>) => Promise<void>;
 }) {
   const [minutos, setMinutos] = useState(String(valor.minutosDeAguardo));
+  const [textoPassa, setTextoPassa] = useState(valor.textoAoPassar);
   return (
     <section className="bl">
       <p className="bt">Atendimento</p>
@@ -124,19 +125,27 @@ function Atendimento({ valor, podeMexer, aoSalvar }: {
           </span>
         </label>
         <label className="lig">
-          <input type="checkbox" checked={valor.figurinhaAoPassar} disabled={!podeMexer}
-                 onChange={(e) => void aoSalvar({ figurinhaAoPassar: e.target.checked })} />
-          <span className="cfg-fig">
-            <span>
-              <b>Mandar a figurinha do setor ao passar a conversa</b>
-              Quando alguém da equipe passa a conversa para um setor, ou o assistente do financeiro
-              chama uma pessoa, o contato recebe uma figurinha com a cor e o ícone do setor:
-              &quot;Agora quem te atende é o Financeiro&quot;. Sem texto, e só com a janela de 24 horas aberta.
-            </span>
-            {/* eslint-disable-next-line @next/next/no-img-element -- arquivo fixo de public/, pequeno */}
-            <img src="/figurinhas/setor-financeiro.webp" alt="Figurinha do Financeiro" width={72} height={72} />
+          <input type="checkbox" checked={valor.avisaAoPassar} disabled={!podeMexer}
+                 onChange={(e) => void aoSalvar({ avisaAoPassar: e.target.checked })} />
+          <span>
+            <b>Avisar o contato ao passar a conversa para outro setor</b>
+            Sai uma mensagem curta dizendo para onde a conversa foi. Fora do horário, ela diz
+            também quando a equipe volta. Só sai com a janela de 24 horas aberta.
           </span>
         </label>
+        {valor.avisaAoPassar && (
+          <div>
+            <label htmlFor="cfg-passa">Mensagem ao passar a conversa</label>
+            <div className="ln">
+              <input id="cfg-passa" className="cx" value={textoPassa} disabled={!podeMexer}
+                     onChange={(e) => setTextoPassa(e.target.value)} />
+              {podeMexer && textoPassa.trim() !== valor.textoAoPassar && (
+                <button className="btn p" disabled={!textoPassa.trim()} onClick={() => void aoSalvar({ textoAoPassar: textoPassa.trim() })}>Salvar</button>
+              )}
+            </div>
+            <p className="obs">{'{primeiro_nome}'} vira o nome do contato e {'{setor}'} vira o setor com o artigo (o Financeiro, a Coordenação).</p>
+          </div>
+        )}
         <div>
           <label htmlFor="cfg-min">Tempo de aguardo fica vermelho depois de</label>
           <div className="ln">

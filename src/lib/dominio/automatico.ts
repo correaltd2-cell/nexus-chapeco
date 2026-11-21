@@ -455,6 +455,19 @@ export function reservaDo(momento: Momento, cfg: ConfigAutomatico, nome: string,
   return comNome(t, nome, horario?.volta, sobre);
 }
 
+const SETOR_COM_ARTIGO: Record<Setor, string> = {
+  recepcao: 'a Recepção', financeiro: 'o Financeiro', coordenacao: 'a Coordenação', kids: 'a Coordenação Kids',
+};
+
+/** A mensagem que o contato recebe quando a equipe passa a conversa para outro setor.
+    Fora do horário, diz também quando a equipe volta. */
+export function textoDaTransferencia(modelo: string, setor: Setor, nome: string, horario?: SituacaoDoHorario): string {
+  const base = comNome(modelo.split('{setor}').join(SETOR_COM_ARTIGO[setor]), nome);
+  return horario && !horario.aberto && horario.volta
+    ? `${base} A equipe está fora do horário agora e volta ${horario.volta}.`
+    : base;
+}
+
 const REGRAS_FIXAS = [
   'REGRAS QUE NÃO MUDAM:',
   '- Use só o que está na conversa e o que a escola escreveu aqui. Não invente horário, valor, data, desconto, regra nem promessa.',

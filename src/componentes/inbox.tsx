@@ -562,7 +562,7 @@ export default function Inbox() {
                   <Fragment key={m.id}>
                     {novoDia && <div className="cp">{diaPorExtenso(m.criadaEm)}</div>}
                     <div className={`w ${lado}${primeira ? ' p' : ''}`}>
-                      <div className={m.figurinha ? 'b fig' : 'b'}>
+                      <div className="b">
                         {lado === 'out' && primeira && (
                           <span className="nm">
                             {m.autor === 'lumi' ? m.autorNome || 'Atendimento automático' : m.autorNome || 'Equipe'}

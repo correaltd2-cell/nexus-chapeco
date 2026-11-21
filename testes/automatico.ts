@@ -5,7 +5,7 @@
 import {
   AUTOMATICO_PADRAO, acaoDoRelogio, avisaForaDoHorario, comNome, depoisDoMenuConfuso, destinoDoAssunto,
   deveVoltarParaRecepcao, escolhaDoMenu, leAutomatico, pareceDespedida, promptMensagem, recomecaAtendimento,
-  regrasDoAssistente, reservaDo, respostaDoAlgoMais, situacaoDoHorario, sobreOQue, turnosDoAssistente,
+  regrasDoAssistente, reservaDo, respostaDoAlgoMais, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
   type ConfigAutomatico,
 } from '../src/lib/dominio/automatico.ts';
 import { leAssunto } from '../src/lib/dominio/triagem.ts';
@@ -164,6 +164,15 @@ const salvo = leAutomatico({ ligado: true, encReserva: '{primeiro_nome}, vou enc
 igual('o encerramento antigo vira o novo', salvo.encReserva, AUTOMATICO_PADRAO.encReserva);
 igual('o follow-up escrito pela escola fica', salvo.fu1Reserva, 'Oi, {primeiro_nome}! Tudo certo por aí?');
 igual('15 e 30 minutos por padrão', [leAutomatico(null).fu1Min, leAutomatico(null).encMin], [15, 30]);
+
+/* ---------- aviso ao passar a conversa ---------- */
+const PASSA = '{primeiro_nome}, tua conversa foi encaminhada para {setor}. Logo alguém te responde por aqui.';
+igual('passou para o Financeiro', textoDaTransferencia(PASSA, 'financeiro', 'Guilherme Correa', situacaoDoHorario(cfg, AGORA)),
+  'Guilherme, tua conversa foi encaminhada para o Financeiro. Logo alguém te responde por aqui.');
+igual('passou para a Coordenação Kids', textoDaTransferencia(PASSA, 'kids', 'Cláudia'), 'Cláudia, tua conversa foi encaminhada para a Coordenação Kids. Logo alguém te responde por aqui.');
+igual('fora do horário diz quando volta', textoDaTransferencia(PASSA, 'coordenacao', 'Jonas', situacaoDoHorario(cfg, NOITE)),
+  'Jonas, tua conversa foi encaminhada para a Coordenação. Logo alguém te responde por aqui. A equipe está fora do horário agora e volta amanhã às 8h.');
+igual('sem nome', textoDaTransferencia(PASSA, 'recepcao', ''), 'Tua conversa foi encaminhada para a Recepção. Logo alguém te responde por aqui.');
 
 /* ---------- textos ---------- */
 igual('reserva com o nome', comNome('Oi, {primeiro_nome}! Tudo bem?', 'Larissa Menegat'), 'Oi, Larissa! Tudo bem?');

@@ -131,8 +131,6 @@ export interface Mensagem {
   midiaMime?: string;
   midiaNome?: string;
   midiaFalhou?: boolean;   // chegou mídia e o servidor não conseguiu baixar
-  midiaLink?: string;      // arquivo fixo de public/ (figurinha do setor), sem Storage
-  figurinha?: boolean;     // aparece sem balão, como no WhatsApp
   botoes?: string[];       // reply buttons que foram enviados
   template?: string;       // nome do template, quando saiu por template
   assinadaComo?: string;   // o nome que foi em negrito em cima do texto, no WhatsApp

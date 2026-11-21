@@ -91,14 +91,8 @@ function PlayerDeAudio({ url, saida }: { url: string; saida: boolean }) {
 export function MidiaNaBolha({ m }: { m: Mensagem }) {
   const tipo = tipoPeloMime(m.midiaMime);
   const rotulo = rotuloDaMidia(m.midiaMime, m.midiaNome);
-  const { url, erro } = useEndereco(m.midiaLink ? undefined : m.midiaPath);
+  const { url, erro } = useEndereco(m.midiaPath);
   const saida = m.direcao === 'saida';
-
-  /* figurinha do setor: arquivo fixo do sistema, sem balão */
-  if (m.figurinha && m.midiaLink) {
-    // eslint-disable-next-line @next/next/no-img-element -- arquivo fixo de public/, pequeno
-    return <img className="mid-fig" src={m.midiaLink} alt={m.midiaNome || 'Figurinha'} width={150} height={150} />;
-  }
 
   if (m.midiaFalhou || erro) {
     return (

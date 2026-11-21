@@ -142,10 +142,6 @@ export function mandaMidia(
   return manda({ to: para, type: tipo, [tipo]: midia });
 }
 
-/** Figurinha por link público (WebP 512 x 512, até 100 KB): aparece sem balão. */
-export const mandaFigurinha = (para: string, link: string) =>
-  manda({ to: para, type: 'sticker', sticker: { link } });
-
 /** Botões de resposta. O id volta no webhook quando o contato toca; sem ids, b1, b2, b3. */
 export const mandaBotoes = (para: string, texto: string, botoes: string[], ids?: string[]) =>
   manda({
