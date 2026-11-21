@@ -14,6 +14,9 @@ import { escreveMensagem, iaLigada, respondeComoAssistente, type Leitura } from 
 import { leAssunto } from '@/lib/dominio/triagem';
 import { janelaAberta } from '@/lib/dominio/formato';
 import { NOME_SETOR } from '@/lib/dominio/acessos';
+import { respostaDasAulas } from '@/lib/dominio/agenda';
+import { aulasDoContato } from '@/lib/agenda-servidor';
+import { descreveErro, falhou } from '@/lib/saude';
 import {
   BOTOES_AJUDOU, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, depoisDoMenuConfuso, destinoDoAssunto,
   deveVoltarParaRecepcao, escolhaDoMenu, idDaPergunta, idDoBotao, leAutomatico, pareceDespedida,
@@ -191,6 +194,13 @@ export async function atendeAoVivo(
     return assistente(r);
   }
 
+  /* viu a próxima aula: Confirmar e Remarcar já foram tratados na chegada
+     (respondeLembrete). O que chega aqui é "Falar com a recepção" ou texto, e vai para gente. */
+  if (antes.etapa === 'aulas') {
+    await ref.update(paraRelogio);
+    return paraRecepcao(r);
+  }
+
   /* com gente: nada responde sozinho. Se parece despedida, o relógio liga para a IA
      confirmar, lendo a conversa, se resolveu de verdade. */
   if (pareceDespedida(texto)) {
@@ -214,9 +224,34 @@ async function mandaMenu(r: Rodada, qual: 'saudacao' | 'denovo') {
 
 async function segue(r: Rodada, destino: Destino) {
   if (destino === 'recepcao') return paraRecepcao(r);
+  if (destino === 'aulas') return mostraAulas(r);
   await r.ref.update({ setor: 'financeiro', estado: 'ia', agenteAtivo: true, etapa: 'assistente', tentativasMenu: 0 });
   r.c = { ...r.c, setor: 'financeiro', estado: 'ia', etapa: 'menu' };
   return assistente(r);
+}
+
+/** "Minhas aulas": a próxima aula, lida da agenda, com Confirmar presença, Remarcar e
+    Falar com a recepção. Dia e hora vêm do banco, nunca da IA. Sem aula marcada, ou sem
+    saber de quem é o número, vai para a Recepção como antes, com um recado para o time. */
+async function mostraAulas(r: Rodada) {
+  let achou: Awaited<ReturnType<typeof aulasDoContato>> = null;
+  try {
+    achou = await aulasDoContato(r.bd, { alunoId: r.c.alunoId, waId: r.c.waId });
+  } catch (e) {
+    await falhou('agenda', `Minhas aulas: ${descreveErro(e)}`);
+  }
+  if (!achou) {
+    await recado(r.bd, r.ref.id, 'Pediu as aulas pelo botão, mas não achei aula marcada na agenda para este contato.');
+    return paraRecepcao(r);
+  }
+  const { texto, botoes } = respostaDasAulas({
+    contato: r.c.nome || achou.alunoNome, aluno: achou.alunoNome, paraResponsavel: achou.paraResponsavel,
+    alunoId: achou.alunoId, proxima: achou.proxima, depois: achou.depois,
+  });
+  await r.ref.update({ etapa: 'aulas', tentativasMenu: 0 });
+  await fala(r.bd, r.ref, r.c, {
+    texto, botoes: { titulos: botoes.map((b) => b.titulo), ids: botoes.map((b) => b.id) }, relogio: 'liga',
+  });
 }
 
 /** Vai para gente na Recepção, com um aviso curto que não espera resposta. */

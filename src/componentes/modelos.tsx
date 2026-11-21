@@ -23,11 +23,13 @@ export function useModelos() {
 
 /* ================= na conversa ================= */
 
-export function EscolheModelo({ nomeDoContato, janela, aoFechar, aoEnviar }: {
+export function EscolheModelo({ nomeDoContato, janela, aoFechar, aoEnviar, inicial }: {
   nomeDoContato: string;
   janela: boolean;
   aoFechar: () => void;
   aoEnviar: (m: ModeloParaEnviar, valores: string[]) => Promise<boolean>;
+  /* aberto por outra tela já com o modelo e os campos (a agenda na conversa) */
+  inicial?: { nome: string; valores: string[] };
 }) {
   const salvos = useModelos();
   const lista = useMemo(() => modelosParaEnviar(salvos), [salvos]);
@@ -39,6 +41,16 @@ export function EscolheModelo({ nomeDoContato, janela, aoFechar, aoEnviar }: {
   const [escolhidoId, setEscolhidoId] = useState<string | null>(null);
   const [valores, setValores] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
+  const [usouInicial, setUsouInicial] = useState(!inicial);
+
+  /* a lista chega do banco depois da primeira pintura: o modelo pedido entra quando ela
+     chegar, uma vez só (voltar para a lista continua valendo) */
+  const pedido = !usouInicial && inicial ? lista.find((m) => m.situacao.nome === inicial.nome) : undefined;
+  if (pedido && inicial) {
+    setUsouInicial(true);
+    setEscolhidoId(pedido.situacao.id);
+    setValores(pedido.campos.map((_, i) => inicial.valores[i] ?? ''));
+  }
 
   const escolhido = lista.find((m) => m.situacao.id === escolhidoId) || null;
   const termo = busca.trim().toLowerCase();
@@ -139,6 +151,12 @@ export function EscolheModelo({ nomeDoContato, janela, aoFechar, aoEnviar }: {
             </div>
           )}
         </>
+      )}
+      {inicial && !usouInicial && salvos.length > 0 && (
+        <p className="obs mdl-rod">
+          O modelo &quot;{BIBLIOTECA.find((b) => b.nome === inicial.nome)?.titulo || inicial.nome}&quot; ainda não foi aprovado
+          pela Meta. Escolha outro da lista.
+        </p>
       )}
       <ul className="mdl-l">
         {visiveis.map((m) => (

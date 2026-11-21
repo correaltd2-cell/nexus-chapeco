@@ -1387,6 +1387,60 @@ body.t-escuro .ag-viz{--s-fala:#3987e5;--s-leitura:#d95926;--s-escuta:#199e70;--
   .cad-mod{grid-template-columns:1fr}
 }
 
+/* ----- a agenda dentro da conversa: painel do contato e atalho da caixa de escrever ----- */
+.aul .vz,.aul-corpo .vz{padding-bottom:8px}
+.aul-liga{display:flex;flex-direction:column;gap:6px;padding:0 18px 14px}
+.aul-liga .vz{padding:0}
+.aul-liga .tx-btn{align-self:flex-start}
+.aul-quem{padding:0 18px 8px}
+.aul-quem .chip{padding:4px 11px;font-size:12px}
+.aul-aluno{display:flex;align-items:center;gap:8px;margin:0 12px 8px;padding:9px 10px 9px 12px;background:var(--surface-2);border-radius:14px}
+.aul-aluno .co{flex:1;min-width:0}
+.aul-aluno b{display:block;font-weight:600;font-size:13.5px;overflow-wrap:anywhere}
+.aul-aluno small{display:block;color:var(--muted);font-size:12px}
+.aul-inativo{font-size:11px;font-weight:600;color:var(--muted);background:var(--surface-3);border-radius:999px;padding:2px 8px}
+.aul-sub{margin:6px 18px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2)}
+.aul-l{list-style:none;margin:0 0 4px;padding:0 12px;display:flex;flex-direction:column;gap:6px}
+.aul-a{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.aul-q{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:62px;padding:5px 6px;border-radius:10px;background:var(--surface-2);line-height:1.2}
+.aul-q b{font-size:12px;font-weight:600;white-space:nowrap}
+.aul-q .num{font-size:13px;font-weight:600}
+.aul-d{min-width:0;display:flex;flex-direction:column;gap:3px}
+.aul-d small{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aul-cor{width:9px;height:9px;border-radius:3px;flex:none;background:var(--line-2)}
+.aul-st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text)}
+.aul-st i{width:8px;height:8px;border-radius:50%;background:var(--st)}
+.aul-pres{font-size:12px;font-weight:600}
+.aul-pres.presente{color:var(--aul-ok)}
+.aul-pres.faltou{color:var(--alert)}
+.aul-pres.sem-pres{color:var(--muted)}
+.aul-b{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:6px}
+.aul-b .chip{padding:5px 6px;font-size:12px;color:var(--text);display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:0}
+.aul-b .chip .ic{width:13px;height:13px}
+.aul,.aul-pop{--aul-ok:#1E8A52}
+@media (prefers-color-scheme: dark){body:not(.t-claro) :is(.aul,.aul-pop){--aul-ok:#4CC587}}
+body.t-escuro :is(.aul,.aul-pop){--aul-ok:#4CC587}
+.aul-b .chip.ok{border-color:var(--aul-ok);color:var(--aul-ok);font-weight:600}
+.aul-b .chip.ok:hover{background:var(--aul-ok);color:#fff}
+/* no painel estreito o tique sai, para os três botões caberem numa linha */
+.aul .aul-b .chip .ic{display:none}
+.aul-b .chip:disabled{opacity:.55;cursor:default}
+.aul-passada{width:100%;text-align:left;grid-template-columns:auto minmax(0,1fr) auto;background:var(--surface-2);border-color:transparent;cursor:pointer}
+.aul-passada:hover{border-color:var(--line-2)}
+.aul-passada .aul-q{background:var(--surface)}
+.aul-passada>.ic{width:15px;height:15px;color:var(--muted-2)}
+.aul-acoes{display:flex;gap:8px;flex-wrap:wrap;padding:8px 12px 14px}
+.aul-acoes .btn{flex:1 1 auto;justify-content:center}
+.aul-pop .aul-acoes .btn{flex:0 0 auto}
+.aul-pop{max-height:min(64vh,520px)}
+.aul-pop .aul-corpo{overflow-y:auto;min-height:0;padding-top:2px}
+.aul-pop .aul-quem,.aul-pop .aul-sub{margin-left:max(12px,var(--gutter));padding-left:0}
+.aul-pop .aul-liga{padding:0 max(12px,var(--gutter)) 12px}
+.pe-bts .btn.tem,.cmp .campo .ib.tem[aria-label="Aulas do aluno"]{color:var(--solar-deep)}
+.pe-bts .btn.tem{border-color:var(--solar-line)}
+.ag-conversa{width:28px;height:28px;color:var(--wa-verde)}
+.ag-conversa .ic{width:16px;height:16px}
+
 @media print{
   .ag-h .rel-acoes,.rel-filtros,.ag-abas,.rail,.tabs,.fita-saude,.demo{display:none!important}
   .rel-impresso{display:block;padding:0 24px;color:#555}

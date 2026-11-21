@@ -84,6 +84,13 @@ export const BIBLIOTECA: ModeloDaEscola[] = [
     respostas: ['Escolher horário'],
   },
   {
+    nome: 'aula_marcada', titulo: 'Aula marcada', grupo: 'Aulas', categoria: 'UTILITY',
+    quando: 'A aula foi marcada na agenda pela conversa e a janela de 24 horas já fechou.',
+    corpo: 'Oi, {{1}}! A sua aula ficou marcada para {{2}}, às {{3}}. Se precisar mudar, é só responder por aqui.',
+    campos: [NOME, DIA, HORA],
+    respostas: ['Combinado', 'Preciso remarcar'],
+  },
+  {
     nome: 'aula_remarcada', titulo: 'Aula remarcada', grupo: 'Aulas', categoria: 'UTILITY',
     quando: 'A aula mudou de dia ou de horário.',
     corpo: 'Oi, {{1}}! A sua aula foi remarcada para {{2}}, às {{3}}. Se esse horário não for bom para você, é só responder por aqui.',

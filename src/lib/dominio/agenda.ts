@@ -511,6 +511,118 @@ export function horaFalada(iso: string) {
   return `${Number(h)}h${m === '00' ? '' : m}`;
 }
 
+/* ================= a agenda dentro da conversa ================= */
+
+/** "quinta, 26/11, às 19h": como a aula aparece numa mensagem para o aluno. */
+export const quandoFalado = (iso: string) => `${diaPorExtenso(iso).replace('-feira', '')}, às ${horaFalada(iso)}`;
+
+const primeiroDe = (nome: string) => (nome || '').trim().split(/\s+/)[0] || '';
+
+/** As próximas aulas de um aluno: as que ainda não acabaram, sem as canceladas e remarcadas. */
+export function proximasAulas<T extends Pick<Agendamento, 'inicio' | 'fim' | 'status'>>(lista: T[], agora: Date, n = 3): T[] {
+  return lista
+    .filter((a) => ms(a.fim) > agora.getTime() && (a.status === 'agendado' || a.status === 'confirmado'))
+    .sort((a, b) => ms(a.inicio) - ms(b.inicio))
+    .slice(0, n);
+}
+
+/** As últimas aulas que já passaram e contam, da mais recente para trás. */
+export function ultimasAulas<T extends Pick<Agendamento, 'inicio' | 'fim' | 'status'>>(lista: T[], agora: Date, n = 2): T[] {
+  return lista
+    .filter((a) => ms(a.fim) <= agora.getTime() && contaComoAula(a.status))
+    .sort((a, b) => ms(b.inicio) - ms(a.inicio))
+    .slice(0, n);
+}
+
+export type AvisoDeAula = 'marcada' | 'remarcada' | 'confirmada' | 'proxima';
+
+/**
+ * O texto que a equipe manda depois de mexer na agenda pela conversa. Ele vai para a
+ * caixa de escrever, e quem envia é gente. Com o responsável, fala do aluno pelo nome.
+ * Pessoa vai pelo nome sem artigo, como no resto do sistema.
+ */
+export function textoDoAviso(tipo: AvisoDeAula, o: {
+  contato: string; aluno: string; paraResponsavel: boolean; inicio: string; professor?: string;
+}) {
+  const oi = primeiroDe(o.contato);
+  const quando = quandoFalado(o.inicio);
+  const com = o.professor ? `, com ${primeiroDe(o.professor)}` : '';
+  const aula = o.paraResponsavel ? `a aula de ${primeiroDe(o.aluno)}` : 'tua aula';
+  const Aula = aula[0].toUpperCase() + aula.slice(1);
+  switch (tipo) {
+    case 'marcada': return `Pronto, ${oi}! ${Aula} ficou marcada para ${quando}${com}. Qualquer coisa, é só chamar por aqui.`;
+    case 'remarcada': return `Pronto, ${oi}! ${Aula} foi remarcada para ${quando}${com}.`;
+    case 'confirmada': return `Combinado, ${oi}! Presença confirmada para ${quando}${com}. Até lá!`;
+    default: return o.paraResponsavel
+      ? `${oi}, a próxima aula de ${primeiroDe(o.aluno)} é ${quando}${com}.`
+      : `${oi}, tua próxima aula é ${quando}${com}.`;
+  }
+}
+
+/** O modelo aprovado que diz a mesma coisa quando a janela de 24 horas fechou. */
+export function modeloDoAviso(tipo: AvisoDeAula, o: { contato: string; inicio: string }) {
+  const valores = [primeiroDe(o.contato), diaPorExtenso(o.inicio), horaFalada(o.inicio)];
+  if (tipo === 'remarcada') return { nome: 'aula_remarcada', valores };
+  if (tipo === 'marcada') return { nome: 'aula_marcada', valores };
+  return { nome: 'confirmacao_aula', valores };
+}
+
+export const ID_FALAR_COM_RECEPCAO = 'aulas-recepcao';
+
+/**
+ * A resposta do botão "Minhas aulas" do atendimento automático: a próxima aula do
+ * aluno, lida da agenda, com Confirmar e Remarcar (os mesmos do lembrete da véspera)
+ * e a saída para a Recepção. Texto fixo de propósito: dia e hora não passam pela IA.
+ */
+export function respostaDasAulas(o: {
+  contato: string; aluno: string; paraResponsavel: boolean; alunoId: string;
+  proxima: Pick<Agendamento, 'id' | 'inicio' | 'status'> & { professor?: string; aula?: string };
+  depois?: string[];
+}) {
+  const oi = primeiroDe(o.contato);
+  const de = o.paraResponsavel ? `A próxima aula de ${primeiroDe(o.aluno)}` : 'Tua próxima aula';
+  const com = o.proxima.professor ? `, com ${primeiroDe(o.proxima.professor)}` : '';
+  const qual = o.proxima.aula ? ` (${o.proxima.aula})` : '';
+  const depois = (o.depois || []).slice(0, 2).map(quandoFalado);
+  const confirmada = o.proxima.status === 'confirmado';
+  const linhas = [
+    `Oi, ${oi}! ${de} é ${quandoFalado(o.proxima.inicio)}${com}${qual}.`,
+    ...(depois.length ? [`Depois: ${depois.join('; ')}.`] : []),
+    confirmada ? 'A presença já está confirmada 👍' : 'Podemos contar contigo?',
+  ];
+  const botoes = [
+    ...(confirmada ? [] : [{ id: payloadDoLembrete('confirmar', o.proxima.id, o.alunoId), titulo: 'Confirmar presença' }]),
+    { id: payloadDoLembrete('remarcar', o.proxima.id, o.alunoId), titulo: 'Remarcar' },
+    { id: ID_FALAR_COM_RECEPCAO, titulo: 'Falar com a recepção' },
+  ];
+  return { texto: linhas.join('\n'), botoes };
+}
+
+/**
+ * O horário que a tela sugere para a próxima aula marcada pela conversa: o mesmo dia
+ * da semana e hora da última aula do aluno, na primeira semana livre depois dela, com o
+ * mesmo professor, módulo e modalidade, e a aula seguinte do currículo. Sem aula
+ * nenhuma, amanhã às 19h. É só o ponto de partida: a pessoa muda no modal.
+ */
+export function sugereAula(lista: Agendamento[], agora: Date, curriculo: AulaDoCurriculo[] = []) {
+  const ultima = lista.filter((a) => contaComoAula(a.status)).sort((a, b) => ms(b.inicio) - ms(a.inicio))[0];
+  if (!ultima) {
+    const inicio = new Date(`${somaDias(diaLocal(agora), 1)}T19:00:00-03:00`).toISOString();
+    return { inicio, fim: new Date(ms(inicio) + 3_600_000).toISOString(), professorId: '', moduloId: '', aulaId: '', modalidade: 'presencial' as Modalidade };
+  }
+  const duracao = ms(ultima.fim) - ms(ultima.inicio);
+  let ini = ms(ultima.inicio);
+  do { ini += 7 * 86_400_000; } while (ini <= agora.getTime());
+  const doModulo = curriculo.filter((c) => c.moduloId === ultima.moduloId && c.ativo).sort((a, b) => a.ordem - b.ordem);
+  const i = doModulo.findIndex((c) => c.id === ultima.aulaId);
+  return {
+    inicio: new Date(ini).toISOString(), fim: new Date(ini + duracao).toISOString(),
+    professorId: ultima.professorId, moduloId: ultima.moduloId,
+    aulaId: i >= 0 && doModulo[i + 1] ? doModulo[i + 1].id : ultima.aulaId,
+    modalidade: ultima.modalidade,
+  };
+}
+
 /* ================= resumo do progresso ================= */
 
 export interface AulaDoHistorico { inicio: string; aula: string; presenca: Presenca; obs: string; notas?: Notas | null }

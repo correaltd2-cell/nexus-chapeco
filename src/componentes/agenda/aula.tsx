@@ -3,6 +3,7 @@
    O professor da aula vê tudo, mas só mexe no status e no que é de cada aluno; o
    resto aparece travado (e o firestore.rules recusaria de qualquer jeito). */
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { busca, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
@@ -17,7 +18,19 @@ import {
 } from '@/lib/dominio/agenda';
 import { paraCampoDeHora } from '@/lib/dominio/formato';
 
-export type Abertura = { tipo: 'nova'; inicio: string; fim: string } | { tipo: 'editar'; agendamento: Agendamento };
+/* a aula nova pode vir já preenchida: da conversa, com o aluno e a sugestão de horário */
+export type Abertura =
+  | {
+    tipo: 'nova'; inicio: string; fim: string;
+    alunos?: { id: string; nome: string }[]; professorId?: string; moduloId?: string; aulaId?: string; modalidade?: Modalidade;
+  }
+  | { tipo: 'editar'; agendamento: Agendamento };
+
+/** O que foi salvo, para quem abriu o modal (a conversa) preparar o aviso ao aluno. */
+export interface AulaSalva { nova: boolean; inicio: string; professorId: string; mudouHorario: boolean; alunoIds: string[] }
+
+/* quem vê as conversas de todos os setores acha a do aluno pelo id dele */
+const VE_TODAS = ['admin', 'gestor', 'recepcao'];
 
 const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const NOME_DIA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -27,9 +40,12 @@ const brData = (iso: string) => diaLocal(iso).split('-').reverse().join('/');
 
 interface LinhaDeAluno extends AlunoEditado { resposta?: AlunoNaAula['resposta']; notasAbertas?: boolean; notasTexto?: Record<string, string> }
 
-export default function ModalDaAula({ abertura, cad, aoFechar }: { abertura: Abertura; cad: Cadastros; aoFechar: () => void }) {
+export default function ModalDaAula({ abertura, cad, aoFechar, aoSalvar }: {
+  abertura: Abertura; cad: Cadastros; aoFechar: () => void; aoSalvar?: (a: AulaSalva) => void;
+}) {
   const { perfil, usuario } = useSessao();
   const original = abertura.tipo === 'editar' ? abertura.agendamento : undefined;
+  const pre = abertura.tipo === 'nova' ? abertura : undefined;
   const perm = permissoesDe(perfil?.papel, Boolean(original && perfil && original.professorId === perfil.id));
   const quem: Quem = { id: perfil?.id || '', nome: perfil?.nome || 'Equipe', papel: perfil?.papel || 'recepcao' };
 
@@ -37,11 +53,13 @@ export default function ModalDaAula({ abertura, cad, aoFechar }: { abertura: Abe
   const [status, setStatus] = useState<StatusAula>(original?.status || 'agendado');
   const [inicio, setInicio] = useState(paraCampoDeHora(new Date(original?.inicio || (abertura.tipo === 'nova' ? abertura.inicio : ''))));
   const [fim, setFim] = useState(paraCampoDeHora(new Date(original?.fim || (abertura.tipo === 'nova' ? abertura.fim : ''))));
-  const [professorId, setProfessorId] = useState(original?.professorId || (perfil && cad.professores.some((p) => p.id === perfil.id) ? perfil.id : ''));
-  const [moduloId, setModuloId] = useState(original?.moduloId || '');
-  const [aulaId, setAulaId] = useState(original?.aulaId || '');
-  const [modalidade, setModalidade] = useState<Modalidade>(original?.modalidade || 'presencial');
-  const [alunos, setAlunos] = useState<LinhaDeAluno[]>(original ? original.alunos.map((a) => ({ alunoId: a.id, nomeAluno: a.nome, presenca: a.presenca, obs: '' })) : []);
+  const [professorId, setProfessorId] = useState(original?.professorId || pre?.professorId || (perfil && cad.professores.some((p) => p.id === perfil.id) ? perfil.id : ''));
+  const [moduloId, setModuloId] = useState(original?.moduloId || pre?.moduloId || '');
+  const [aulaId, setAulaId] = useState(original?.aulaId || pre?.aulaId || '');
+  const [modalidade, setModalidade] = useState<Modalidade>(original?.modalidade || pre?.modalidade || 'presencial');
+  const [alunos, setAlunos] = useState<LinhaDeAluno[]>(original
+    ? original.alunos.map((a) => ({ alunoId: a.id, nomeAluno: a.nome, presenca: a.presenca, obs: '' }))
+    : (pre?.alunos || []).map((a) => ({ alunoId: a.id, nomeAluno: a.nome, presenca: null, obs: '' })));
   const [alunosAntes, setAlunosAntes] = useState<AlunoNaAula[] | null>(original ? null : []);
   const [escopo, setEscopo] = useState<Escopo>('este');
   const [repete, setRepete] = useState<'nao' | TipoRecorrencia>('nao');
@@ -58,6 +76,20 @@ export default function ModalDaAula({ abertura, cad, aoFechar }: { abertura: Abe
   const [resumos, setResumos] = useState<ResumoDoAluno[] | null>(null);
   const [pensando, setPensando] = useState(false);
   const [lembrete, setLembrete] = useState('');
+
+  /* o atalho para a conversa de cada aluno da aula */
+  const [conversaDe, setConversaDe] = useState<Record<string, string>>({});
+  const idsDosAlunos = alunos.map((a) => a.alunoId).join('|');
+  const veConversas = Boolean(perfil && VE_TODAS.includes(perfil.papel));
+  useEffect(() => {
+    if (!veConversas || !idsDosAlunos) return;
+    let vivo = true;
+    void Promise.all(idsDosAlunos.split('|').map(async (id) => {
+      const achadas = await busca('conversas', [{ campo: 'alunoId', op: '==', valor: id }]).catch(() => []);
+      return [id, achadas[0]?.id ? String(achadas[0].id) : ''] as const;
+    })).then((pares) => { if (vivo) setConversaDe(Object.fromEntries(pares.filter(([, c]) => c))); });
+    return () => { vivo = false; };
+  }, [veConversas, idsDosAlunos]);
 
   /* a subcoleção traz obs, notas e a resposta ao lembrete de cada aluno */
   useEffect(() => {
@@ -133,6 +165,10 @@ export default function ModalDaAula({ abertura, cad, aoFechar }: { abertura: Abe
       }
       const r = await gravaAula(p);
       avisa(r.criadas > 1 ? `${r.criadas} aulas criadas` : r.criadas ? 'Aula criada' : r.alteradas > 1 ? `${r.alteradas} aulas alteradas` : 'Aula salva');
+      aoSalvar?.({
+        nova: !original, inicio: p.rascunho.inicio, professorId,
+        mudouHorario: Boolean(original && p.rascunho.inicio !== original.inicio), alunoIds: p.rascunho.alunos.map((a) => a.alunoId),
+      });
       aoFechar();
     } catch (e) {
       setErros([e instanceof Error && /permission/i.test(e.message)
@@ -310,6 +346,12 @@ export default function ModalDaAula({ abertura, cad, aoFechar }: { abertura: Abe
                 <li key={a.alunoId} className={a.presenca === 'faltou' ? 'falta' : undefined}>
                   <div className="ag-al-l">
                     <b>{a.nomeAluno}</b>
+                    {conversaDe[a.alunoId] && (
+                      <Link className="ib ag-conversa" href={`/conversas?conversa=${conversaDe[a.alunoId]}`}
+                            title={`Abrir a conversa de ${a.nomeAluno}`} aria-label={`Abrir a conversa de ${a.nomeAluno}`}>
+                        <Ic n="chat" />
+                      </Link>
+                    )}
                     {a.resposta === 'confirmou' && <span className="ag-resp ok">confirmou no WhatsApp</span>}
                     {a.resposta === 'remarcar' && <span className="ag-resp">pediu para remarcar</span>}
                     <div className="ag-pres" role="group" aria-label={`Presença de ${a.nomeAluno}`}>

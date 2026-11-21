@@ -9,10 +9,11 @@ import type { Conversa, Setor } from './tipos';
 export const recebeAviso = (p: { ativo?: boolean; setores?: Setor[] }, setor: Setor) =>
   Boolean(p.ativo) && (p.setores || []).includes(setor);
 
-/** A conversa está com gente? Enquanto a saudação ou o assistente cuidam, ninguém é
-    chamado: o aviso vem quando a conversa chega para uma pessoa. */
+/** A conversa está com gente? Enquanto a saudação, o assistente ou a próxima aula (o
+    contato escolhendo Confirmar ou Remarcar) cuidam, ninguém é chamado: o aviso vem
+    quando a conversa chega para uma pessoa. */
 export const comGente = (c: Partial<Pick<Conversa, 'estado' | 'etapa'>>) =>
-  c.estado !== 'ia' && c.estado !== 'encerrada' && c.etapa !== 'menu' && c.etapa !== 'assistente';
+  c.estado !== 'ia' && c.estado !== 'encerrada' && c.etapa !== 'menu' && c.etapa !== 'assistente' && c.etapa !== 'aulas';
 
 export interface Aviso { titulo: string; corpo: string; link: string; tag: string }
 

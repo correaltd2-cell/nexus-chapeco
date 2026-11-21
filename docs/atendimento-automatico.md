@@ -14,12 +14,20 @@ contato escreve, sem atendimento aberto
 │
 └─ não diz
      └─ saudação escrita pela IA, com 3 botões
-          ├─ Minhas aulas ......... Recepção (gente)
+          ├─ Minhas aulas ......... a próxima aula, lida da agenda
+          │                           ├─ Confirmar presença → aula confirmada, atendimento encerrado
+          │                           ├─ Remarcar → pendência no quadro e conversa na Recepção
+          │                           └─ Falar com a recepção, ou sem aula marcada → Recepção
           ├─ Financeiro/contrato .. assistente (botões ou IA)
           │                           └─ não resolveu ou pediu pessoa → Financeiro, com resumo
           └─ Outro assunto ........ Recepção
 ```
 
+- **Minhas aulas** (21/11/2026) mostra dia, hora, professor e aula da próxima aula, e a
+  seguinte, com o texto fixo: dia e hora vêm do banco, nunca da IA. O aluno é achado
+  pela conversa ligada ou pelo telefone (dele ou do responsável, com ou sem o 9). Os
+  botões são os mesmos do lembrete da véspera (docs/agenda.md). Em Configurações, o
+  destino do botão pode voltar a ser "vai para a Recepção".
 - **A Coordenação nunca é botão.** Ela só recebe conversa quando alguém do time passa
   pelo painel do contato. Quem é do setor recebe o aviso no celular pessoal.
 - **Relógio do follow-up**: só corre quando a escola falou por último. Aos 15 minutos sem

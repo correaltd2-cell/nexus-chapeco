@@ -26,7 +26,10 @@ igual('nasce desligado', leAutomatico(null).ligado, false);
 igual('o aviso aos coordenadores nasce desligado', leAutomatico(null).avisoLigado, false);
 igual('sempre três botões', leAutomatico({ botoes: [] }).botoes.length, 3);
 igual('botão corta em 20 letras', leAutomatico({ botoes: [{ texto: 'Um texto grande demais para botão', destino: 'recepcao' }] }).botoes[0].texto.length, 20);
-igual('destino estranho volta ao padrão', leAutomatico({ botoes: [{ texto: 'X', destino: 'coordenacao' as never }] }).botoes[0].destino, 'recepcao');
+igual('destino estranho volta ao padrão', leAutomatico({ botoes: [{ texto: 'X', destino: 'coordenacao' as never }] }).botoes[0].destino, 'aulas');
+igual('Minhas aulas nasce mostrando a próxima aula da agenda', AUTOMATICO_PADRAO.botoes.map((b) => b.destino), ['aulas', 'assistente', 'recepcao']);
+igual('a escola pode mandar Minhas aulas direto para a Recepção', leAutomatico({ botoes: [{ texto: 'Minhas aulas', destino: 'recepcao' }] }).botoes[0].destino, 'recepcao');
+igual('o destino das aulas é guardado', leAutomatico({ botoes: [{ texto: 'X', destino: 'recepcao' }, { texto: 'Y', destino: 'aulas' }] }).botoes[1].destino, 'aulas');
 igual('encerramento sempre depois do follow-up', leAutomatico({ fu1Min: 40, encMin: 20 }).encMin, 41);
 igual('no máximo 9 perguntas', leAutomatico({ faq: Array.from({ length: 15 }, (_, i) => ({ t: `p${i}`, r: '' })) }).faq.length, 9);
 igual('pergunta sem título sai', leAutomatico({ faq: [{ t: '  ', r: 'x' }, { t: 'ok', r: 'y' }] }).faq.length, 1);
@@ -34,7 +37,7 @@ igual('nome do modelo só com letras, números e _', leAutomatico({ avisoModelo:
 
 /* ---------- menu ---------- */
 igual('botão pelo id', escolhaDoMenu(cfg, { id: 'menu-1' }), 'assistente');
-igual('botão pelo texto, sem acento e caixa', escolhaDoMenu(cfg, { titulo: 'minhas AULAS' }), 'recepcao');
+igual('botão pelo texto, sem acento e caixa', escolhaDoMenu(cfg, { titulo: 'minhas AULAS' }), 'aulas');
 igual('texto que não é botão', escolhaDoMenu(cfg, { titulo: 'oi' }), null);
 igual('primeira confusão repete o menu', depoisDoMenuConfuso(0), 'repete');
 igual('segunda confusão vai para gente', depoisDoMenuConfuso(1), 'recepcao');

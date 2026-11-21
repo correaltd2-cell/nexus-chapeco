@@ -54,3 +54,17 @@ export function useAgendamentos(de: string, ate: string) {
   /* enquanto o período novo não chega, mostra o anterior em vez de piscar vazio */
   return { agendamentos: lista.itens, atualizado: lista.chave === chave };
 }
+
+/** Todas as aulas de cada aluno da lista (passadas e futuras), para a conversa mostrar
+    a próxima, as últimas e sugerir a seguinte. Uma escuta por aluno. */
+export function useAulasDosAlunos(ids: string[]): Record<string, Agendamento[]> {
+  const chave = ids.join('|');
+  const [porAluno, setPorAluno] = useState<{ chave: string; dados: Record<string, Agendamento[]> }>({ chave: '', dados: {} });
+  useEffect(() => {
+    if (!chave) return;
+    const paradas = chave.split('|').map((id) => assinaFiltro('agendamentos', [{ campo: 'alunoIds', op: 'contem', valor: id }],
+      (d) => setPorAluno((p) => ({ chave, dados: { ...(p.chave === chave ? p.dados : {}), [id]: d as unknown as Agendamento[] } }))));
+    return () => paradas.forEach((pare) => pare());
+  }, [chave]);
+  return porAluno.chave === chave ? porAluno.dados : {};
+}

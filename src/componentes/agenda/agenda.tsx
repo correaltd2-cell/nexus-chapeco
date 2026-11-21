@@ -4,6 +4,7 @@
    as próximas" quando é de uma série, e conferindo conflito antes de gravar). */
 import dynamic from 'next/dynamic';
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { CalendarRef } from '@fullcalendar/react';
 import { useSessao } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
@@ -48,7 +49,24 @@ export default function Agenda() {
   const [periodo, setPeriodo] = useState({ de: '', ate: '', titulo: '', visao: 'timeGridWeek' as Visao });
   const { agendamentos } = useAgendamentos(periodo.de, periodo.ate);
   const [professorIds, setProfessorIds] = useState<string[]>([]);
-  const [alunoIds, setAlunoIds] = useState<string[]>([]);
+  /* /aulas?aluno=ID&data=AAAA-MM-DD: o "Ver na agenda" da conversa já abre filtrado
+     pelo aluno, na semana da próxima aula dele */
+  const params = useSearchParams();
+  const alunoPedido = params.get('aluno');
+  const dataPedida = /^\d{4}-\d{2}-\d{2}$/.test(params.get('data') || '') ? params.get('data') || '' : '';
+  const horaPedida = /^\d{2}:\d{2}$/.test(params.get('hora') || '') ? params.get('hora') || '' : '';
+  /* uma hora antes da aula, para ela aparecer com folga; nunca antes do início da grade */
+  const rolarAte = horaPedida ? (() => {
+    const [h, m] = horaPedida.split(':').map(Number);
+    const min = Math.max(7 * 60 + 30, h * 60 + m - 60);
+    return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00`;
+  })() : '';
+  const [alunoIds, setAlunoIds] = useState<string[]>(alunoPedido ? [alunoPedido] : []);
+  const [alunoVisto, setAlunoVisto] = useState(alunoPedido);
+  if (alunoPedido !== alunoVisto) {
+    setAlunoVisto(alunoPedido);
+    if (alunoPedido) setAlunoIds([alunoPedido]);
+  }
   const [moduloIds, setModuloIds] = useState<string[]>([]);
   const [aulaIds, setAulaIds] = useState<string[]>([]);
   const [modalidade, setModalidade] = useState<Modalidade | null>(null);
@@ -166,6 +184,8 @@ export default function Agenda() {
       <Calendario
         calRef={calRef}
         visao={estreita ? 'timeGridDay' : 'timeGridWeek'}
+        dataInicial={dataPedida}
+        rolarAte={rolarAte}
         agendamentos={visiveis}
         bloqueios={bloqueiosVisiveis}
         professores={cad.professores}

@@ -13,6 +13,8 @@ import Logo from '@/componentes/logo';
 import { usePainelRecolhido } from '@/componentes/painel-recolhido';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
 import { EscolheModelo } from '@/componentes/modelos';
+import AulasNaConversa from '@/componentes/aulas-na-conversa';
+import { useCadastros } from '@/componentes/agenda/dados';
 import { Cronometro, MidiaNaBolha, PreviaDoAnexo, useGravador } from '@/componentes/midia';
 import { marcaConversaNaTela } from '@/componentes/avisos';
 import { ref as refArquivo, uploadBytes } from 'firebase/storage';
@@ -83,6 +85,12 @@ export default function Inbox() {
   const [agendadas, setAgendadas] = useState<MensagemAgendada[]>([]);
   const [programando, setProgramando] = useState(false);
   const [escolhendoModelo, setEscolhendoModelo] = useState(false);
+  /* o modelo que a agenda pediu, já preenchido (janela fechada) */
+  const [modeloInicial, setModeloInicial] = useState<{ nome: string; valores: string[] } | null>(null);
+  /* o atalho das aulas fica aberto só na conversa em que foi aberto */
+  const [atalhoDe, setAtalhoDe] = useState<string | null>(null);
+  const campo = useRef<HTMLInputElement>(null);
+  const cad = useCadastros();
   const [anexo, setAnexo] = useState<File | null>(null);
   const seletor = useRef<HTMLInputElement>(null);
   /* o áudio gravado sai sozinho quando a pessoa toca em enviar (quem envia é o
@@ -154,9 +162,25 @@ export default function Inbox() {
 
   const aberta = conversas.find((c) => c.id === abertaId) || null;
   const janela = aberta ? janelaAberta(aberta) : false;
+  const atalhoAulas = Boolean(aberta && atalhoDe === aberta.id);
+  /* a triagem já disse que o assunto é aula: o atalho da agenda acende */
+  const assuntoDeAula = Boolean(aberta?.etiquetas.some((e) => e === 'Marcação' || e === 'Reposição'));
+
+  /* a agenda na conversa prepara o aviso; quem envia é gente */
+  const escreve = useCallback((texto: string) => {
+    setRascunho(texto); setAtalhoDe(null); setEscolhendoModelo(false); setProgramando(false); setPainel(false);
+    requestAnimationFrame(() => campo.current?.focus());
+  }, []);
+  const abreModelo = useCallback((nome: string, valores: string[]) => {
+    setModeloInicial({ nome, valores }); setEscolhendoModelo(true); setAtalhoDe(null); setProgramando(false); setPainel(false);
+  }, []);
+  const fechaModelo = () => { setEscolhendoModelo(false); setModeloInicial(null); };
+  const alternaAtalho = () => {
+    setAtalhoDe(atalhoAulas || !aberta ? null : aberta.id); fechaModelo(); setProgramando(false); setEmojis(false);
+  };
 
   const abrir = useCallback(async (c: Conversa) => {
-    setAbertaId(c.id); setNaConversa(true); setPainel(false); setRascunho(''); setEscolhendoModelo(false);
+    setAbertaId(c.id); setNaConversa(true); setPainel(false); setRascunho(''); setEscolhendoModelo(false); setModeloInicial(null);
     setAnexo(null); cancelaGravacao();
     if (c.naoLidas > 0) {
       try { await atualiza('conversas', c.id, { naoLidas: 0 }); } catch { /* sem permissão, segue */ }
@@ -557,8 +581,13 @@ export default function Inbox() {
             {aviso && <div className="fx"><p>{aviso}</p></div>}
 
             {escolhendoModelo && (
-              <EscolheModelo key={aberta.id} nomeDoContato={aberta.nome} janela={janela}
-                             aoFechar={() => setEscolhendoModelo(false)} aoEnviar={enviaModelo} />
+              <EscolheModelo key={`${aberta.id}-${modeloInicial?.nome || ''}`} nomeDoContato={aberta.nome} janela={janela}
+                             inicial={modeloInicial ?? undefined} aoFechar={fechaModelo} aoEnviar={enviaModelo} />
+            )}
+
+            {atalhoAulas && (
+              <AulasNaConversa key={aberta.id} conversa={aberta} cad={cad} modo="atalho" janela={janela}
+                               aoEscrever={escreve} aoModelo={abreModelo} aoFechar={() => setAtalhoDe(null)} />
             )}
 
             {programando && (
@@ -621,18 +650,23 @@ export default function Inbox() {
                             onClick={() => seletor.current?.click()}>
                       <Ic n="clipe" />
                     </button>
-                    <input type="text" value={rascunho} autoComplete="off" aria-label={anexo ? 'Legenda' : 'Mensagem'}
+                    <input ref={campo} type="text" value={rascunho} autoComplete="off" aria-label={anexo ? 'Legenda' : 'Mensagem'}
                            placeholder={anexo ? 'Legenda (opcional)' : 'Digite uma mensagem'}
                            onChange={(e) => setRascunho(e.target.value)} />
                     <button type="button" className="ib" aria-expanded={escolhendoModelo} title="Enviar modelo"
                             aria-label="Enviar modelo"
-                            onClick={() => { setEscolhendoModelo(!escolhendoModelo); setProgramando(false); setEmojis(false); }}>
+                            onClick={() => { setEscolhendoModelo(!escolhendoModelo); setModeloInicial(null); setAtalhoDe(null); setProgramando(false); setEmojis(false); }}>
                       <Ic n="modelo" />
+                    </button>
+                    <button type="button" className={assuntoDeAula ? 'ib tem' : 'ib'} aria-expanded={atalhoAulas}
+                            title={assuntoDeAula ? 'Aulas do aluno: a conversa é sobre aula' : 'Aulas do aluno'} aria-label="Aulas do aluno"
+                            onClick={alternaAtalho}>
+                      <Ic n="agenda" />
                     </button>
                     <button type="button" className={naFila ? 'ib tem' : 'ib'} aria-expanded={programando}
                             title={naFila ? `${naFila} mensagem programada nesta conversa` : 'Programar mensagem'}
                             aria-label="Programar mensagem"
-                            onClick={() => { setProgramando(!programando); setEscolhendoModelo(false); }}>
+                            onClick={() => { setProgramando(!programando); fechaModelo(); setAtalhoDe(null); }}>
                       <Ic n="relogio" />
                     </button>
                   </div>
@@ -657,11 +691,14 @@ export default function Inbox() {
                 <p>Passaram 24 horas da última mensagem do contato. Para retomar, envie um modelo aprovado.</p>
                 <span className="pe-bts">
                   <button className="btn" aria-expanded={programando}
-                          onClick={() => { setProgramando(!programando); setEscolhendoModelo(false); }}>
+                          onClick={() => { setProgramando(!programando); fechaModelo(); setAtalhoDe(null); }}>
                     <Ic n="relogio" />Programar mensagem
                   </button>
+                  <button className={assuntoDeAula ? 'btn tem' : 'btn'} aria-expanded={atalhoAulas} onClick={alternaAtalho}>
+                    <Ic n="agenda" />Aulas
+                  </button>
                   <button className="btn p" aria-expanded={escolhendoModelo}
-                          onClick={() => { setEscolhendoModelo(!escolhendoModelo); setProgramando(false); }}>
+                          onClick={() => { setEscolhendoModelo(!escolhendoModelo); setModeloInicial(null); setAtalhoDe(null); setProgramando(false); }}>
                     <Ic n="modelo" />Enviar modelo
                   </button>
                 </span>
@@ -676,6 +713,9 @@ export default function Inbox() {
           <PainelContato
             key={aberta.id}
             conversa={aberta}
+            cad={cad}
+            aoEscrever={escreve}
+            aoModelo={abreModelo}
             mensagens={mensagens}
             agendadas={agendadas.filter((a) => a.conversaId === aberta.id)}
             aoFechar={() => { setRecolhido(true); setPainel(false); }}

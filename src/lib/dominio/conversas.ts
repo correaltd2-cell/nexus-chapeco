@@ -17,6 +17,7 @@ export function detalheDaSituacao(c: Conversa): string {
   if (c.setor === 'financeiro' && c.estado === 'ia') return 'com a IA';
   if (c.estado === 'aguardando') return 'esperando o time';
   if (c.etapa === 'menu') return 'escolhendo o assunto';
+  if (c.etapa === 'aulas') return 'vendo as aulas';
   return '';
 }
 
@@ -86,3 +87,4 @@ export const etiquetasEmUso = (cs: Conversa[]) =>
 
 export const passaNaEtiqueta = (c: Conversa, etiqueta: string | null) =>
   !etiqueta || c.etiquetas.includes(etiqueta);
+

@@ -1,5 +1,6 @@
 /* A agenda no servidor: o lembrete da véspera pelo WhatsApp, a resposta do aluno aos
-   botões Confirmar e Remarcar, e o resumo do progresso com IA.
+   botões Confirmar e Remarcar (do lembrete e do "Minhas aulas" do atendimento
+   automático), a próxima aula de quem escreve, e o resumo do progresso com IA.
    Lembrete sai por modelo aprovado (a janela de 24 horas quase nunca está aberta na
    véspera). Se o modelo ainda não foi aprovado pela Meta, nada sai e a tela diz isso:
    a função já está pronta para o dia em que ele for aprovado.
@@ -11,9 +12,10 @@ import { garanteConversa } from '@/lib/whatsapp/recebimento';
 import { resumeProgresso } from '@/lib/ia/claude';
 import { falhou, descreveErro } from '@/lib/saude';
 import {
-  contaComoAula, diaPorExtenso, horaFalada, lePayload, payloadDoLembrete, precisaLembrete, promptDoResumo, resumoSemIa,
-  type Agendamento, type AlunoNaAula, type AulaDoHistorico, type ResumoDoAluno,
+  contaComoAula, diaPorExtenso, horaFalada, lePayload, payloadDoLembrete, precisaLembrete, promptDoResumo, proximasAulas, resumoSemIa,
+  type Agendamento, type AlunoNaAula, type AulaDoHistorico, type ResumoDoAluno, type StatusAula,
 } from '@/lib/dominio/agenda';
+import { alunosDoContato, falaComoResponsavel, variantesDoTelefone } from '@/lib/dominio/contato';
 import { idDoModelo, preenche, type SituacaoDoModelo } from '@/lib/dominio/modelos';
 import { PASSO, novoId } from '@/lib/dominio/quadros';
 import type { Aluno, Lista, Quadro } from '@/lib/dominio/tipos';
@@ -198,6 +200,58 @@ export async function respondeLembrete(
     await falhou('agenda', `Resposta ao lembrete: ${descreveErro(e)}`);
     return null;
   }
+}
+
+/* ---------------- a agenda na conversa: "Minhas aulas" ---------------- */
+
+/** Os alunos por quem este número fala: o ligado à conversa e os achados pelo telefone
+    (do próprio aluno ou do responsável), nas duas grafias do celular. */
+export async function alunosDoNumero(bd: Firestore, alunoId: string | null | undefined, waId: string): Promise<Aluno[]> {
+  const achados = new Map<string, Aluno>();
+  if (alunoId) {
+    const d = await bd.doc(`alunos/${alunoId}`).get();
+    if (d.exists) achados.set(d.id, { ...(d.data() as Aluno), id: d.id });
+  }
+  const variantes = variantesDoTelefone(waId);
+  if (variantes.length) {
+    for (const campo of ['telefone', 'responsavelTelefone']) {
+      const s = await bd.collection('alunos').where(campo, 'in', variantes).limit(10).get();
+      for (const d of s.docs) achados.set(d.id, { ...(d.data() as Aluno), id: d.id });
+    }
+  }
+  return alunosDoContato([...achados.values()], { alunoId, waId });
+}
+
+export interface AulasDoContato {
+  alunoId: string;
+  alunoNome: string;
+  paraResponsavel: boolean;
+  proxima: { id: string; inicio: string; status: StatusAula; professor?: string; aula?: string };
+  depois: string[];
+}
+
+/** A próxima aula de quem escreve. Com mais de um aluno (irmãos), a que vem primeiro. */
+export async function aulasDoContato(bd: Firestore, c: { alunoId?: string | null; waId?: string }): Promise<AulasDoContato | null> {
+  if (!c.waId) return null;
+  const agora = new Date();
+  /* a aula que começou há pouco ainda não acabou: entra na busca */
+  const desde = new Date(agora.getTime() - 6 * 3_600_000).toISOString();
+  let melhor: { aluno: Aluno; lista: Agendamento[] } | null = null;
+  for (const aluno of await alunosDoNumero(bd, c.alunoId, c.waId)) {
+    const s = await bd.collection('agendamentos').where('alunoIds', 'array-contains', aluno.id)
+      .where('inicio', '>=', desde).orderBy('inicio').limit(12).get();
+    const lista = proximasAulas(s.docs.map((d) => ({ ...(d.data() as Agendamento), id: d.id })), agora, 3);
+    if (lista.length && (!melhor || lista[0].inicio < melhor.lista[0].inicio)) melhor = { aluno, lista };
+  }
+  if (!melhor) return null;
+  const p = melhor.lista[0];
+  const professor = (await bd.doc(`perfis/${p.professorId}`).get()).data()?.nome as string | undefined;
+  const aula = (await bd.doc(`aulas/${p.aulaId}`).get()).data()?.nome as string | undefined;
+  return {
+    alunoId: melhor.aluno.id, alunoNome: melhor.aluno.nome, paraResponsavel: falaComoResponsavel(melhor.aluno, c.waId),
+    proxima: { id: p.id, inicio: p.inicio, status: p.status, professor, aula },
+    depois: melhor.lista.slice(1).map((x) => x.inicio),
+  };
 }
 
 /* ---------------- resumo do progresso ---------------- */

@@ -25,6 +25,8 @@ export type Visao = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 interface Props {
   calRef: RefObject<CalendarRef | null>;
   visao: Visao;
+  dataInicial?: string;           // AAAA-MM-DD: o link da conversa abre na semana da aula
+  rolarAte?: string;              // HH:MM:SS: e rola até perto da hora dela
   agendamentos: Agendamento[];
   bloqueios: Bloqueio[];
   professores: Professor[];
@@ -43,7 +45,7 @@ interface Dica { a: Agendamento; x: number; y: number }
 
 export default function Calendario({ calRef, ...p }: Props) {
   const [dica, setDica] = useState<Dica | null>(null);
-  const { agendamentos, bloqueios, professores, podeRemarcar, podeCriar, visao, agora, nomeDaAula } = p;
+  const { agendamentos, bloqueios, professores, podeRemarcar, podeCriar, visao, agora, nomeDaAula, dataInicial, rolarAte } = p;
   const porId = useMemo(() => new Map(agendamentos.map((a) => [a.id, a])), [agendamentos]);
   const prof = useMemo(() => new Map(professores.map((x) => [x.id, x])), [professores]);
 
@@ -72,6 +74,7 @@ export default function Calendario({ calRef, ...p }: Props) {
         plugins={[classicTheme, dayGridPlugin, timeGridPlugin, interactionPlugin]}
         locale={ptBr}
         initialView={visao}
+        initialDate={dataInicial || undefined}
         headerToolbar={false}
         height="100%"
         allDaySlot={false}
@@ -81,7 +84,7 @@ export default function Calendario({ calRef, ...p }: Props) {
         slotHeaderInterval="00:30:00"
         slotHeaderFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
         slotMinHeight={36}
-        scrollTime="07:30:00"
+        scrollTime={rolarAte || '07:30:00'}
         nowIndicator
         slotEventOverlap={false}
         eventMinHeight={22}

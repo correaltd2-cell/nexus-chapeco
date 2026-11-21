@@ -22,6 +22,7 @@ igual('atendimento automático desligado: chama gente', comGente({ estado: 'aber
 igual('conversa antiga sem etapa: chama gente', comGente({ estado: 'aberta' }), true);
 igual('na saudação: não chama', comGente({ estado: 'aberta', etapa: 'menu' }), false);
 igual('com o assistente: não chama', comGente({ estado: 'ia', etapa: 'assistente' }), false);
+igual('vendo a próxima aula pelo Minhas aulas: não chama', comGente({ estado: 'aberta', etapa: 'aulas' }), false);
 igual('esperando o setor: chama', comGente({ estado: 'aguardando', etapa: 'gente' }), true);
 igual('encerrada: não chama', comGente({ estado: 'encerrada' }), false);
 

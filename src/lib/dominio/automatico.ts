@@ -15,7 +15,8 @@
 import type { Setor } from './tipos';
 import type { Assunto } from './triagem';
 
-export type Destino = 'recepcao' | 'assistente';
+/* aulas: a próxima aula do aluno, lida da agenda, com Confirmar e Remarcar */
+export type Destino = 'recepcao' | 'assistente' | 'aulas';
 export interface BotaoMenu { texto: string; destino: Destino }
 export interface PerguntaResposta { t: string; r: string }
 
@@ -63,7 +64,7 @@ export const LIMITE = { botoes: 3, botao: 20, linha: 24, perguntas: 9 } as const
 export const AUTOMATICO_PADRAO: ConfigAutomatico = {
   ligado: false,
   botoes: [
-    { texto: 'Minhas aulas', destino: 'recepcao' },
+    { texto: 'Minhas aulas', destino: 'aulas' },
     { texto: 'Financeiro/contrato', destino: 'assistente' },
     { texto: 'Outro assunto', destino: 'recepcao' },
   ],
@@ -120,7 +121,7 @@ export function leAutomatico(bruto?: Partial<ConfigAutomatico> | null): ConfigAu
     const x = Array.isArray(b.botoes) ? b.botoes[i] : undefined;
     return {
       texto: texto(x?.texto, P.botoes[i].texto, LIMITE.botao),
-      destino: (x?.destino === 'assistente' ? 'assistente' : x?.destino === 'recepcao' ? 'recepcao' : P.botoes[i].destino) as Destino,
+      destino: (x?.destino === 'assistente' || x?.destino === 'recepcao' || x?.destino === 'aulas' ? x.destino : P.botoes[i].destino) as Destino,
     };
   });
   const faq = (Array.isArray(b.faq) ? b.faq : P.faq)

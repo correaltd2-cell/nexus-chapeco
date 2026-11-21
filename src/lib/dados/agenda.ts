@@ -231,6 +231,20 @@ export async function gravaAula(p: Pedido): Promise<{ criadas: number; alteradas
   return { criadas: 0, alteradas };
 }
 
+/** A equipe confirmou a presença pela conversa: o aluno fica como quem confirmou (como
+    no botão do lembrete) e a aula agendada vira confirmada, com o log. */
+export async function confirmaPresenca(quem: Quem, ag: Agendamento, alunoId: string) {
+  const quando = agora();
+  const ops: OpGravacao[] = [
+    { tipo: 'atualizar', colecao: `agendamentos/${ag.id}/alunos`, id: alunoId, campos: { resposta: 'confirmou', respostaEm: quando } },
+  ];
+  if (ag.status === 'agendado') {
+    ops.push({ tipo: 'atualizar', colecao: 'agendamentos', id: ag.id, campos: { status: 'confirmado', atualizadoPor: quem.id, atualizadoEm: quando } });
+    ops.push(opLog(quem, ag.id, 'mudou_status', { status: ag.status }, { status: 'confirmado' }));
+  }
+  await grava(ops);
+}
+
 /** Arrastar ou esticar no calendário: muda só o horário (da série, se escolhido). */
 export async function remarca(quem: Quem, alvo: Agendamento, novo: { inicio: string; fim: string }, escopo: Escopo) {
   const quando = agora();

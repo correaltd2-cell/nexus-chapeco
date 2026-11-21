@@ -167,6 +167,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "alunoIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "inicio",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "agendamentos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "status",
           "order": "ASCENDING"
         },

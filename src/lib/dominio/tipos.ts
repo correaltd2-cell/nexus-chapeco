@@ -55,8 +55,9 @@ export interface Aluno {
 export type EstadoConversa = 'aberta' | 'ia' | 'aguardando' | 'encerrada';
 export type QuemEncerrou = 'cliente' | 'silencio' | 'atendente';
 /* inicio: conversa recem-criada; menu: esperando o contato escolher o assunto;
-   assistente: com o assistente do financeiro; gente: com uma pessoa do time */
-export type EtapaAtendimento = 'inicio' | 'menu' | 'assistente' | 'gente';
+   assistente: com o assistente do financeiro; aulas: viu a próxima aula e pode
+   confirmar ou remarcar pelos botões; gente: com uma pessoa do time */
+export type EtapaAtendimento = 'inicio' | 'menu' | 'assistente' | 'aulas' | 'gente';
 
 export interface Conversa {
   id: string;

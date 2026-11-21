@@ -12,7 +12,9 @@ observação e notas são de cada aluno.
 | Dados fictícios (3 professores, 15 alunos, 2 semanas, séries, bloqueios, log) | `src/lib/dominio/agenda-exemplo.ts` |
 | Gravação pelo navegador (lote único com log) | `src/lib/dados/agenda.ts` |
 | Calendário (FullCalendar 7), modal, filtros | `src/componentes/agenda/` |
-| Lembrete, resposta aos botões, resumo com IA | `src/lib/agenda-servidor.ts` |
+| Lembrete, resposta aos botões, próxima aula de quem escreve, resumo com IA | `src/lib/agenda-servidor.ts` |
+| A agenda na conversa (painel e atalho) | `src/componentes/aulas-na-conversa.tsx` |
+| Por quem o número fala (telefone com e sem o 9, responsável) | `src/lib/dominio/contato.ts`, prova em `testes/contato.ts` |
 | Rotas | `/api/agenda/lembrete`, `/api/agenda/resumo`, `/api/agenda/teste`, `/api/cron/lembretes` |
 | Telas | `/aulas` (calendário), `/aulas/relatorio`, `/aulas/log`, `/aulas/cadastros` |
 
@@ -71,6 +73,38 @@ Rodar antes de mexer nas regras: `node --experimental-strip-types testes/agenda.
   a recepção vai chamar. Nenhuma das duas dispara a saudação do atendimento automático.
 - `lembreteEnviadoEm` acende o selo verde no bloco.
 
+## Na conversa (a agenda e o WhatsApp se falam)
+
+O aluno é a chave. A conversa aponta para ele (`conversas.alunoId`); no Kids, o número do
+responsável aponta para os filhos. Conversa nova já chega ligada quando o número bate
+com o telefone do aluno ou do responsável, com ou sem o 9 da frente
+(`dominio/contato.ts`, prova em `testes/contato.ts`). Sem ligação, a equipe liga à mão
+no painel do contato, e troca quando precisar.
+
+- **Painel do contato, "Aluno e aulas"**: nível e lição, as próximas 3 aulas e as 2
+  últimas (com a presença), irmãos lado a lado quando quem escreve é o responsável.
+- **Atalho na caixa de escrever** (o calendário ao lado do relógio, e "Aulas" quando a
+  janela fechou): o mesmo, enxuto. Acende em laranja quando a triagem marcou a conversa
+  como Marcação ou Reposição.
+- **Confirmar**: a aula agendada vira confirmada, o aluno fica como quem confirmou, vai
+  para o log da agenda e deixa recado na conversa.
+- **Remarcar** e **Agendar aula**: abrem o modal da agenda. A aula nova já vem com o
+  aluno, o professor, o módulo e a modalidade da última aula, o mesmo dia e hora na
+  primeira semana livre e a aula seguinte do currículo. Conflito, bloqueio e permissão
+  valem como na agenda.
+- **O aviso nunca sai sozinho**: depois de confirmar, agendar ou remarcar, o texto
+  ("Pronto, Renan! Tua aula ficou marcada para quinta, 26/11, às 19h, com Helena.") vai
+  para a caixa de escrever e quem envia é gente. Com a janela de 24 horas fechada, abre
+  o modelo aprovado já preenchido: `aula_marcada`, `aula_remarcada` ou
+  `confirmacao_aula`. **Avisar** faz o mesmo com a próxima aula.
+- **Ver na agenda** abre o calendário filtrado no aluno, na semana e na hora da próxima
+  aula (`/aulas?aluno=ID&data=AAAA-MM-DD&hora=HH:MM`).
+- **Da agenda para a conversa**: no modal da aula, o balão verde ao lado de cada aluno
+  abre a conversa dele (para quem vê as conversas de todos os setores).
+- **"Minhas aulas" no atendimento automático**: o contato toca no botão e recebe a
+  próxima aula com Confirmar presença, Remarcar e Falar com a recepção
+  (docs/atendimento-automatico.md). Enquanto ele escolhe, ninguém do time é chamado.
+
 ## Resumo com IA
 
 O botão do modal lê as observações, presenças e notas das últimas 5 aulas de cada aluno
@@ -85,9 +119,14 @@ Sem a `ANTHROPIC_API_KEY`, devolve o resumo pelas contas e pelas observações.
 2. Em Agenda, Cadastros (administração): **Criar o currículo de partida** (módulos e
    aulas L01 a L20 de cada nível, que a escola ajusta depois).
 3. Na equipe, cada professor com o papel de professor ou marcado "dá aula", e a cor dele.
+   Nos alunos, o telefone (e o do responsável, no Kids): é por ele que a conversa acha o
+   aluno sozinha.
 4. Para testar antes: **Carregar dados de teste**; **Limpar dados de teste** apaga só o
    que é de teste.
-5. Esperar a aprovação dos dois modelos de lembrete em Configurações, Modelos de mensagem.
+5. Esperar a aprovação dos dois modelos de lembrete e do `aula_marcada` em Configurações,
+   Modelos de mensagem.
+6. Para o "Minhas aulas" responder com a próxima aula: ligar o atendimento automático e
+   deixar o botão com "mostra a próxima aula" (já vem assim).
 
 ## A virada
 

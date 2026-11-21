@@ -17,6 +17,9 @@ import {
   dataBR, dataHoraBR, duracao, iniciais, janelaAberta, paraCampoDeData, telefoneLegivel, tomDoNome,
 } from '@/lib/dominio/formato';
 import { reduzFoto } from '@/lib/dominio/foto';
+import AulasNaConversa from '@/componentes/aulas-na-conversa';
+import type { Cadastros } from '@/componentes/agenda/dados';
+import { alunosDoContato, falaComoResponsavel } from '@/lib/dominio/contato';
 import { ETIQUETAS_PADRAO, cartoesDaLista, novoId, ordemEntre, vencido } from '@/lib/dominio/quadros';
 import { leAssunto, tarefaDaConversa, tarefaDoAssunto } from '@/lib/dominio/triagem';
 import type {
@@ -28,9 +31,13 @@ interface Props {
   mensagens: Mensagem[];
   agendadas: MensagemAgendada[];
   aoFechar: () => void;
+  /* a agenda do aluno, e para onde vai o aviso que ela prepara */
+  cad: Cadastros;
+  aoEscrever: (texto: string) => void;
+  aoModelo: (nome: string, valores: string[]) => void;
 }
 
-export default function PainelContato({ conversa, mensagens, agendadas, aoFechar }: Props) {
+export default function PainelContato({ conversa, mensagens, agendadas, aoFechar, cad, aoEscrever, aoModelo }: Props) {
   const { perfil, usuario } = useSessao();
   const agora = useAgora();
   const [quadros, setQuadros] = useState<Quadro[]>([]);
@@ -189,6 +196,14 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
 
   const nomeDoQuadro = (id: string) => quadros.find((q) => q.id === id)?.nome || 'quadro';
 
+  /* por quem este contato fala: aluno, ou responsável pelos filhos */
+  const doContato = alunosDoContato(cad.alunos, conversa);
+  const quemE = !doContato.length
+    ? (conversa.alunoId && !cad.carregado ? 'Aluno cadastrado' : 'Ainda não ligado a um aluno')
+    : falaComoResponsavel(doContato[0], conversa.waId)
+      ? `Responsável por ${doContato.map((a) => a.nome.split(' ')[0]).join(' e ')}`
+      : `Aluno · ${doContato[0].nivel}`;
+
   return (
     <>
       <div className="ph">
@@ -214,7 +229,7 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
         </span>
         <h2>{conversa.nome}</h2>
         <span className="num">{telefoneLegivel(conversa.waId)}</span>
-        <span>{conversa.alunoId ? 'Aluno cadastrado' : 'Ainda não ligado a um aluno'}</span>
+        <span>{quemE}</span>
         {conversa.foto && (
           <button className="tx-btn" onClick={() => void atualiza('conversas', conversa.id, { foto: APAGAR })}>
             Tirar a foto
@@ -223,6 +238,9 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
       </div>
 
       {aviso && <p className="erro" style={{ margin: '0 12px 10px' }}>{aviso}</p>}
+
+      <AulasNaConversa conversa={conversa} cad={cad} modo="painel" janela={janela}
+                       aoEscrever={aoEscrever} aoModelo={aoModelo} />
 
       <div className="bl">
         <p className="bt">

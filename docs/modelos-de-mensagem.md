@@ -40,7 +40,7 @@ pagamento na conta do WhatsApp, senão nenhum modelo sai (erro 131042).
 - `WHATSAPP_BUSINESS_ACCOUNT_ID` da conta do número novo (+55 49 98896-5170).
 - `CRON_SECRET`, como nos outros relógios.
 
-## A biblioteca (31 modelos)
+## A biblioteca (32 modelos)
 
 Entre colchetes, o que a pessoa preenche na hora de enviar. Os dois lembretes da agenda
 saem sozinhos na véspera (docs/agenda.md) e não aparecem na escolha da conversa.
@@ -81,6 +81,13 @@ A escola precisou cancelar a aula marcada.
 > Oi, [primeiro nome]! A sua aula de [dia], às [horário], foi cancelada. Pedimos desculpas pelo transtorno. Responda esta mensagem para escolher um novo horário.
 >
 > Botões: Escolher horário
+
+**Aula marcada** (`aula_marcada`, Utilidade)  
+A aula foi marcada na agenda pela conversa e a janela de 24 horas já fechou.
+
+> Oi, [primeiro nome]! A sua aula ficou marcada para [dia], às [horário]. Se precisar mudar, é só responder por aqui.
+>
+> Botões: Combinado · Preciso remarcar
 
 **Aula remarcada** (`aula_remarcada`, Utilidade)  
 A aula mudou de dia ou de horário.

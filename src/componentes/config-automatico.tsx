@@ -144,6 +144,8 @@ function Saudacao({ rasc, muda }: { rasc: ConfigAutomatico; muda: Muda }) {
         <p className="obs forte">
           O WhatsApp aceita no máximo 3 botões, com até 20 letras cada. A Coordenação não
           aparece como destino de propósito: ela só recebe conversa por dentro do sistema.
+          &quot;Mostra a próxima aula&quot; lê a agenda do aluno e manda o dia e a hora com os botões
+          Confirmar presença, Remarcar e Falar com a recepção; sem aula marcada, vai para a Recepção.
         </p>
         <div className="bt-linhas">
           {rasc.botoes.map((b, i) => (
@@ -156,6 +158,7 @@ function Saudacao({ rasc, muda }: { rasc: ConfigAutomatico; muda: Muda }) {
               </span>
               <select className="cx" aria-label={`Destino do botão ${i + 1}`} value={b.destino}
                       onChange={(e) => mudaBotao(i, 'destino', e.target.value as Destino)}>
+                <option value="aulas">mostra a próxima aula</option>
                 <option value="recepcao">vai para a Recepção</option>
                 <option value="assistente">vai para o assistente</option>
               </select>

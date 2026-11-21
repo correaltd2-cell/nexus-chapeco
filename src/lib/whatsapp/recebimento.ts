@@ -5,7 +5,8 @@ import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
 import { comEtiqueta, etiquetaDoAssunto, leAssunto, tarefaDoAssunto } from '@/lib/dominio/triagem';
 import { PASSO, novoId } from '@/lib/dominio/quadros';
 import type { Conversa, Lista, Quadro } from '@/lib/dominio/tipos';
-import { atendeAoVivo, camposDaFalaDaEscola } from './automatico';
+import { atendeAoVivo, camposDaFalaDaEscola, encerra } from './automatico';
+import { variantesDoTelefone } from '@/lib/dominio/contato';
 import { baixaMidia } from './cloud';
 import { adminArquivos } from '@/lib/firebase/admin';
 import { caminhoDaMidia, mimeLimpo, previaDaMidia } from '@/lib/dominio/midia';
@@ -78,11 +79,21 @@ export async function garanteConversa(ctx: Contexto, waId: string, nome: string)
   const achadas = await ctx.bd.collection('conversas').where('waId', '==', waId).limit(1).get();
   if (!achadas.empty) return achadas.docs[0].ref;
   const agora = agoraIso();
-  const aluno = await ctx.bd.collection('alunos').where('telefone', '==', waId).limit(1).get();
+  /* o aluno pelo telefone dele ou, no Kids, pelo do responsável, que é quem escreve;
+     a Meta às vezes manda o celular sem o 9, e o cadastro tem com ele */
+  const variantes = variantesDoTelefone(waId);
+  const proprio = await ctx.bd.collection('alunos').where('telefone', 'in', variantes).limit(1).get();
+  const doResponsavel = proprio.empty
+    ? await ctx.bd.collection('alunos').where('responsavelTelefone', 'in', variantes).limit(1).get()
+    : null;
+  const aluno = !proprio.empty ? proprio.docs[0] : doResponsavel && !doResponsavel.empty ? doResponsavel.docs[0] : null;
+  const nomeCadastrado = !proprio.empty
+    ? (aluno?.data().nome as string)
+    : (aluno?.data().responsavelNome as string | undefined);
   return ctx.bd.collection('conversas').add({
     waId,
-    nome: aluno.empty ? nome || waId : (aluno.docs[0].data().nome as string),
-    alunoId: aluno.empty ? null : aluno.docs[0].id,
+    nome: nomeCadastrado || nome || waId,
+    alunoId: aluno ? aluno.id : null,
     setor: 'recepcao',
     estado: 'aberta',
     agenteAtivo: true,
@@ -197,12 +208,21 @@ export async function recebeDoContato(
       : {}),
   });
 
-  /* toque em Confirmar ou Remarcar do lembrete da agenda: a agenda responde e muda a
-     aula; triagem e atendimento automático ficam de fora desta mensagem */
-  const payload = tipo === 'button' ? (m.button as { payload?: string } | undefined)?.payload : undefined;
+  /* toque em Confirmar ou Remarcar (do lembrete da véspera, que vem como botão de
+     modelo, ou do "Minhas aulas", que vem como botão de mensagem): a agenda responde e
+     muda a aula; triagem e atendimento automático ficam de fora desta mensagem */
+  const payload = tipo === 'button'
+    ? (m.button as { payload?: string } | undefined)?.payload
+    : tipo === 'interactive'
+      ? (m.interactive as { button_reply?: { id?: string } } | undefined)?.button_reply?.id
+      : undefined;
   const daAgenda = origem === 'ao_vivo' ? await respondeLembrete(ctx.bd, ref, payload, waId) : null;
   if (daAgenda) {
     if (daAgenda === 'remarcar') await avisaEquipe(ctx.bd, ref.id);
+    /* confirmou pelo "Minhas aulas": o atendimento acabou bem, fecha sem follow-up */
+    if (daAgenda === 'confirmar' && conversa.data()?.etapa === 'aulas') {
+      await encerra(ctx.bd, ref, 'cliente', 'Presença confirmada pelo WhatsApp. Atendimento encerrado.');
+    }
     if (midia) await guardaMidia(ref.id, msg, midia);
     return ref;
   }

@@ -4,8 +4,9 @@
 import {
   atingidos, conflitosDe, contaComoAula, csv, deslocaHorario, diaLocal, diaPorExtenso, faltaPresenca,
   filtra, horaFalada, horaLocal, indicadores, lePayload, mediaDas, mudancas, notaValida, ocorrencias,
-  payloadDoLembrete, permissoesDe, precisaLembrete, problemasDoRascunho, sobrepoe, textoSobre,
-  type Agendamento, type Rascunho,
+  payloadDoLembrete, permissoesDe, precisaLembrete, problemasDoRascunho, proximasAulas, quandoFalado,
+  respostaDasAulas, sobrepoe, sugereAula, textoDoAviso, textoSobre, ultimasAulas, modeloDoAviso,
+  ID_FALAR_COM_RECEPCAO, type Agendamento, type AulaDoCurriculo, type Rascunho,
 } from '../src/lib/dominio/agenda.ts';
 
 let falhas = 0;
@@ -130,6 +131,61 @@ igual('confirmada não precisa', precisaLembrete({ ...amanha, status: 'confirmad
 igual('depois de amanhã ainda não', precisaLembrete({ ...amanha, inicio: iso('2026-11-26T08:00:00-03:00') }, agora), false);
 igual('payload vai e volta', lePayload(payloadDoLembrete('remarcar', 'ag1', 'al_2')), { acao: 'remarcar', agendamentoId: 'ag1', alunoId: 'al_2' });
 igual('payload de outra coisa', lePayload('Confirmo'), null);
+
+/* ---- a agenda dentro da conversa ---- */
+const ja = new Date('2026-11-24T12:00:00-03:00');
+const aulaDe = (id: string, inicio: string, status: Agendamento['status'] = 'agendado', extra: Partial<Agendamento> = {}): Agendamento => ({
+  id, inicio: iso(inicio), fim: new Date(new Date(inicio).getTime() + 3600_000).toISOString(), status,
+  professorId: 'p1', moduloId: 'm1', aulaId: 'm1-l10', modalidade: 'presencial', recorrenciaId: null, lembreteEnviadoEm: null,
+  alunoIds: ['x'], alunos: [], criadoPor: '', criadoEm: '', atualizadoPor: '', atualizadoEm: '', ...extra,
+});
+const doAluno = [
+  aulaDe('passada', '2026-11-19T19:00:00-03:00', 'realizado'),
+  aulaDe('cancelada', '2026-11-25T19:00:00-03:00', 'cancelado'),
+  aulaDe('agora', '2026-11-24T11:30:00-03:00'),                  /* começou e não acabou: ainda é próxima */
+  aulaDe('quinta', '2026-11-26T19:00:00-03:00', 'confirmado'),
+  aulaDe('outra', '2026-12-01T19:00:00-03:00'),
+  aulaDe('longe', '2026-12-08T19:00:00-03:00'),
+];
+igual('próximas: sem cancelada, a que está acontecendo primeiro', proximasAulas(doAluno, ja).map((a) => a.id), ['agora', 'quinta', 'outra']);
+igual('últimas: só o que já passou e conta', ultimasAulas(doAluno, ja).map((a) => a.id), ['passada']);
+igual('quando falado', quandoFalado(iso('2026-11-26T19:00:00-03:00')), 'quinta, 26/11, às 19h');
+igual('aviso de aula marcada', textoDoAviso('marcada', { contato: 'Renan Antunes', aluno: 'Renan Antunes', paraResponsavel: false, inicio: iso('2026-11-26T19:00:00-03:00'), professor: 'Helena Duarte' }),
+  'Pronto, Renan! Tua aula ficou marcada para quinta, 26/11, às 19h, com Helena. Qualquer coisa, é só chamar por aqui.');
+igual('aviso ao responsável fala do aluno', textoDoAviso('remarcada', { contato: 'Cláudia Bortoli', aluno: 'Pedro Bortoli', paraResponsavel: true, inicio: iso('2026-11-26T08:30:00-03:00') }),
+  'Pronto, Cláudia! A aula de Pedro foi remarcada para quinta, 26/11, às 8h30.');
+igual('aviso de presença confirmada', textoDoAviso('confirmada', { contato: 'Ana', aluno: 'Ana', paraResponsavel: false, inicio: iso('2026-11-26T19:00:00-03:00') }),
+  'Combinado, Ana! Presença confirmada para quinta, 26/11, às 19h. Até lá!');
+igual('janela fechada: modelo do aviso', modeloDoAviso('marcada', { contato: 'Renan Antunes', inicio: iso('2026-11-26T19:00:00-03:00') }),
+  { nome: 'aula_marcada', valores: ['Renan', 'quinta-feira, 26/11', '19h'] });
+igual('remarcada usa o modelo de aula remarcada', modeloDoAviso('remarcada', { contato: 'Ana', inicio: iso('2026-11-26T19:00:00-03:00') }).nome, 'aula_remarcada');
+
+const resp = respostaDasAulas({
+  contato: 'Renan Antunes', aluno: 'Renan Antunes', paraResponsavel: false, alunoId: 'a-renan',
+  proxima: { id: 'ag1', inicio: iso('2026-11-26T19:00:00-03:00'), status: 'agendado', professor: 'Helena Duarte', aula: 'B2 - L12' },
+  depois: [iso('2026-12-03T19:00:00-03:00')],
+});
+igual('Minhas aulas: texto', resp.texto, 'Oi, Renan! Tua próxima aula é quinta, 26/11, às 19h, com Helena (B2 - L12).\nDepois: quinta, 03/12, às 19h.\nPodemos contar contigo?');
+igual('Minhas aulas: botões com o payload do lembrete', resp.botoes.map((b) => b.id), [payloadDoLembrete('confirmar', 'ag1', 'a-renan'), payloadDoLembrete('remarcar', 'ag1', 'a-renan'), ID_FALAR_COM_RECEPCAO]);
+igual('Minhas aulas: botões cabem no limite da Meta (20 letras)', resp.botoes.every((b) => b.titulo.length <= 20), true);
+igual('Minhas aulas: o botão volta para a agenda', lePayload(resp.botoes[0].id), { acao: 'confirmar', agendamentoId: 'ag1', alunoId: 'a-renan' });
+const jaConfirmada = respostaDasAulas({
+  contato: 'Cláudia', aluno: 'Pedro Bortoli', paraResponsavel: true, alunoId: 'a-pedro',
+  proxima: { id: 'ag2', inicio: iso('2026-11-26T08:30:00-03:00'), status: 'confirmado' },
+});
+igual('responsável, aula já confirmada: sem o botão de confirmar', [jaConfirmada.texto, jaConfirmada.botoes.length],
+  ['Oi, Cláudia! A próxima aula de Pedro é quinta, 26/11, às 8h30.\nA presença já está confirmada 👍', 2]);
+
+const curriculo: AulaDoCurriculo[] = [
+  { id: 'm1-l10', moduloId: 'm1', nome: 'L10', nivel: 'B2', ordem: 10, ativo: true },
+  { id: 'm1-l11', moduloId: 'm1', nome: 'L11', nivel: 'B2', ordem: 11, ativo: false },
+  { id: 'm1-l12', moduloId: 'm1', nome: 'L12', nivel: 'B2', ordem: 12, ativo: true },
+];
+const sug = sugereAula([aulaDe('ultima', '2026-11-19T19:00:00-03:00', 'realizado')], ja, curriculo);
+igual('sugestão: mesma hora uma semana depois, aula seguinte ativa do currículo',
+  [sug.inicio, sug.fim, sug.professorId, sug.aulaId], [iso('2026-11-26T19:00:00-03:00'), iso('2026-11-26T20:00:00-03:00'), 'p1', 'm1-l12']);
+igual('sugestão pula a semana que já tem aula marcada', sugereAula(doAluno, ja, curriculo).inicio, iso('2026-12-15T19:00:00-03:00'));
+igual('sugestão sem aula nenhuma: amanhã às 19h', sugereAula([], ja).inicio, iso('2026-11-25T19:00:00-03:00'));
 
 if (falhas) {
   console.log(`\n${falhas} falha(s).`);
