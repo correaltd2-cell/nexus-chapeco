@@ -78,7 +78,8 @@ export type QuemEncerrou = 'cliente' | 'silencio' | 'atendente';
 /* inicio: conversa recem-criada; menu: esperando o contato escolher o assunto;
    assistente: com o assistente do financeiro; aulas: viu a próxima aula e pode
    confirmar ou remarcar pelos botões; gente: com uma pessoa do time */
-export type EtapaAtendimento = 'inicio' | 'menu' | 'assistente' | 'aulas' | 'gente';
+/* mais: o assunto se resolveu e o contato recebeu "posso te ajudar em mais alguma coisa?" */
+export type EtapaAtendimento = 'inicio' | 'menu' | 'assistente' | 'aulas' | 'gente' | 'mais';
 
 export interface Conversa {
   id: string;
@@ -107,6 +108,8 @@ export interface Conversa {
   followUpEm?: string;         // quando saiu o 1º follow-up deste relogio
   aguardandoSetorDesde?: string; // passou para um setor que ainda nao respondeu
   processandoEm?: string;      // trava do cron, para dois nao mandarem a mesma coisa
+  ultimaDaEquipeEm?: string;   // a última vez que alguém da equipe falou com o contato
+  avisoForaEm?: string;        // o último aviso de fora do horário (um por fechamento)
   encerradaEm?: string;
   encerradaPor?: QuemEncerrou;
   encerradaPorNome?: string;

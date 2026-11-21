@@ -7,7 +7,7 @@
    Prova: node --experimental-strip-types testes/saude.ts */
 import { duracao } from './formato.ts';
 
-export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'midia' | 'agenda' | 'ia' | 'relogio' | 'agendadas' | 'planilha' | 'alunos';
+export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'midia' | 'agenda' | 'ia' | 'relogio' | 'agendadas' | 'planilha' | 'alunos' | 'iaConta';
 export type Batida = 'webhookEm' | 'entradaEm' | 'saidaEm' | 'relogioEm' | 'agendadasEm';
 
 export interface Falha { motivo: string; em: string; vezes: number }
@@ -72,6 +72,11 @@ const SOBRE_FALHA: Record<OndeFalha, { titulo: string; conserto: string; grave: 
     titulo: 'A agenda falhou numa tarefa do servidor',
     conserto: 'Pode ser o lembrete da véspera, a resposta do aluno ao lembrete ou os dados de teste. A agenda segue funcionando na tela. Se repetir, veja os registros da Vercel em /api/cron/lembretes e /api/agenda.',
     grave: false,
+  },
+  iaConta: {
+    titulo: 'A IA parou: a conta está sem saldo ou a chave foi recusada',
+    conserto: 'Enquanto isso o atendimento automático sai só com os textos de reserva, sem ler a conversa. Ponha crédito em console.anthropic.com, em Plans & Billing (ou confira a ANTHROPIC_API_KEY na Vercel). Volta sozinho na próxima mensagem.',
+    grave: true,
   },
   ia: {
     titulo: 'A IA não respondeu',

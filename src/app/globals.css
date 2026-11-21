@@ -1624,3 +1624,10 @@ textarea.alu-g-ed{height:auto;min-height:96px;padding:8px;resize:vertical}
   .rel-kpi,.bl{box-shadow:none;border:1px solid #ddd}
   .rel-lista>li{break-inside:avoid}
 }
+
+/* Configurações, horário de atendimento (21/11/2026): um campo por dia da semana */
+.cfg-dias{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 14px}
+.cfg-dia{display:flex;flex-direction:column;gap:4px;min-width:0}
+.cfg-dia label{font-size:12px;color:var(--muted);text-transform:capitalize}
+.cfg-dia .cx.atr{border-color:var(--alert)}
+
