@@ -84,6 +84,13 @@ diz:
   depois que fechou (quem fica até mais tarde respondendo não leva aviso por cima).
 - **Remarcar** pelo botão da aula, de noite: "a recepção está fora do horário agora e
   amanhã às 8h te chama por aqui".
+- **Sem repetir**: se a saudação já avisou que a equipe está fora, o resto do
+  atendimento não repete o aviso nem o horário; o aviso de fila só confirma ("Combinado,
+  Guilherme! Pode escrever aqui o que tu precisa sobre as aulas.").
+- **Minhas aulas sem aula marcada** (contato que não é aluno, ou aluno sem aula na
+  agenda): "não encontrei aula marcada na agenda para este número. Me conta aqui o que
+  tu precisa sobre as aulas, que a equipe te responde segunda às 8h". Texto fixo, porque é
+  dado do banco.
 - Sem a IA, saem os textos de reserva de fora do horário, com `{volta}` trocado pela
   hora da volta.
 

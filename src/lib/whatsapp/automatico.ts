@@ -23,7 +23,7 @@ import {
   BOTOES_DEPOIS_DA_DUVIDA, BOTOES_MAIS, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, avisaForaDoHorario, comNome,
   depoisDoMenuConfuso, destinoDoAssunto, deveVoltarParaRecepcao, escolhaDoMenu, idDaPergunta, idDoBotao, leAutomatico,
   menorEspera, pareceDespedida, primeiro, promptMensagem, recomecaAtendimento, reservaDo, respostaDoAlgoMais,
-  setorDoPassa, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
+  semAulaMarcada, setorDoPassa, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
   type ConfigAutomatico, type ContextoDaConversa, type Destino, type Linha, type Momento, type SituacaoDoHorario,
 } from '@/lib/dominio/automatico';
 import type { Conversa, Mensagem, Perfil, QuemEncerrou, Setor } from '@/lib/dominio/tipos';
@@ -66,7 +66,11 @@ export const contextoDe = (c: Partial<Conversa>, linhas: Linha[], horario?: Situ
 
 /** O texto de reserva de um momento, com o nome, a hora da volta e o assunto. */
 const reservaDe = (momento: Momento, cfg: ConfigAutomatico, ctx: ContextoDaConversa) =>
-  reservaDo(momento, cfg, ctx.nome, ctx.horario, sobreOQue(ctx.linhas));
+  reservaDo(momento, cfg, ctx.nome, ctx.horario, sobreOQue(ctx.linhas), ctx.jaAvisouFora);
+
+/** Este atendimento já disse que a equipe está fora do horário (na saudação ou num aviso)? */
+const jaAvisouFora = (c: Partial<Conversa>) =>
+  Boolean(c.avisoForaEm && c.atendimentoDesde && c.avisoForaEm >= c.atendimentoDesde);
 
 /** O texto de um momento: a IA escreve; sem ela, o texto de reserva das Configurações. */
 async function textoDo(momento: Momento, cfg: ConfigAutomatico, ctx: ContextoDaConversa) {
@@ -262,6 +266,8 @@ async function mandaMenu(r: Rodada, qual: 'saudacao' | 'denovo' | 'mais') {
     : qual === 'mais'
       ? comNome('Claro, {primeiro_nome}! Sobre o que mais tu quer falar? 👇', r.c.nome || '')
       : r.cfg.menuDeNovo;
+  /* fora do horário a saudação já diz quando a equipe volta: o resto do atendimento não repete */
+  if (qual === 'saudacao' && !r.horario.aberto) await r.ref.update({ avisoForaEm: agoraIso() });
   await fala(r.bd, r.ref, r.c, {
     texto,
     botoes: { titulos: r.cfg.botoes.map((b) => b.texto), ids: r.cfg.botoes.map((_, i) => idDoBotao(i)) },
@@ -289,7 +295,7 @@ async function mostraAulas(r: Rodada) {
   }
   if (!achou) {
     await recado(r.bd, r.ref.id, 'Pediu as aulas pelo botão, mas não achei aula marcada na agenda para este contato.');
-    return paraRecepcao(r);
+    return paraRecepcao(r, semAulaMarcada(r.c.nome || '', r.horario));
   }
   const { texto, botoes } = respostaDasAulas({
     contato: r.c.nome || achou.alunoNome, aluno: achou.alunoNome, paraResponsavel: achou.paraResponsavel,
@@ -343,13 +349,16 @@ export async function depoisDeConfirmar(bd: Firestore, ref: DocumentReference, a
 }
 
 /** Vai para gente na Recepção, com um aviso curto que não espera resposta. */
-async function paraRecepcao(r: Rodada) {
+async function paraRecepcao(r: Rodada, pronto?: string) {
   await r.ref.update({
     setor: 'recepcao', estado: 'aguardando', aguardandoDesde: r.quando, agenteAtivo: false,
     etapa: 'gente', tentativasMenu: APAGA(),
   });
-  const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.c.atendimentoDesde || r.quando);
-  const { texto } = await textoDo('encaminha', r.cfg, contextoDe(r.c, linhas, r.horario));
+  let texto = pronto;
+  if (!texto) {
+    const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.c.atendimentoDesde || r.quando);
+    texto = (await textoDo('encaminha', r.cfg, { ...contextoDe(r.c, linhas, r.horario), jaAvisouFora: jaAvisouFora(r.c) })).texto;
+  }
   const ok = await fala(r.bd, r.ref, r.c, { texto, relogio: 'nao' });
   /* fora do horário este aviso já disse quando a equipe volta: não repete até fechar de novo */
   if (ok && !r.horario.aberto) await r.ref.update({ avisoForaEm: agoraIso() });
@@ -364,7 +373,7 @@ async function passaParaGente(r: Rodada, resumo: string, avisa: boolean) {
     aguardandoSetorDesde: setor === 'recepcao' ? APAGA() : agoraIso(),
   });
   await recado(r.bd, r.ref.id, `O assistente passou a conversa para ${NOME_SETOR[setor]}. Resumo: ${resumo}`);
-  if (avisa) await fala(r.bd, r.ref, r.c, { texto: reservaDo('encaminha', r.cfg, r.c.nome || '', r.horario), relogio: 'nao' });
+  if (avisa) await fala(r.bd, r.ref, r.c, { texto: reservaDo('encaminha', r.cfg, r.c.nome || '', r.horario, '', jaAvisouFora(r.c)), relogio: 'nao' });
   if (!r.horario.aberto) await r.ref.update({ avisoForaEm: agoraIso() });
 }
 
@@ -372,7 +381,7 @@ async function assistente(r: Rodada) {
   const { cfg } = r;
   if (cfg.modo === 'ia' && iaLigada()) {
     const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.c.atendimentoDesde || r.quando);
-    const resposta = await respondeComoAssistente(turnosDoAssistente(cfg, contextoDe(r.c, linhas, r.horario)));
+    const resposta = await respondeComoAssistente(turnosDoAssistente(cfg, { ...contextoDe(r.c, linhas, r.horario), jaAvisouFora: jaAvisouFora(r.c) }));
     if (resposta) {
       const passa = resposta.acao === 'passar';
       await fala(r.bd, r.ref, r.c, { texto: resposta.mensagem, relogio: passa ? 'nao' : 'liga' });

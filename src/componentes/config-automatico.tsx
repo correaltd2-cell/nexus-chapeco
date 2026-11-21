@@ -266,6 +266,7 @@ function Horario({ rasc, muda }: { rasc: ConfigAutomatico; muda: Muda }) {
             <Texto id="au-foras" rotulo="Saudação de reserva fora do horário" valor={rasc.foraSaudReserva} aoMudar={(v) => muda('foraSaudReserva', v)}
                    ajuda="{primeiro_nome} vira o nome do contato e {volta} vira quando a equipe volta (amanhã às 8h, segunda às 8h)." />
             <Texto id="au-forae" rotulo="Aviso de reserva quando a conversa vai para a fila fora do horário" valor={rasc.foraEncaminhaReserva} aoMudar={(v) => muda('foraEncaminhaReserva', v)} />
+            <Texto id="au-forad" rotulo="Aviso de reserva quando a saudação já disse que a equipe está fora (só confirma, sem repetir o horário)" valor={rasc.foraJaAvisadoReserva} aoMudar={(v) => muda('foraJaAvisadoReserva', v)} />
             <Texto id="au-foraa" rotulo="Aviso de reserva para quem escreve fora do horário numa conversa que já está com a equipe (um por noite)" valor={rasc.foraAvisoReserva} aoMudar={(v) => muda('foraAvisoReserva', v)} />
           </>
         )}

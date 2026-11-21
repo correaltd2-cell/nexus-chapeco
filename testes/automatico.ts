@@ -5,7 +5,7 @@
 import {
   AUTOMATICO_PADRAO, acaoDoRelogio, avisaForaDoHorario, comNome, depoisDoMenuConfuso, destinoDoAssunto,
   deveVoltarParaRecepcao, escolhaDoMenu, leAutomatico, pareceDespedida, promptMensagem, recomecaAtendimento,
-  regrasDoAssistente, reservaDo, respostaDoAlgoMais, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
+  regrasDoAssistente, reservaDo, respostaDoAlgoMais, semAulaMarcada, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
   type ConfigAutomatico,
 } from '../src/lib/dominio/automatico.ts';
 import { leAssunto } from '../src/lib/dominio/triagem.ts';
@@ -107,6 +107,16 @@ igual('a IA sabe que está fora e quando volta', promptMensagem(cfg, 'saudacao',
 igual('a IA recebe o pedido de explicar o que precisa', promptMensagem(cfg, 'saudacao', ctxFora).includes('FORA DO HORÁRIO, A MENSAGEM TAMBÉM PRECISA'), true);
 igual('no horário, a saudação não fala de fora', promptMensagem(cfg, 'saudacao', { ...ctxFora, horario: situacaoDoHorario(cfg, AGORA) }).includes('FORA DO HORÁRIO, A MENSAGEM'), false);
 igual('o assistente sabe que a equipe está fora', regrasDoAssistente(cfg, ctxFora).includes('AGORA A EQUIPE ESTÁ FORA DO HORÁRIO e volta amanhã às 8h'), true);
+
+/* a saudação já avisou que está fora: o resto do atendimento não repete */
+igual('indo para a fila depois da saudação de fora: só confirma', reservaDo('encaminha', cfg, 'Guilherme', fora, ' sobre as aulas', true), 'Combinado, Guilherme! Pode escrever aqui o que tu precisa sobre as aulas.');
+igual('indo direto para a fila, sem saudação antes: avisa', reservaDo('encaminha', cfg, 'Guilherme', fora, '', false).includes('amanhã às 8h'), true);
+igual('a IA sabe que não pode repetir', promptMensagem(cfg, 'encaminha', { ...ctxFora, jaAvisouFora: true }).includes('não repita esse aviso'), true);
+igual('o assistente também não repete', regrasDoAssistente(cfg, { ...ctxFora, jaAvisouFora: true }).includes('não repita o horário'), true);
+igual('Minhas aulas sem aula marcada, fora do horário', semAulaMarcada('Guilherme Correa', fora),
+  'Guilherme, não encontrei aula marcada na agenda para este número. Me conta aqui o que tu precisa sobre as aulas, que a equipe te responde amanhã às 8h.');
+igual('Minhas aulas sem aula marcada, no horário', semAulaMarcada('Guilherme', situacaoDoHorario(cfg, AGORA)),
+  'Guilherme, não encontrei aula marcada na agenda para este número. Me conta aqui o que tu precisa sobre as aulas, que a recepção já te responde.');
 
 /* aviso numa conversa que já está com a equipe: um por fechamento */
 igual('no horário não avisa', avisaForaDoHorario({}, cfg, AGORA), false);
