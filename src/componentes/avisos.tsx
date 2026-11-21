@@ -2,7 +2,11 @@
 /* O aviso de mensagem nova neste aparelho.
    - Com o sistema aberto (o computador da recepção): AvisoDeMensagem, montado na casca,
      olha as conversas e, quando o contato escreve, toca um som e mostra a notificação
-     se a aba não estiver na frente.
+     se a aba não estiver na frente. O navegador só deixa tocar som depois de um toque
+     na página: o som é destravado no primeiro toque ou tecla (21/11/2026: antes era
+     criado na hora da mensagem e quase sempre saía mudo).
+   - Com o sistema fechado, quem toca é o celular: a notificação sai pedindo som e
+     vibração, e o som é o de notificação do aparelho.
    - Com o sistema fechado (o celular): push pelo Firebase Cloud Messaging. O aparelho
      liga em Configurações, Avisos de mensagem nova; quem manda é o servidor
      (src/lib/avisos.ts) e quem mostra é public/aviso-sw.js. No iPhone, só com o sistema
@@ -13,7 +17,7 @@ import type { User } from 'firebase/auth';
 import { assina, modoDemo } from '@/lib/dados/fonte';
 import { appFirebase } from '@/lib/firebase/cliente';
 import { useSessao } from '@/componentes/sessao';
-import { useAvisos } from '@/componentes/preferencias';
+import { somLigado, useAvisos, useSomDoAviso } from '@/componentes/preferencias';
 import { avisa } from '@/componentes/aviso';
 import { chegaramAgora, comGente, recebeAviso, textoDoAviso, type Aviso } from '@/lib/dominio/avisos';
 import type { Conversa } from '@/lib/dominio/tipos';
@@ -108,23 +112,47 @@ async function desligaNesteAparelho(usuario: User | null) {
 
 /* ---------------- som e notificação com o sistema aberto ---------------- */
 let somCtx: AudioContext | null = null;
-function plim() {
+function contextoDeSom(): AudioContext | null {
+  if (somCtx) return somCtx;
+  const C = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!C) return null;
+  somCtx = new C();
+  return somCtx;
+}
+
+/** O navegador só toca som depois de um toque na página: no primeiro toque ou tecla, o
+    som é ligado (com um instante de silêncio, que é o que o iPhone pede). */
+function destravaSom() {
   try {
-    const ctx = somCtx || new AudioContext();
-    somCtx = ctx;
-    const t = ctx.currentTime;
-    [880, 1318].forEach((freq, i) => {
+    const ctx = contextoDeSom();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') void ctx.resume();
+    const b = ctx.createBufferSource();
+    b.buffer = ctx.createBuffer(1, 1, 22050);
+    b.connect(ctx.destination);
+    b.start(0);
+  } catch { /* sem som, segue */ }
+}
+
+/** O som do aviso: três notas subindo, curtas e claras, para ouvir com a recepção cheia. */
+export function plim() {
+  try {
+    const ctx = contextoDeSom();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') void ctx.resume();
+    const t = ctx.currentTime + 0.02;
+    [784, 1047, 1319].forEach((freq, i) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
-      const ini = t + i * 0.13;
-      o.type = 'sine';
+      const ini = t + i * 0.12;
+      o.type = 'triangle';
       o.frequency.value = freq;
       g.gain.setValueAtTime(0.0001, ini);
-      g.gain.exponentialRampToValueAtTime(0.16, ini + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ini + 0.26);
+      g.gain.exponentialRampToValueAtTime(0.38, ini + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, ini + (i === 2 ? 0.55 : 0.28));
       o.connect(g).connect(ctx.destination);
       o.start(ini);
-      o.stop(ini + 0.3);
+      o.stop(ini + 0.6);
     });
   } catch { /* sem som, segue */ }
 }
@@ -132,7 +160,11 @@ function plim() {
 async function mostra(a: Aviso) {
   try {
     const registro = await navigator.serviceWorker?.getRegistration(SW);
-    const opcoes = { body: a.corpo, tag: a.tag, icon: '/icones/icone-192.png', data: { link: a.link }, renotify: true };
+    /* som e vibração do aparelho também (silent false), além do plim da página */
+    const opcoes = {
+      body: a.corpo, tag: a.tag, icon: '/icones/icone-192.png', badge: '/icones/icone-192.png', data: { link: a.link },
+      renotify: true, silent: false, vibrate: [200, 100, 200],
+    };
     if (registro) { await registro.showNotification(a.titulo, opcoes as NotificationOptions); return; }
     const n = new Notification(a.titulo, opcoes as NotificationOptions);
     n.onclick = () => { window.focus(); window.location.href = a.link; n.close(); };
@@ -144,6 +176,14 @@ export function AvisoDeMensagem() {
   const { perfil } = useSessao();
   const [preferencia] = useAvisos();
   const antes = useRef<Map<string, number> | null>(null);
+
+  /* destrava o som no primeiro toque ou tecla em qualquer tela */
+  useEffect(() => {
+    if (!perfil || preferencia !== 'ligados') return;
+    const eventos = ['pointerdown', 'keydown', 'touchend'] as const;
+    eventos.forEach((e) => window.addEventListener(e, destravaSom, { passive: true }));
+    return () => eventos.forEach((e) => window.removeEventListener(e, destravaSom));
+  }, [perfil, preferencia]);
 
   useEffect(() => {
     if (!perfil || preferencia !== 'ligados') return;
@@ -157,7 +197,7 @@ export function AvisoDeMensagem() {
         if (!c || !comGente(c) || !recebeAviso(perfil, c.setor)) continue;
         const naFrente = document.visibilityState === 'visible';
         if (naFrente && conversaNaTela === id) continue;      /* já está lendo */
-        plim();
+        if (somLigado()) plim();
         /* aba escondida e sem push aqui: a notificação vem daqui; com push, vem do celular */
         if (!naFrente && !leToken() && lePermissao() === 'granted') void mostra(textoDoAviso(c, c.ultimaPreviaTexto));
       }
@@ -171,6 +211,7 @@ export function AvisoDeMensagem() {
 export function AvisosNoAparelho({ gestao }: { gestao: boolean }) {
   const { usuario, perfil } = useSessao();
   const [preferencia, setPreferencia] = useAvisos();
+  const [som, setSom] = useSomDoAviso();
   const { permissao, temPush, ehIphone, instalado } = useAparelho();
   const [indo, setIndo] = useState(false);
   const [erro, setErro] = useState('');
@@ -251,6 +292,28 @@ export function AvisosNoAparelho({ gestao }: { gestao: boolean }) {
             <button className="btn" disabled={indo} onClick={() => void testa()}>Mandar um aviso de teste</button>
           )}
         </div>
+        {ligado && (
+          <>
+            <label className="lig">
+              <input type="checkbox" checked={som === 'ligado'} onChange={(e) => setSom(e.target.checked ? 'ligado' : 'desligado')} />
+              <span>
+                <b>Tocar som quando chega mensagem</b>
+                Com o sistema aberto, toca um aviso sonoro de três notas, mesmo com a tela em outra
+                aba. Com o sistema fechado, quem toca é o celular, com o som de notificação dele.
+              </span>
+            </label>
+            {som === 'ligado' && (
+              <div className="acoes" style={{ justifyContent: 'flex-start' }}>
+                <button className="btn" onClick={() => { destravaSom(); plim(); }}>Testar som</button>
+              </div>
+            )}
+            <p className="obs">
+              {ehIphone
+                ? 'No iPhone, o som com o sistema fechado se liga em Ajustes, Notificações, Nexus: Sons ligado. Com o modo silencioso, o iPhone só vibra.'
+                : 'No Android, o som com o sistema fechado é o das notificações do Nexus (ou do Chrome): segure a notificação, toque em Configurações e confira o Som.'}
+            </p>
+          </>
+        )}
       </div>
     </section>
   );

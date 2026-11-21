@@ -35,13 +35,19 @@ estiver ativo, o Firebase pode pedir o plano Blaze para criar o bucket.
 Enquanto a saudação ou o assistente do financeiro cuidam da conversa, ninguém é
 chamado: o aviso vem quando a conversa chega para uma pessoa.
 
-**Com o sistema aberto** (o computador da recepção): som de "plim" quando o contato
-escreve, e notificação do sistema quando a aba não estiver na frente. Quem está lendo a
-própria conversa não ouve nada.
+**Com o sistema aberto** (o computador da recepção): aviso sonoro de três notas quando o
+contato escreve, e notificação do sistema quando a aba não estiver na frente. Quem está
+lendo a própria conversa não ouve nada. O navegador só deixa tocar som depois de um
+toque na página, então o som é destravado no primeiro toque ou tecla (até 21/11/2026 ele
+era criado na hora da mensagem e quase sempre saía mudo). Cada aparelho liga e desliga o
+som e tem o botão **Testar som**, em Configurações, Avisos de mensagem nova.
 
 **Com o sistema fechado** (o celular): push pelo Firebase Cloud Messaging. O servidor
 manda quando a mensagem chega (`src/lib/avisos.ts`), e `public/aviso-sw.js` mostra; o
-toque abre a conversa. Cada aparelho liga em Configurações, Avisos de mensagem nova, e
+toque abre a conversa. A notificação sai pedindo som e vibração; o som é o de
+notificação do aparelho, porque página fechada não toca áudio próprio (no iPhone: Ajustes,
+Notificações, Nexus, Sons; no Android: as configurações da notificação do Nexus ou do
+Chrome). Cada aparelho liga em Configurações, Avisos de mensagem nova, e
 fica em `dispositivos` (gravado pelo servidor, em `/api/avisos`). Aparelho que deixa de
 receber sai sozinho. Tem botão de aviso de teste.
 

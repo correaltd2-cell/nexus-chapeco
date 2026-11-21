@@ -12,6 +12,10 @@ self.addEventListener('push', (evento) => {
     body: d.corpo || d.body || 'Mensagem nova',
     tag: d.tag || 'nexus',
     renotify: true,
+    /* com som e vibração do aparelho: o service worker não toca áudio próprio */
+    silent: false,
+    vibrate: [200, 100, 200],
+    timestamp: Date.now(),
     icon: '/icones/icone-192.png',
     badge: '/icones/icone-192.png',
     data: { link: d.link || '/conversas' },
