@@ -97,26 +97,31 @@ export function semente(hoje: Date, o: { prefixo?: string; teste?: boolean; cria
     { id: idPaula, nome: 'Paula Sartori', email: 'paula@nexus.demo', cor: '#A9C6EC' },
   ];
   const agora = hoje.toISOString();
+  let cod = 140;
+  /* os campos que vêm da planilha da escola (aba ATIVOS), para a tela de Alunos ter o que mostrar */
   const aluno = (id: string, nome: string, nivel: string, extra: Partial<Aluno> = {}): Aluno => ({
     id: `${px}${id}`, nome, telefone: '', trilha: nivel.startsWith('Kids') ? 'kids' : 'adultos', nivel, licao: 10,
-    ativo: true, criadoEm: agora, atualizadoEm: agora, ...marca, ...extra,
+    ativo: true, criadoEm: agora, atualizadoEm: agora,
+    codigo: String((cod += 7)), situacao: 'ativo', marcouSemana: true, saude: 'evoluindo', modalidade: 'presencial',
+    menor: nivel.startsWith('Kids'), appAtivo: true, nexiaAtivo: cod % 2 === 0, origem: 'planilha',
+    ...marca, ...extra,
   });
   const alunos: Aluno[] = [
-    aluno('a-giovana', 'Giovana Lazzari', 'A2'),
-    aluno('a-renan', 'Renan Antunes', 'B2'),
+    aluno('a-giovana', 'Giovana Lazzari', 'A2', { horarioFixoTexto: 'terças às 18h', horariosFixos: [{ dia: 2, hora: '18:00' }], temFixo: true }),
+    aluno('a-renan', 'Renan Antunes', 'B2', { horarioFixoTexto: 'terças 18h e quintas 18h', horariosFixos: [{ dia: 2, hora: '18:00' }, { dia: 4, hora: '18:00' }], temFixo: true, contratoFim: '2027-06-30' }),
     aluno('a-pedro', 'Pedro Bortoli', 'Kids 2', { responsavelNome: 'Cláudia Bortoli' }),
-    aluno('a-bianca', 'Bianca Zanella', 'A2'),
+    aluno('a-bianca', 'Bianca Zanella', 'A2', { saude: 'atencao', observacao: 'Parcela de outubro em atraso.', marcouSemana: false }),
     aluno('a-jonas', 'Jonas Pereira', 'B1'),
-    aluno('a-eduardo', 'Eduardo Lunardi', 'B1'),
+    aluno('a-eduardo', 'Eduardo Lunardi', 'B1', { saude: 'critico', observacao: 'Pediu cancelamento: mudou de horário no trabalho.', marcouSemana: false }),
     aluno('a-larissa', 'Larissa Menegat', 'B2'),
     aluno('a-marina', 'Marina Teles', 'B2'),
-    aluno('a-lucas', 'Lucas Fiorentin', 'A2'),
-    aluno('a-camila', 'Camila Rech', 'B1'),
+    aluno('a-lucas', 'Lucas Fiorentin', 'A2', { marcouSemana: false, modalidade: 'online', livroOriginal: 'A2 ON' }),
+    aluno('a-camila', 'Camila Rech', 'B1', { horarioFixoTexto: 'terças às 19h', horariosFixos: [{ dia: 2, hora: '19:00' }], temFixo: true }),
     aluno('a-rodrigo', 'Rodrigo Baldissera', 'B1'),
     aluno('a-alice', 'Alice Dalmolin', 'Kids 2', { responsavelNome: 'Fernanda Dalmolin' }),
     aluno('a-theo', 'Theo Zanatta', 'Kids 2', { responsavelNome: 'Marcos Zanatta' }),
-    aluno('a-rafael', 'Rafael Tonello', 'A1', { ativo: false }),
-    aluno('a-sabrina', 'Sabrina Kunz', 'A1', { ativo: false }),
+    aluno('a-rafael', 'Rafael Tonello', 'A1', { ativo: false, situacao: 'trancado', marcouSemana: null, observacao: 'Trancou por 3 meses, volta em janeiro.' }),
+    aluno('a-sabrina', 'Sabrina Kunz', 'A1', { ativo: false, situacao: 'off', marcouSemana: null, horarioFixoTexto: 'JANEIRO' }),
   ];
   const nomeDe = new Map(alunos.map((a) => [a.id, a.nome]));
   const A = (id: string) => `${px}${id}`;

@@ -1,44 +1,57 @@
 'use client';
 /* Alunos: a lista da escola, puxada da planilha do Google que a escola já mantém.
-   Em cima, a planilha (ligar, conferir antes de importar, atualizar agora); embaixo, os
-   alunos com ativos e inativos, quem já tem conversa ligada e o CSV para o relatório.
+   Em cima, as contas do painel da planilha feitas certo (ativos, quem marcou a semana,
+   quem não marcou, trancados, off, obs); depois a planilha (ligar, conferir antes de
+   importar, atualizar agora); embaixo, os alunos, com o detalhe de cada um, quem já tem
+   conversa ligada e o CSV para o relatório.
    As regras da planilha moram em src/lib/dominio/planilha.ts; quem lê o Google é o
    servidor (/api/alunos/planilha), com a conta de serviço do sistema. */
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { assina, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
-import { CAMPOS, NOME_DO_CAMPO, normal, type Campo, type Mapa } from '@/lib/dominio/planilha';
+import {
+  CAMPOS, NOME_DA_SITUACAO, NOME_DO_CAMPO, contas, horarioEmTexto, normal,
+  type Campo, type Mapa, type SituacaoAluno,
+} from '@/lib/dominio/planilha';
 import { alunosDoContato } from '@/lib/dominio/contato';
 import { csv } from '@/lib/dominio/agenda';
-import { dataHoraBR, telefoneLegivel } from '@/lib/dominio/formato';
+import { dataBR, dataHoraBR, telefoneLegivel } from '@/lib/dominio/formato';
 import type { Aluno, Conversa } from '@/lib/dominio/tipos';
 
-type AlunoComOrigem = Aluno & { origem?: string; teste?: boolean };
-type Situacao = 'ativos' | 'inativos' | 'todos';
+type AlunoComOrigem = Aluno & { teste?: boolean };
+type Filtro = 'ativos' | 'nao_marcaram' | 'trancados' | 'off' | 'obs' | 'inativos' | 'todos';
 
-interface Resumo { quando: string; quem: string; titulo: string; aba: string; lidos: number; ativos: number; novos: number; atualizados: number; iguais: number; foraDaPlanilha: number; vinculadas: number; problemas: number }
+type Contas = ReturnType<typeof contas>;
+interface Resumo { quando: string; quem: string; titulo: string; aba: string; lidos: number; ativos: number; novos: number; atualizados: number; iguais: number; foraDaPlanilha: number; vinculadas: number; problemas: number; contas?: Contas }
 interface ConfigSalva { planilhaId: string; aba: string; titulo?: string; mapa?: Mapa; automatico: boolean; ultima?: Resumo; erro?: { quando: string; motivo: string } | null }
+interface Amostra { linha: number; nome: string; menor: boolean; telefone: string; nivel: string; tipoCurso: string | null; situacao: SituacaoAluno; marcouSemana: boolean | null; horarioFixoTexto: string; horariosFixos: { dia: number; hora: string }[]; trilha: string }
 interface Conferencia {
   titulo: string; abas: string[]; aba: string;
-  leitura: { cabecalho: string[]; linhaCabecalho: number; colunas: Partial<Record<Campo, number>>; problemas: { linha: number; motivo: string }[]; situacoesDesconhecidas: string[]; total: number; ativos: number };
-  amostra: { linha: number; nome: string; telefone: string; responsavelNome: string; nivel: string; licao: number | null; ativo: boolean; trilha: string }[];
+  leitura: { cabecalho: string[]; linhaCabecalho: number; colunas: Partial<Record<Campo, number>>; colunaDeMarcacao: boolean; problemas: { linha: number; motivo: string }[]; situacoesDesconhecidas: string[]; total: number; ativos: number; contas: Contas };
+  amostra: Amostra[];
   plano: { novos: number; atualizados: number; iguais: number; foraDaPlanilha: number; exemplosNovos: string[]; exemplosAtualizados: string[]; exemplosFora: string[] };
   vincular: number;
+  vincularPeloNome: number;
 }
 
 const VE_TODAS = ['admin', 'gestor', 'recepcao'];
+const situacaoDe = (a: Pick<Aluno, 'situacao' | 'ativo'>): SituacaoAluno => a.situacao ?? (a.ativo ? 'ativo' : 'inativo');
+const NOME_DA_SAUDE = { evoluindo: 'Evoluindo', atencao: 'Atenção', critico: 'Crítico' } as const;
+const NOME_DO_TIPO = { turma: 'turma', particular: 'particular', clube: 'clube de conversação' } as const;
+const horarioDe = (a: Pick<Aluno, 'horariosFixos' | 'horarioFixoTexto'>) => (a.horariosFixos?.length ? horarioEmTexto(a.horariosFixos) : a.horarioFixoTexto || '');
 
 export default function Alunos() {
   const { perfil } = useSessao();
   const [alunos, setAlunos] = useState<AlunoComOrigem[]>([]);
   const [conversas, setConversas] = useState<Conversa[]>([]);
-  const [situacao, setSituacao] = useState<Situacao>('ativos');
+  const [filtro, setFiltro] = useState<Filtro>('ativos');
   const [trilha, setTrilha] = useState<'todas' | 'adultos' | 'kids'>('todas');
   const [semConversa, setSemConversa] = useState(false);
   const [busca, setBusca] = useState('');
+  const [aberto, setAberto] = useState<string | null>(null);
   const veConversas = Boolean(perfil && VE_TODAS.includes(perfil.papel));
 
   useEffect(() => assina('alunos', (d) => setAlunos((d as unknown as AlunoComOrigem[]).filter((a) => !a.teste).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')))), []);
@@ -53,43 +66,92 @@ export default function Alunos() {
     return m;
   }, [conversas, alunos]);
 
+  const conta = useMemo(() => contas(alunos.map((a) => ({
+    situacao: situacaoDe(a), marcouSemana: a.marcouSemana ?? null, horariosFixos: a.horariosFixos || [], temFixo: a.temFixo ?? null,
+  }))), [alunos]);
+  const temMarcacao = alunos.some((a) => typeof a.marcouSemana === 'boolean');
+
+  const passa = (a: AlunoComOrigem) => {
+    const s = situacaoDe(a);
+    if (filtro === 'ativos') return s === 'ativo';
+    if (filtro === 'nao_marcaram') return s === 'ativo' && a.marcouSemana === false;
+    if (filtro === 'trancados') return s === 'trancado';
+    if (filtro === 'off') return s === 'off';
+    if (filtro === 'obs') return s === 'obs';
+    if (filtro === 'inativos') return s === 'inativo';
+    return true;
+  };
   const termo = normal(busca);
   const digitos = busca.replace(/\D/g, '');
-  const visiveis = alunos.filter((a) => (situacao === 'todos' || (situacao === 'ativos') === a.ativo)
+  const visiveis = alunos.filter((a) => passa(a)
     && (trilha === 'todas' || a.trilha === trilha)
     && (!semConversa || !conversaDe.has(a.id))
-    && (!termo || normal(`${a.nome} ${a.responsavelNome || ''} ${a.nivel}`).includes(termo)
+    && (!termo || normal(`${a.nome} ${a.codigo || ''} ${a.responsavelNome || ''} ${a.nivel} ${a.livroOriginal || ''} ${horarioDe(a)} ${a.professorDoLivro || ''}`).includes(termo)
       || (digitos.length >= 4 && `${a.telefone} ${a.responsavelTelefone || ''}`.includes(digitos))));
-  const conta = { ativos: alunos.filter((a) => a.ativo).length, inativos: alunos.filter((a) => !a.ativo).length, todos: alunos.length };
+
+  const filtros: { k: Filtro; r: string; n: number }[] = [
+    { k: 'ativos', r: 'Ativos', n: conta.ativos },
+    ...(temMarcacao ? [{ k: 'nao_marcaram' as Filtro, r: 'Não marcaram', n: conta.naoMarcaram }] : []),
+    { k: 'trancados', r: 'Trancados', n: conta.trancados },
+    { k: 'off', r: 'Off', n: conta.off },
+    { k: 'obs', r: 'Obs', n: conta.obs },
+    ...(conta.inativos ? [{ k: 'inativos' as Filtro, r: 'Inativos', n: conta.inativos }] : []),
+    { k: 'todos', r: 'Todos', n: conta.total },
+  ];
 
   function baixa() {
-    const texto = csv(['Aluno', 'Situação', 'Curso', 'Nível', 'Lição', 'Telefone', 'Responsável', 'Telefone do responsável', 'E-mail', 'Conversa no sistema', 'Origem'],
-      visiveis.map((a) => [a.nome, a.ativo ? 'Ativo' : 'Inativo', a.trilha === 'kids' ? 'Kids' : 'Adultos', a.nivel, a.licao, a.telefone ? telefoneLegivel(a.telefone) : '',
-        a.responsavelNome || '', a.responsavelTelefone ? telefoneLegivel(a.responsavelTelefone) : '', a.email || '',
-        conversaDe.has(a.id) ? 'sim' : 'não', a.origem === 'planilha' ? `planilha, linha ${a.linhaPlanilha ?? ''}` : 'sistema']));
+    const sim = (v?: boolean | null) => (v === true ? 'sim' : v === false ? 'não' : '');
+    const texto = csv(['Código', 'Aluno', 'Menor', 'Situação', 'Marcou a próxima semana', 'Horário fixo', 'Livro', 'Tipo', 'Modalidade', 'Curso',
+      'Classificação', 'App', 'Nex-IA', 'Falta por livro', 'Fim do contrato', 'Telefone', 'Responsável', 'Telefone do responsável', 'Observação', 'Conversa no sistema'],
+    visiveis.map((a) => [a.codigo || '', a.nome, sim(a.menor), NOME_DA_SITUACAO[situacaoDe(a)], situacaoDe(a) === 'ativo' ? sim(a.marcouSemana) : '',
+      horarioDe(a), a.livroOriginal || a.nivel, a.tipoCurso ? NOME_DO_TIPO[a.tipoCurso] : '', a.modalidade || '', a.trilha === 'kids' ? 'Kids' : 'Adultos',
+      a.saude ? NOME_DA_SAUDE[a.saude] : '', sim(a.appAtivo), sim(a.nexiaAtivo), sim(a.pendenciaLivro), a.contratoFim ? dataBR(a.contratoFim) : '',
+      a.telefone ? telefoneLegivel(a.telefone) : '', a.responsavelNome || '', a.responsavelTelefone ? telefoneLegivel(a.responsavelTelefone) : '',
+      a.observacao || '', conversaDe.has(a.id) ? 'sim' : 'não']));
     const url = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `alunos-${situacao}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `alunos-${filtro}-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const colunas = veConversas ? 6 : 5;
 
   return (
     <div className="alu">
       <header className="vh alu-h">
         <h1>Alunos</h1>
-        <span className="alu-conta num">{conta.ativos} ativos · {conta.inativos} inativos</span>
       </header>
       <div className="alu-corpo">
+        {alunos.length > 0 && (
+          <section className="rel-kpis alu-kpis" aria-label="Contas dos alunos">
+            {([
+              ['Ativos', conta.ativos, `de ${conta.total} alunos`, 'ativos'],
+              ...(temMarcacao ? [
+                ['Marcaram a próxima semana', conta.marcaram, `${conta.ativos ? Math.round((conta.marcaram / conta.ativos) * 100) : 0}% dos ativos`, 'ativos'],
+                ['Não marcaram', conta.naoMarcaram, 'ativos sem aula marcada', 'nao_marcaram'],
+              ] : []),
+              ['Trancados', conta.trancados, 'matrícula suspensa', 'trancados'],
+              ['Off e obs', conta.off + conta.obs, `${conta.off} off, ${conta.obs} obs`, 'off'],
+              ['Com horário fixo', conta.comFixo, 'entre os ativos', 'ativos'],
+            ] as [string, number, string, Filtro][]).map(([rotulo, n, sub, f]) => (
+              <button key={rotulo} type="button" className={`rel-kpi alu-kpi${rotulo === 'Não marcaram' && n ? ' alerta' : ''}`} onClick={() => setFiltro(f)}>
+                <span>{rotulo}</span><b className="num">{n}</b><small>{sub}</small>
+              </button>
+            ))}
+          </section>
+        )}
+
         <PlanilhaDoGoogle />
 
         <section className="bl alu-lista">
           <div className="alu-filtros">
             <div className="chips" role="group" aria-label="Situação">
-              {(['ativos', 'inativos', 'todos'] as Situacao[]).map((s) => (
-                <button key={s} type="button" className="chip" aria-pressed={situacao === s} onClick={() => setSituacao(s)}>
-                  {s === 'ativos' ? 'Ativos' : s === 'inativos' ? 'Inativos' : 'Todos'}<span className="num">{conta[s]}</span>
+              {filtros.map((f) => (
+                <button key={f.k} type="button" className="chip" aria-pressed={filtro === f.k} onClick={() => setFiltro(f.k)}>
+                  {f.r}<span className="num">{f.n}</span>
                 </button>
               ))}
             </div>
@@ -105,7 +167,7 @@ export default function Alunos() {
             </div>
             <label className="alu-busca">
               <Ic n="busca" />
-              <input value={busca} placeholder="Procurar por nome, responsável, nível ou telefone" aria-label="Procurar aluno"
+              <input value={busca} placeholder="Procurar por nome, código, livro, horário ou telefone" aria-label="Procurar aluno"
                      onChange={(e) => setBusca(e.target.value)} />
             </label>
             <span className="ag-conta num">{visiveis.length} {visiveis.length === 1 ? 'aluno' : 'alunos'}</span>
@@ -113,35 +175,73 @@ export default function Alunos() {
           </div>
 
           {!alunos.length ? (
-            <p className="vz">Nenhum aluno no sistema ainda. Ligue a planilha do Google aqui em cima e importe: a lista aparece aqui e as conversas se ligam aos alunos pelo telefone.</p>
+            <p className="vz">Nenhum aluno no sistema ainda. Ligue a planilha do Google aqui em cima e importe: a lista aparece aqui e as conversas se ligam aos alunos.</p>
           ) : !visiveis.length ? (
             <p className="vz">Nenhum aluno com esse filtro.</p>
           ) : (
             <div className="alu-tab-caixa">
               <table className="rel-tab alu-tab">
                 <thead>
-                  <tr><th>Aluno</th><th>Nível</th><th>Telefone</th><th>Situação</th>{veConversas && <th>Conversa</th>}<th>Origem</th></tr>
+                  <tr><th>Aluno</th><th>Livro</th><th>Horário fixo</th><th>Situação</th><th>Classificação</th>{veConversas && <th>Conversa</th>}</tr>
                 </thead>
                 <tbody>
-                  {visiveis.map((a) => (
-                    <tr key={a.id}>
-                      <td className="alu-c-nome"><b>{a.nome}</b>{a.responsavelNome && <small>resp. {a.responsavelNome}</small>}</td>
-                      <td className="alu-c-nivel">{[a.nivel, a.licao ? `lição ${a.licao}` : ''].filter(Boolean).join(' · ') || '—'}{a.trilha === 'kids' && <small>Kids</small>}</td>
-                      <td className="num alu-c-tel">
-                        {a.telefone ? telefoneLegivel(a.telefone) : <span className="alu-falta">sem telefone</span>}
-                        {a.responsavelTelefone && <small>resp. {telefoneLegivel(a.responsavelTelefone)}</small>}
-                      </td>
-                      <td className="alu-c-sit"><span className={a.ativo ? 'alu-sit ativo' : 'alu-sit'}>{a.ativo ? 'Ativo' : 'Inativo'}</span></td>
-                      {veConversas && (
-                        <td className="alu-c-conv">
-                          {conversaDe.has(a.id)
-                            ? <Link href={`/conversas?conversa=${conversaDe.get(a.id)}`} className="alu-conversa"><Ic n="chat" />Abrir</Link>
-                            : <span className="alu-falta">ainda não escreveu</span>}
-                        </td>
-                      )}
-                      <td className="alu-c-orig">{a.origem === 'planilha' ? <small className="alu-origem">planilha{a.linhaPlanilha ? `, linha ${a.linhaPlanilha}` : ''}</small> : <small className="alu-origem">sistema</small>}</td>
-                    </tr>
-                  ))}
+                  {visiveis.map((a) => {
+                    const s = situacaoDe(a);
+                    const aberta = aberto === a.id;
+                    const vencido = a.contratoFim && a.contratoFim < hoje;
+                    return (
+                      <Fragment key={a.id}>
+                        <tr className={aberta ? 'alu-aberta' : undefined}>
+                          <td className="alu-c-nome">
+                            <button type="button" className="alu-nome" aria-expanded={aberta} onClick={() => setAberto(aberta ? null : a.id)}>
+                              <b>{a.nome}</b>
+                            </button>
+                            <small>{[a.codigo ? `cód. ${a.codigo}` : '', a.menor ? 'menor de idade' : '', a.responsavelNome ? `resp. ${a.responsavelNome}` : ''].filter(Boolean).join(' · ')}</small>
+                          </td>
+                          <td className="alu-c-nivel">
+                            {[a.nivel, a.licao ? `lição ${a.licao}` : ''].filter(Boolean).join(' · ') || '—'}
+                            <small>{[a.tipoCurso && a.tipoCurso !== 'turma' ? NOME_DO_TIPO[a.tipoCurso] : '', a.modalidade && a.modalidade !== 'presencial' ? a.modalidade : '', a.professorDoLivro ? `com ${a.professorDoLivro}` : '', a.trilha === 'kids' ? 'Kids' : ''].filter(Boolean).join(' · ')}</small>
+                          </td>
+                          <td className="alu-c-tel">{horarioDe(a) || <span className="alu-falta">sem horário fixo</span>}</td>
+                          <td className="alu-c-sit">
+                            <span className={`alu-sit ${s}`}>{NOME_DA_SITUACAO[s]}</span>
+                            {s === 'ativo' && typeof a.marcouSemana === 'boolean' && (
+                              <small className={a.marcouSemana ? 'alu-marcou' : 'alu-naomarcou'}>{a.marcouSemana ? 'marcou a semana' : 'não marcou'}</small>
+                            )}
+                          </td>
+                          <td className="alu-c-orig">{a.saude ? <span className={`alu-saude ${a.saude}`}>{NOME_DA_SAUDE[a.saude]}</span> : <span className="alu-falta">—</span>}</td>
+                          {veConversas && (
+                            <td className="alu-c-conv">
+                              {conversaDe.has(a.id)
+                                ? <Link href={`/conversas?conversa=${conversaDe.get(a.id)}`} className="alu-conversa"><Ic n="chat" />Abrir</Link>
+                                : <span className="alu-falta">sem conversa</span>}
+                            </td>
+                          )}
+                        </tr>
+                        {aberta && (
+                          <tr className="alu-detalhe">
+                            <td colSpan={colunas}>
+                              <dl>
+                                {a.observacao && <><dt>Observação</dt><dd>{a.observacao}</dd></>}
+                                {a.horarioFixoTexto && <><dt>Horário na planilha</dt><dd>{a.horarioFixoTexto}</dd></>}
+                                {a.livroOriginal && <><dt>BOOK na planilha</dt><dd>{a.livroOriginal}</dd></>}
+                                <dt>Modalidade</dt><dd>{a.modalidade || '—'}</dd>
+                                <dt>App e Nex-IA</dt><dd>App {a.appAtivo ? 'sim' : a.appAtivo === false ? 'não' : '—'} · Nex-IA {a.nexiaAtivo ? 'sim' : a.nexiaAtivo === false ? 'não' : '—'}</dd>
+                                {a.pendenciaLivro && <><dt>Livro</dt><dd className="alu-alerta">falta o livro</dd></>}
+                                <dt>Contrato</dt>
+                                <dd className={vencido ? 'alu-alerta' : undefined}>
+                                  {a.contratoFim ? `${vencido ? 'venceu' : 'vence'} em ${dataBR(a.contratoFim)}` : 'sem data de fim na planilha'}{a.contratoAssinado ? ' · assinado' : ''}
+                                </dd>
+                                <dt>Telefone</dt>
+                                <dd>{a.telefone ? telefoneLegivel(a.telefone) : 'ainda sem'}{a.responsavelTelefone ? ` · responsável ${telefoneLegivel(a.responsavelTelefone)}` : ''}</dd>
+                                {a.linhaPlanilha && <><dt>Na planilha</dt><dd>linha {a.linhaPlanilha}</dd></>}
+                              </dl>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -237,7 +337,7 @@ function PlanilhaDoGoogle() {
 
   async function mudaAutomatico(v: boolean) {
     const r = await chama('POST', { acao: 'automatico', automatico: v });
-    if (!r.ok) setErro(String(r.erro)); else { avisa(v ? 'Atualiza sozinho de hora em hora' : 'Atualização automática desligada'); await recarrega(); }
+    if (!r.ok) setErro(String(r.erro)); else { avisa(v ? 'Atualiza sozinha de hora em hora' : 'Atualização automática desligada'); await recarrega(); }
   }
 
   function copia(t: string) {
@@ -249,8 +349,8 @@ function PlanilhaDoGoogle() {
       <section className="bl alu-pl">
         <p className="bt">Planilha do Google</p>
         <p className="vz">
-          Na demonstração não há servidor para ler a planilha. No sistema publicado, a gestão cola aqui o link da planilha de alunos,
-          confere o que vai entrar e importa; depois ela se atualiza sozinha de hora em hora, e as conversas se ligam aos alunos pelo telefone.
+          Na demonstração não há servidor para ler a planilha. No sistema publicado, a gestão cola aqui o link da planilha de marcação
+          (aba ATIVOS), confere o que vai entrar e importa; depois ela se atualiza sozinha de hora em hora, e as conversas se ligam aos alunos.
         </p>
       </section>
     );
@@ -259,6 +359,7 @@ function PlanilhaDoGoogle() {
 
   const ligada = Boolean(config?.planilhaId);
   const erroSalvo = config?.erro && (!config.ultima || config.erro.quando > config.ultima.quando) ? config.erro : null;
+  const c = conf?.leitura.contas;
 
   return (
     <section className="bl alu-pl">
@@ -273,9 +374,10 @@ function PlanilhaDoGoogle() {
           </p>
           {config?.ultima && (
             <p className="obs">
-              Última atualização em {dataHoraBR(config.ultima.quando)}, por {config.ultima.quem}: {config.ultima.lidos} alunos na planilha
-              ({config.ultima.ativos} ativos), {config.ultima.novos} novos, {config.ultima.atualizados} atualizados,
-              {' '}{config.ultima.vinculadas} conversas ligadas{config.ultima.foraDaPlanilha ? `, ${config.ultima.foraDaPlanilha} alunos do sistema que não estão mais na planilha` : ''}.
+              Última leitura em {dataHoraBR(config.ultima.quando)}, por {config.ultima.quem}: {config.ultima.lidos} alunos na planilha,
+              {' '}{config.ultima.novos} novos, {config.ultima.atualizados} atualizados, {config.ultima.vinculadas} conversas ligadas
+              {config.ultima.foraDaPlanilha ? `, ${config.ultima.foraDaPlanilha} alunos do sistema que não estão mais na planilha` : ''}.
+              {' '}A marcação da semana mostrada aqui é a dessa leitura.
             </p>
           )}
           {erroSalvo && <p className="erro">A última leitura falhou em {dataHoraBR(erroSalvo.quando)}: {erroSalvo.motivo}</p>}
@@ -306,7 +408,7 @@ function PlanilhaDoGoogle() {
                 <a href={`https://console.cloud.google.com/apis/library/sheets.googleapis.com?project=${estado.projeto}`} target="_blank" rel="noopener noreferrer">Abrir no Google Cloud</a> e tocar em Ativar.
               </li>
               <li>
-                <b>Cole o link da planilha</b> (o endereço que aparece no navegador quando ela está aberta).
+                <b>Cole o link da planilha</b> (o endereço que aparece no navegador quando ela está aberta). Na planilha de marcação, a aba é a ATIVOS.
                 <div className="ln">
                   <input className="cx" value={link} placeholder="https://docs.google.com/spreadsheets/d/..." aria-label="Link da planilha"
                          onChange={(e) => setLink(e.target.value)} />
@@ -351,13 +453,26 @@ function PlanilhaDoGoogle() {
           </div>
           <div className="ln"><button className="btn" disabled={Boolean(indo)} onClick={() => void conferir({ mapa })}>Conferir de novo com estas colunas</button></div>
 
-          <p className="alu-sub">O que vai acontecer</p>
+          <p className="alu-sub">O que a planilha diz</p>
+          {c && (
+            <ul className="alu-res">
+              <li><b className="num">{c.total}</b> alunos, <b className="num">{c.ativos}</b> ativos.</li>
+              {conf.leitura.colunaDeMarcacao && <li><b className="num">{c.marcaram}</b> marcaram a próxima semana e <b className="num">{c.naoMarcaram}</b> ainda não.</li>}
+              <li><b className="num">{c.trancados}</b> trancados, <b className="num">{c.off}</b> off (inclusive quem volta num mês), <b className="num">{c.obs}</b> obs{c.inativos ? `, ${c.inativos} inativos` : ''}.</li>
+              <li><b className="num">{c.comFixo}</b> ativos com horário fixo.</li>
+            </ul>
+          )}
+
+          <p className="alu-sub">O que vai acontecer no sistema</p>
           <ul className="alu-res">
-            <li><b className="num">{conf.leitura.total}</b> alunos na planilha, <b className="num">{conf.leitura.ativos}</b> ativos.</li>
-            <li><b className="num">{conf.plano.novos}</b> entram no sistema{conf.plano.exemplosNovos.length ? `: ${conf.plano.exemplosNovos.join(', ')}${conf.plano.novos > 5 ? '...' : ''}` : '.'}</li>
+            <li><b className="num">{conf.plano.novos}</b> entram{conf.plano.exemplosNovos.length ? `: ${conf.plano.exemplosNovos.join(', ')}${conf.plano.novos > 5 ? '...' : ''}` : '.'}</li>
             <li><b className="num">{conf.plano.atualizados}</b> já existem e mudam{conf.plano.exemplosAtualizados.length ? `: ${conf.plano.exemplosAtualizados.join('; ')}${conf.plano.atualizados > 5 ? '...' : ''}` : '.'}</li>
             {conf.plano.iguais > 0 && <li><b className="num">{conf.plano.iguais}</b> já estão iguais.</li>}
-            <li><b className="num">{conf.vincular}</b> conversas sem aluno vão ficar ligadas pelo telefone.</li>
+            <li>
+              <b className="num">{conf.vincular}</b> conversas sem aluno vão ficar ligadas
+              {conf.vincularPeloNome ? ` (${conf.vincularPeloNome} pelo nome do contato no WhatsApp, quando só um aluno bate)` : ''}.
+              {!conf.leitura.colunas.telefone && ' A planilha não tem telefone: as outras conversas se ligam no painel do contato, com um toque, e o número fica guardado no aluno.'}
+            </li>
             {conf.plano.foraDaPlanilha > 0 && <li><b className="num">{conf.plano.foraDaPlanilha}</b> alunos do sistema não estão nesta planilha ({conf.plano.exemplosFora.join(', ')}). Ninguém é apagado nem desativado por isso.</li>}
           </ul>
           {conf.leitura.situacoesDesconhecidas.length > 0 && (
@@ -373,15 +488,18 @@ function PlanilhaDoGoogle() {
           <p className="alu-sub">As primeiras linhas, como vão entrar</p>
           <div className="alu-tab-caixa">
             <table className="rel-tab">
-              <thead><tr><th>Linha</th><th>Aluno</th><th>Telefone</th><th>Nível</th><th>Situação</th></tr></thead>
+              <thead><tr><th>Linha</th><th>Aluno</th><th>Livro</th><th>Horário fixo</th><th>Situação</th></tr></thead>
               <tbody>
                 {conf.amostra.map((a) => (
                   <tr key={a.linha}>
                     <td className="num">{a.linha}</td>
-                    <td>{a.nome}{a.responsavelNome && <small>resp. {a.responsavelNome}</small>}</td>
-                    <td className="num">{a.telefone ? telefoneLegivel(a.telefone) : <span className="alu-falta">sem telefone</span>}</td>
-                    <td>{[a.nivel, a.licao ? `lição ${a.licao}` : ''].filter(Boolean).join(' · ') || '—'}{a.trilha === 'kids' && <small>Kids</small>}</td>
-                    <td><span className={a.ativo ? 'alu-sit ativo' : 'alu-sit'}>{a.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                    <td>{a.nome}{a.menor && <small>menor de idade</small>}</td>
+                    <td>{a.nivel || '—'}{(a.tipoCurso && a.tipoCurso !== 'turma') || a.trilha === 'kids' ? <small>{[a.tipoCurso && a.tipoCurso !== 'turma' ? a.tipoCurso : '', a.trilha === 'kids' ? 'Kids' : ''].filter(Boolean).join(' · ')}</small> : null}</td>
+                    <td>{a.horariosFixos.length ? horarioEmTexto(a.horariosFixos) : a.horarioFixoTexto || '—'}</td>
+                    <td>
+                      <span className={`alu-sit ${a.situacao}`}>{NOME_DA_SITUACAO[a.situacao]}</span>
+                      {a.situacao === 'ativo' && typeof a.marcouSemana === 'boolean' && <small>{a.marcouSemana ? 'marcou a semana' : 'não marcou'}</small>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

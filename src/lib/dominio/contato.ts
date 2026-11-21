@@ -33,8 +33,10 @@ export function alunosDoContato<A extends { id: string; telefone?: string; respo
   alunos: A[], c: { alunoId?: string | null; waId: string },
 ): A[] {
   const ligado = c.alunoId ? alunos.find((a) => a.id === c.alunoId) : undefined;
-  const pelofone = alunos.filter((a) => a.id !== ligado?.id && a.ativo
-    && (mesmoTelefone(a.telefone, c.waId) || mesmoTelefone(a.responsavelTelefone, c.waId)));
+  /* trancado e off continuam sendo o aluno: entram, depois dos ativos */
+  const pelofone = alunos.filter((a) => a.id !== ligado?.id
+    && (mesmoTelefone(a.telefone, c.waId) || mesmoTelefone(a.responsavelTelefone, c.waId)))
+    .sort((a, b) => Number(b.ativo) - Number(a.ativo));
   return ligado ? [ligado, ...pelofone] : pelofone;
 }
 

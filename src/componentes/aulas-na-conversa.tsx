@@ -22,6 +22,7 @@ import {
   ultimasAulas, type Agendamento, type AvisoDeAula,
 } from '@/lib/dominio/agenda';
 import { alunosDoContato, falaComoResponsavel } from '@/lib/dominio/contato';
+import { horarioEmTexto, NOME_DA_SITUACAO, sugereAlunos, telefoneParaGuardar } from '@/lib/dominio/planilha';
 import type { Aluno, Conversa } from '@/lib/dominio/tipos';
 
 const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -84,14 +85,19 @@ export default function AulasNaConversa({ conversa, cad, modo, janela, aoEscreve
     }
   }
 
+  /* ligar à mão também guarda o número no aluno (a planilha da escola não tem telefone):
+     a próxima conversa desse número já chega ligada */
   async function liga(id: string) {
     const a = cad.alunos.find((x) => x.id === id);
     if (!a) return;
     await atualiza('conversas', conversa.id, { alunoId: a.id });
-    await recado(`${quem.nome} ligou esta conversa ao aluno ${a.nome}.`);
+    const guardar = telefoneParaGuardar(a, conversa.waId);
+    if (guardar) await atualiza('alunos', a.id, { [guardar.campo]: guardar.valor }).catch(() => undefined);
+    await recado(`${quem.nome} ligou esta conversa ao aluno ${a.nome}${guardar ? `, e o número ficou no cadastro${guardar.campo === 'responsavelTelefone' ? ' como do responsável' : ''}` : ''}.`);
     setEscolhidoId(a.id);
     setTrocando(false);
   }
+  const sugestoes = useMemo(() => (aluno && !trocando ? [] : sugereAlunos(conversa.nome, cad.alunos)), [aluno, trocando, conversa.nome, cad.alunos]);
 
   async function confirma(a: Agendamento) {
     if (!aluno) return;
@@ -123,8 +129,9 @@ export default function AulasNaConversa({ conversa, cad, modo, janela, aoEscreve
   const opAlunos: Opcao[] = cad.alunos
     .slice().sort((a, b) => Number(b.ativo) - Number(a.ativo))
     .map((a) => ({
-      id: a.id, nome: a.nome,
-      detalhe: [a.nivel, a.responsavelNome ? `resp. ${a.responsavelNome}` : '', a.ativo ? '' : 'inativo'].filter(Boolean).join(' · '),
+      /* o código no nome: a procura acha pelo COD da planilha também */
+      id: a.id, nome: a.codigo ? `${a.nome} (${a.codigo})` : a.nome,
+      detalhe: [a.nivel, a.responsavelNome ? `resp. ${a.responsavelNome}` : '', a.ativo ? '' : NOME_DA_SITUACAO[a.situacao || 'inativo'].toLowerCase()].filter(Boolean).join(' · '),
     }));
   const linkDaAgenda = aluno
     ? `/aulas?aluno=${aluno.id}${proximas[0] ? `&data=${diaLocal(proximas[0].inicio)}&hora=${horaLocal(proximas[0].inicio)}` : ''}`
@@ -139,7 +146,17 @@ export default function AulasNaConversa({ conversa, cad, modo, janela, aoEscreve
               ? 'Escolha o aluno certo para esta conversa.'
               : 'Esta conversa ainda não está ligada a um aluno. Ligue para ver as aulas e agendar daqui.'}
           </p>
-          <Busca opcoes={opAlunos} valor="" aoEscolher={(id) => void liga(id)} placeholder="Procurar aluno pelo nome"
+          {sugestoes.length > 0 && (
+            <div className="aul-sug" role="group" aria-label="Parece ser">
+              <span>Parece ser:</span>
+              {sugestoes.map((s) => (
+                <button key={s.id} type="button" className="chip" onClick={() => void liga(s.id)}>
+                  {s.nome}{s.nivel ? <small> · {s.nivel}</small> : null}{!s.ativo ? <small> · {NOME_DA_SITUACAO[s.situacao || 'inativo']}</small> : null}
+                </button>
+              ))}
+            </div>
+          )}
+          <Busca opcoes={opAlunos} valor="" aoEscolher={(id) => void liga(id)} placeholder="Procurar aluno pelo nome ou código"
                  rotulo="Ligar a um aluno" limpaDepois />
           {aluno && <button type="button" className="tx-btn" onClick={() => setTrocando(false)}>Cancelar</button>}
         </div>
@@ -161,8 +178,15 @@ export default function AulasNaConversa({ conversa, cad, modo, janela, aoEscreve
               <span className="co">
                 <b>{aluno.nome}</b>
                 <small>
-                  {[aluno.nivel, `lição ${aluno.licao}`, paraResponsavel && aluno.responsavelNome ? `resp. ${aluno.responsavelNome}` : '']
+                  {[aluno.nivel, aluno.licao ? `lição ${aluno.licao}` : '', aluno.codigo ? `cód. ${aluno.codigo}` : '', paraResponsavel && aluno.responsavelNome ? `resp. ${aluno.responsavelNome}` : '']
                     .filter(Boolean).join(' · ')}
+                </small>
+                <small className="aul-sit">
+                  {[
+                    aluno.situacao && aluno.situacao !== 'ativo' ? NOME_DA_SITUACAO[aluno.situacao] : '',
+                    aluno.situacao !== 'trancado' && typeof aluno.marcouSemana === 'boolean' ? (aluno.marcouSemana ? 'marcou a próxima semana' : 'não marcou a próxima semana') : '',
+                    aluno.horariosFixos?.length ? `fixo ${horarioEmTexto(aluno.horariosFixos)}` : aluno.horarioFixoTexto ? `fixo: ${aluno.horarioFixoTexto}` : '',
+                  ].filter(Boolean).join(' · ')}
                 </small>
               </span>
               {!aluno.ativo && <span className="aul-inativo">inativo</span>}
@@ -266,7 +290,7 @@ export default function AulasNaConversa({ conversa, cad, modo, janela, aoEscreve
         <div className="mdl-h">
           <span className="mdl-t">
             <b>{aluno ? `Aulas de ${aluno.nome.split(' ')[0]}` : 'Aulas do aluno'}</b>
-            <small>{aluno ? [aluno.nivel, `lição ${aluno.licao}`, paraResponsavel ? `falando com ${conversa.nome.split(' ')[0]}` : ''].filter(Boolean).join(' · ') : 'ligue a conversa a um aluno'}</small>
+            <small>{aluno ? [aluno.nivel, aluno.licao ? `lição ${aluno.licao}` : '', paraResponsavel ? `falando com ${conversa.nome.split(' ')[0]}` : ''].filter(Boolean).join(' · ') : 'ligue a conversa a um aluno'}</small>
           </span>
           <button type="button" className="ib" title="Fechar" aria-label="Fechar" onClick={aoFechar}><Ic n="x" /></button>
         </div>

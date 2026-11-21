@@ -49,6 +49,41 @@ Nenhuma chave nova: a leitura usa a conta de serviço que já está na Vercel
   nome com o fim do telefone. Aluno que já existia no sistema é achado pelo telefone com
   o mesmo primeiro nome, ou pelo nome inteiro.
 
+## A planilha de marcação da escola (aba ATIVOS)
+
+Feito em cima de "01 - MARCAÇÃO DE AULA - CHAPECO", aba ATIVOS, conferido com o arquivo
+de 21/11/2026 (266 alunos únicos, 228 ativos, 203 marcaram a semana seguinte, 25 não
+marcaram, 22 trancados, 13 off, 3 obs). O painel de números em cima da planilha erra
+(conta só até a linha 144 e desconta duas vezes); a tela Alunos refaz as contas certas.
+
+| Coluna | Vira no sistema |
+|---|---|
+| COD | `codigo`, a chave do aluno (580 e 844 aparecem duas vezes: fica a primeira linha e a conferência avisa) |
+| NOME | `nome`, sem o " - menor" e o " - ON" do fim; `menor` quando tem " - menor" |
+| yes | duas coisas: `situacao` (trancado; off, inclusive o mês de volta, "JANEIRO"; obs, inclusive "ñ chamar"; o resto ativo) e `marcouSemana` (yes = marcou a semana seguinte, vazio = ativo que não marcou) |
+| ei | `horarioFixoTexto` como está, e `horariosFixos` em dia e hora quando dá para ler ("quartas às 13h30", "seg 13h30 e sex 18h") |
+| BOOK | `nivel` (Starter, A1 a B2, Junior 1 a 3, Clube, Particular), `tipoCurso` (turma, particular, clube), `professorDoLivro` ("PRIVATE NATHAN") e `livroOriginal`; Junior vai para a trilha Kids |
+| MODALIDADE | `modalidade` (presencial, online, híbrido) |
+| FIXED | `temFixo` |
+| CLASSIFICAÇÃO | `saude` (evoluindo, atenção, crítico) |
+| APP, NEX-IA | `appAtivo`, `nexiaAtivo` |
+| FALTA POR LIVRO | `pendenciaLivro` |
+| FIM DE CONTRATO, ASSINATURA DO CONTRATO | `contratoFim`, `contratoAssinado` |
+| OBSERVAÇÕES | `observacao` |
+
+**A aba ATIVOS não tem telefone.** Por isso a conversa se liga ao aluno de três jeitos:
+pelo telefone quando o cadastro tem; pelo nome do contato no WhatsApp quando todas as
+palavras dele estão no nome de um aluno só ("Cintia Pinheiro" e "CINTIA LUIZA PINHEIRO");
+e à mão, no painel do contato, onde o sistema sugere quem parece ser. Ligar à mão guarda
+o número no aluno (no menor de idade e no Kids, como telefone do responsável), e a
+próxima conversa desse número já chega ligada. A planilha sem telefone nunca apaga esse
+número.
+
+**Ainda não entra** (estão no levantamento da planilha, para depois): AULAS PARTICULARES
+(saldo de pacotes, renovações nos comentários), B2 CONTROLE e B2 FINALIZADOS (as 40 aulas
+do B2 por aluno), o histórico semanal de "não marcaram" de 2026, a aba JUNIOR (sem código,
+casada por nome) e erechim (são contatos, não alunos).
+
 ## O que a importação nunca faz
 
 - Célula vazia não apaga o que o sistema já tem.

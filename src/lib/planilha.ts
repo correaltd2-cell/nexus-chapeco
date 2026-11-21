@@ -7,7 +7,7 @@ import 'server-only';
 import { JWT } from 'google-auth-library';
 import type { Firestore, WriteBatch } from 'firebase-admin/firestore';
 import {
-  lePlanilha, planeja, vinculaConversas, type AlunoDoSistema, type Leitura, type Mapa, type Plano,
+  contas, lePlanilha, planeja, vinculaConversas, type AlunoDoSistema, type Leitura, type Mapa, type Plano,
 } from '@/lib/dominio/planilha';
 import { falhou, descreveErro } from '@/lib/saude';
 
@@ -18,6 +18,8 @@ export interface ResumoDaAtualizacao {
   aba: string;
   lidos: number;
   ativos: number;
+  /* as contas do painel da planilha, feitas certo */
+  contas?: ReturnType<typeof contas>;
   novos: number;
   atualizados: number;
   iguais: number;
@@ -87,17 +89,18 @@ async function linhasDa(planilhaId: string, aba: string): Promise<string[][]> {
 
 async function alunosDoSistema(bd: Firestore): Promise<AlunoDoSistema[]> {
   const s = await bd.collection('alunos').get();
-  return s.docs.map((d) => ({ ...(d.data() as Omit<AlunoDoSistema, 'id'>), id: d.id }));
+  return s.docs.map((d) => ({ ...(d.data() as AlunoDoSistema), id: d.id }));
 }
 
 export interface Conferencia {
   titulo: string;
   abas: string[];
   aba: string;
-  leitura: Omit<Leitura, 'alunos'> & { total: number; ativos: number };
+  leitura: Omit<Leitura, 'alunos'> & { total: number; ativos: number; contas: ReturnType<typeof contas> };
   amostra: Leitura['alunos'];
   plano: { novos: number; atualizados: number; iguais: number; foraDaPlanilha: number; exemplosNovos: string[]; exemplosAtualizados: string[]; exemplosFora: string[] };
   vincular: number;
+  vincularPeloNome: number;
 }
 
 /** Lê e compara, sem gravar nada: é o que a tela mostra antes de importar. */
@@ -108,13 +111,13 @@ export async function confere(bd: Firestore, cfg: { planilhaId: string; aba?: st
   const leitura = lePlanilha(await linhasDa(cfg.planilhaId, aba), cfg.mapa);
   const existentes = await alunosDoSistema(bd);
   const plano = planeja(leitura, existentes);
-  const conversas = await bd.collection('conversas').select('waId', 'alunoId').get();
+  const conversas = await bd.collection('conversas').select('waId', 'alunoId', 'nome').get();
   const depois = alunosDepois(existentes, plano);
-  const vincular = vinculaConversas(conversas.docs.map((d) => ({ id: d.id, ...(d.data() as { waId: string; alunoId?: string }) })), depois).length;
+  const ligacoes = vinculaConversas(conversas.docs.map((d) => ({ id: d.id, ...(d.data() as { waId: string; nome?: string; alunoId?: string }) })), depois);
   const { alunos, ...resto } = leitura;
   const conferencia: Conferencia = {
     titulo, abas, aba,
-    leitura: { ...resto, total: alunos.length, ativos: alunos.filter((a) => a.ativo).length },
+    leitura: { ...resto, total: alunos.length, ativos: alunos.filter((a) => a.ativo).length, contas: contas(alunos) },
     amostra: alunos.slice(0, 8),
     plano: {
       novos: plano.novos.length, atualizados: plano.atualizados.length, iguais: plano.iguais, foraDaPlanilha: plano.foraDaPlanilha.length,
@@ -122,7 +125,8 @@ export async function confere(bd: Firestore, cfg: { planilhaId: string; aba?: st
       exemplosAtualizados: plano.atualizados.slice(0, 5).map((a) => `${a.nome} (${a.mudou.join(', ') || 'liga à planilha'})`),
       exemplosFora: plano.foraDaPlanilha.slice(0, 5).map((f) => f.nome),
     },
-    vincular,
+    vincular: ligacoes.length,
+    vincularPeloNome: ligacoes.filter((v) => v.como === 'nome').length,
   };
   return { conferencia, plano, existentes, leitura };
 }
@@ -146,9 +150,9 @@ export async function importa(bd: Firestore, cfg: ConfigDaPlanilha, quem: string
     plano.novos.forEach((n, i) => ops.push((l) => l.set(refsNovos[i], { ...n, criadoEm: agora, atualizadoEm: agora })));
     plano.atualizados.forEach((a) => ops.push((l) => l.update(bd.doc(`alunos/${a.id}`), { ...a.campos, atualizadoEm: agora })));
 
-    const conversas = await bd.collection('conversas').select('waId', 'alunoId').get();
+    const conversas = await bd.collection('conversas').select('waId', 'alunoId', 'nome').get();
     const ligar = vinculaConversas(
-      conversas.docs.map((d) => ({ id: d.id, ...(d.data() as { waId: string; alunoId?: string }) })),
+      conversas.docs.map((d) => ({ id: d.id, ...(d.data() as { waId: string; nome?: string; alunoId?: string }) })),
       alunosDepois(existentes, plano, refsNovos.map((r) => r.id)),
     );
     ligar.forEach((v) => ops.push((l) => l.update(bd.doc(`conversas/${v.conversaId}`), { alunoId: v.alunoId })));
@@ -160,7 +164,7 @@ export async function importa(bd: Firestore, cfg: ConfigDaPlanilha, quem: string
     }
     const resumo: ResumoDaAtualizacao = {
       quando: agora, quem, titulo: conferencia.titulo, aba: conferencia.aba,
-      lidos: leitura.alunos.length, ativos: conferencia.leitura.ativos,
+      lidos: leitura.alunos.length, ativos: conferencia.leitura.ativos, contas: conferencia.leitura.contas,
       novos: plano.novos.length, atualizados: plano.atualizados.length, iguais: plano.iguais,
       foraDaPlanilha: plano.foraDaPlanilha.length, vinculadas: ligar.length, problemas: leitura.problemas.length,
     };

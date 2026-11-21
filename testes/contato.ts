@@ -28,7 +28,7 @@ const velho = { id: 'velho', nome: 'Velho', telefone: '5549991112222', ativo: fa
 const todos = [pedro, lia, ana, velho];
 igual('responsável fala pelos dois filhos', alunosDoContato(todos, { waId: '5549988453310' }).map((a) => a.id), ['pedro', 'lia']);
 igual('o ligado à mão vem primeiro', alunosDoContato(todos, { alunoId: 'lia', waId: '5549988453310' }).map((a) => a.id), ['lia', 'pedro']);
-igual('aluno pelo próprio número, sem o inativo', alunosDoContato(todos, { waId: '554991112222' }).map((a) => a.id), ['ana']);
+igual('aluno pelo próprio número, o ativo antes do trancado', alunosDoContato(todos, { waId: '554991112222' }).map((a) => a.id), ['ana', 'velho']);
 igual('ligado à mão mesmo com outro número', alunosDoContato(todos, { alunoId: 'ana', waId: '5549900000000' }).map((a) => a.id), ['ana']);
 igual('número desconhecido', alunosDoContato(todos, { waId: '5549900000000' }), []);
 igual('é o responsável', falaComoResponsavel(pedro, '5549988453310'), true);

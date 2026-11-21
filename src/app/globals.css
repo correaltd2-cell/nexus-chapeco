@@ -1403,6 +1403,11 @@ body.t-escuro .ag-viz{--s-fala:#3987e5;--s-leitura:#d95926;--s-escuta:#199e70;--
 .aul-liga{display:flex;flex-direction:column;gap:6px;padding:0 18px 14px}
 .aul-liga .vz{padding:0}
 .aul-liga .tx-btn{align-self:flex-start}
+.aul-sug{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.aul-sug>span{font-size:12px;color:var(--muted)}
+.aul-sug .chip{padding:4px 11px;font-size:12px;color:var(--text);white-space:normal;text-align:left}
+.aul-sug .chip small{color:var(--muted)}
+.aul-aluno .aul-sit{color:var(--solar-deep)}
 .aul-quem{padding:0 18px 8px}
 .aul-quem .chip{padding:4px 11px;font-size:12px}
 .aul-aluno{display:flex;align-items:center;gap:8px;margin:0 12px 8px;padding:9px 10px 9px 12px;background:var(--surface-2);border-radius:14px}
@@ -1488,6 +1493,26 @@ body.t-escuro .alu{--alu-ok:#4CC587}
 .alu-prob summary{cursor:pointer;font-size:13px;color:var(--alert);font-weight:600}
 .alu-prob ul{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
 .alu-auto{margin:0;align-self:center}
+.alu-kpis{margin:0}
+.alu-kpi{text-align:left;border:0;cursor:pointer;font:inherit;color:inherit}
+.alu-kpi:hover{box-shadow:0 0 0 2px var(--solar-line),var(--shadow)}
+.alu-kpi span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alu-sit.trancado{background:var(--ink);color:#fff}
+.alu-sit.off{background:var(--surface-3);color:var(--text)}
+.alu-sit.obs{background:var(--solar-wash);color:var(--solar-deep)}
+.alu-marcou{color:var(--alu-ok);font-weight:600}
+.alu-naomarcou{color:var(--alert);font-weight:600}
+.alu-saude{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.alu-saude.atencao{background:var(--solar-wash);color:var(--solar-deep)}
+.alu-saude.critico{background:color-mix(in srgb,var(--alert) 14%,transparent);color:var(--alert)}
+.alu-nome{padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.alu-nome:hover b{text-decoration:underline}
+.alu-tab tr.alu-aberta td{background:var(--surface-2)}
+.alu-detalhe td{background:var(--surface-2);padding:4px 12px 12px}
+.alu-detalhe dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;margin:0;font-size:12.5px}
+.alu-detalhe dt{color:var(--muted)}
+.alu-detalhe dd{margin:0;overflow-wrap:anywhere}
+.alu-alerta{color:var(--alert);font-weight:600}
 @media (max-width:759px){
   /* no celular cada aluno vira um cartão: nome e situação em cima, o resto embaixo */
   .alu-tab thead{display:none}
@@ -1500,6 +1525,9 @@ body.t-escuro .alu{--alu-ok:#4CC587}
   .alu-c-tel{grid-area:tel}
   .alu-c-conv{grid-area:conv;align-self:end;text-align:right}
   .alu-c-orig{display:none}
+  .alu-tab tr.alu-detalhe{display:block;padding:0 0 10px}
+  .alu-tab tr.alu-detalhe td{display:block;border-radius:10px}
+  .alu-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .alu-c-nivel small,.alu-c-tel small{display:inline;margin-left:6px}
   .alu-corpo{padding-left:8px;padding-right:8px}
   .alu-tab-caixa{padding:0 10px 12px}

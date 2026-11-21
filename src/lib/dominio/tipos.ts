@@ -50,6 +50,24 @@ export interface Aluno {
   linhaPlanilha?: number;
   planilhaChave?: string;  // reencontra o aluno na próxima leitura: código, CPF ou nome e telefone
   origem?: 'planilha' | 'sistema';
+  /* o que vem da planilha da escola (aba ATIVOS), ver dominio/planilha.ts */
+  codigo?: string;         // COD da planilha
+  menor?: boolean;         // " - menor" no nome: quem fala no WhatsApp é o responsável
+  situacao?: 'ativo' | 'trancado' | 'off' | 'obs' | 'inativo';
+  marcouSemana?: boolean | null;  // "yes" na planilha: marcou a aula da semana seguinte
+  horarioFixoTexto?: string;      // como a escola escreveu ("quartas às 13h30")
+  horariosFixos?: { dia: number; hora: string }[];
+  temFixo?: boolean;
+  modalidade?: 'presencial' | 'online' | 'hibrido';
+  tipoCurso?: 'turma' | 'particular' | 'clube';
+  professorDoLivro?: string;      // "PRIVATE NATHAN"
+  livroOriginal?: string;         // o BOOK como está na planilha
+  saude?: 'evoluindo' | 'atencao' | 'critico';
+  appAtivo?: boolean;
+  nexiaAtivo?: boolean;
+  pendenciaLivro?: boolean;
+  contratoFim?: string;           // AAAA-MM-DD
+  contratoAssinado?: boolean;
   criadoEm: string;
   atualizadoEm: string;
 }
