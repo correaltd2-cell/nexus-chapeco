@@ -1513,6 +1513,84 @@ body.t-escuro .alu{--alu-ok:#4CC587}
 .alu-detalhe dt{color:var(--muted)}
 .alu-detalhe dd{margin:0;overflow-wrap:anywhere}
 .alu-alerta{color:var(--alert);font-weight:600}
+/* Alunos: a planilha do sistema (21/11/2026). Grade com cabeçalho e as duas primeiras
+   colunas presas, célula que vira campo no clique, caixa e lista que gravam na hora. */
+.alu-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.alu-acoes{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.alu-acoes .ic,.alu-vista .ic{width:15px;height:15px}
+.alu-vista .chip{display:inline-flex;align-items:center;gap:5px}
+.alu-novo{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding:0 18px 12px}
+.alu-novo .alu-campo{flex:1 1 320px}
+.alu-pl-cab{display:flex;align-items:center;justify-content:space-between;padding-right:12px}
+.alu-arquivo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.alu-colunas summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--solar-deep)}
+.alu-colunas[open] summary{margin-bottom:6px}
+.alu-google summary{display:flex;align-items:center;gap:8px;cursor:pointer;padding:14px 18px;font-size:13.5px;font-weight:600}
+.alu-google summary .ic{width:16px;height:16px;color:var(--muted)}
+.alu-google summary span{font-weight:400;color:var(--muted-2);font-size:12px}
+.alu-google[open] summary{padding-bottom:6px}
+
+.alu-sem-linha{display:flex;align-items:center;gap:14px;padding:0 18px 14px;flex-wrap:wrap}
+.alu-sem-conta{flex:1 1 280px;min-width:0}
+.alu-sem-conta .bt{padding:14px 0 6px}
+.alu-sem-conta p:not(.bt){margin:0;font-size:14px}
+.alu-sem-nao{color:var(--alert);padding:2px 8px}
+.alu-sem-nao:hover{background:color-mix(in srgb,var(--alert) 10%,transparent)}
+.alu-sem-barra{height:8px;border-radius:999px;background:var(--surface-3);margin-top:8px;overflow:hidden;max-width:420px}
+.alu-sem-barra span{display:block;height:100%;border-radius:999px;background:var(--alu-ok)}
+.alu-sem-conf{border-top:1px solid var(--line);padding-top:12px}
+.alu-sem-conf p:not(.obs):not(.erro){margin:0;font-size:13.5px}
+.alu-sem-hist{padding:0 18px 14px}
+.alu-sem-hist summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600}
+.alu-sem-hist ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.alu-sem-item{display:flex;justify-content:space-between;gap:12px;width:100%;text-align:left;padding:7px 10px;border-radius:10px;font:inherit;font-size:13px;color:inherit;cursor:pointer;flex-wrap:wrap}
+.alu-sem-item:hover,.alu-sem-item[aria-expanded="true"]{background:var(--surface-2)}
+.alu-sem-item .num{color:var(--muted)}
+.alu-sem-nomes{margin:2px 10px 8px;font-size:12.5px;color:var(--muted)}
+
+.alu-g-caixa{overflow:auto;max-height:min(72vh,760px);margin:0 18px 16px;border:1px solid var(--line);border-radius:var(--r-sm)}
+.alu-g{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%}
+.alu-g th{position:sticky;top:0;z-index:2;background:var(--surface-2);color:var(--muted);font-weight:600;font-size:11.5px;text-align:left;padding:8px 8px;border-bottom:1px solid var(--line-2);border-right:1px solid var(--line);white-space:nowrap}
+.alu-g td{padding:0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);background:var(--surface);height:34px;vertical-align:middle;position:relative}
+.alu-g tr:hover td{background:var(--surface-2)}
+.alu-g th.alu-g-codigo,.alu-g td.alu-g-codigo{position:sticky;left:0;z-index:1;width:64px;min-width:64px;max-width:64px}
+.alu-g th.alu-g-nome,.alu-g td.alu-g-nome{position:sticky;left:64px;z-index:1;min-width:210px;max-width:260px;box-shadow:2px 0 0 var(--line)}
+.alu-g th.alu-g-codigo,.alu-g th.alu-g-nome{z-index:3}
+.alu-g-menor,.alu-g-marcouSemana,.alu-g-appAtivo,.alu-g-nexiaAtivo,.alu-g-pendenciaLivro,.alu-g-contratoAssinado{text-align:center;min-width:62px}
+.alu-g th.alu-g-menor,.alu-g th.alu-g-marcouSemana,.alu-g th.alu-g-appAtivo,.alu-g th.alu-g-nexiaAtivo,.alu-g th.alu-g-pendenciaLivro,.alu-g th.alu-g-contratoAssinado{text-align:center}
+.alu-g-situacao{min-width:112px}
+.alu-g-horarioFixoTexto{min-width:170px}
+.alu-g-livroOriginal{min-width:170px}
+.alu-g-modalidade,.alu-g-saude{min-width:118px}
+.alu-g-contratoFim{min-width:112px}
+.alu-g-telefone,.alu-g-responsavelTelefone{min-width:140px}
+.alu-g-responsavelNome{min-width:150px}
+.alu-g-observacao{min-width:260px;max-width:360px}
+.alu-g-cel{display:block;width:100%;height:100%;min-height:34px;padding:0 8px;text-align:left;font:inherit;color:inherit;background:none;border:0;border-radius:0;cursor:cell;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alu-g-nome .alu-g-cel{padding-right:30px}
+.alu-g-nome .alu-g-cel b{font-weight:600}
+.alu-g-codigo .alu-g-cel,.alu-g-telefone .alu-g-cel,.alu-g-responsavelTelefone .alu-g-cel,.alu-g-contratoFim .alu-g-cel{font-family:var(--fonte-dados);font-variant-numeric:tabular-nums;font-size:12px}
+.alu-g-cel.alerta{color:var(--alert);font-weight:600}
+.alu-g-cel.aviso{text-decoration:underline dotted var(--solar-deep);text-underline-offset:3px}
+.alu-g-cel:focus-visible,.alu-g-sel:focus-visible,.alu-g-caixa-sel:focus-visible,.alu-g-nada:focus-visible{outline:2px solid var(--solar);outline-offset:-2px}
+.alu-g-cel:focus{outline:2px solid var(--solar);outline-offset:-2px}
+.alu-g-nada{display:block;color:var(--muted-2);outline:0}
+.alu-g-caixa-sel{width:17px;height:17px;accent-color:var(--alu-ok);cursor:pointer;vertical-align:middle}
+.alu-g-caixa-sel:disabled{cursor:default}
+.alu-g-sel{appearance:none;-webkit-appearance:none;border:0;font:inherit;font-size:11.5px;font-weight:600;margin:0 6px;padding:3px 22px 3px 9px;border-radius:999px;cursor:pointer;background-color:var(--surface-2);color:var(--text);background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 11px) 52%,calc(100% - 7px) 52%;background-size:4px 4px;background-repeat:no-repeat;max-width:calc(100% - 12px)}
+.alu-g-sel:disabled{cursor:default;background-image:none;padding-right:9px}
+/* as pílulas de situação e classificação usam "background" inteiro: a setinha volta aqui */
+.alu-g .alu-g-sel:not(:disabled){background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 11px) 52%,calc(100% - 7px) 52%;background-size:4px 4px;background-repeat:no-repeat}
+.alu-g-sel.alu-sit.trancado{background-color:var(--ink);color:#fff}
+.alu-g-ed{position:absolute;inset:0;width:100%;min-height:100%;border:0;outline:2px solid var(--solar);outline-offset:-2px;padding:0 8px;font:inherit;font-size:13px;background:var(--surface);color:var(--text);z-index:4;box-shadow:var(--shadow)}
+textarea.alu-g-ed{height:auto;min-height:96px;padding:8px;resize:vertical}
+.alu-g td.editando{z-index:5}
+.alu-g-conversa{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;color:var(--wa-verde);padding:3px;border-radius:999px}
+.alu-g-conversa:hover{background:var(--surface-3)}
+.alu-g-conversa .ic{width:15px;height:15px}
+.alu-g tr.alu-g-novo td{background:var(--solar-wash)}
+@media (prefers-reduced-motion:no-preference){.alu-g tr.alu-g-novo td{transition:background .6s}}
+
 @media (max-width:759px){
   /* no celular cada aluno vira um cartão: nome e situação em cima, o resto embaixo */
   .alu-tab thead{display:none}
@@ -1532,6 +1610,10 @@ body.t-escuro .alu{--alu-ok:#4CC587}
   .alu-corpo{padding-left:8px;padding-right:8px}
   .alu-tab-caixa{padding:0 10px 12px}
   .alu-filtros{padding:12px 12px 8px}
+  .alu-g-caixa{margin:0 10px 12px;max-height:68vh}
+  .alu-g th.alu-g-nome,.alu-g td.alu-g-nome{min-width:150px}
+  .alu-novo,.alu-sem-linha,.alu-sem-hist{padding-left:12px;padding-right:12px}
+  .alu-acoes{margin-left:0;width:100%}
 }
 
 @media print{

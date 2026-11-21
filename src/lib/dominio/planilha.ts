@@ -539,7 +539,9 @@ export function planeja(leitura: Leitura, existentes: AlunoDoSistema[]): Plano {
       .filter((k) => k !== 'linhaPlanilha' && k !== 'origem' && k !== 'planilhaChave')
       .filter((k) => k === 'telefone' || k === 'responsavelTelefone'
         ? !mesmoTelefone(String(achado[k] || ''), String(campos[k] || ''))
-        : !igual(achado[k], campos[k]));
+        /* menor de idade: não ter o campo é o mesmo que não ser */
+        : k === 'menor' ? Boolean(achado[k]) !== Boolean(campos[k])
+          : !igual(achado[k], campos[k]));
     if (mudou.length || achado.planilhaChave !== a.chave) plano.atualizados.push({ id: achado.id, nome: a.nome, campos, mudou });
     else plano.iguais += 1;
   }
@@ -616,4 +618,88 @@ export function idDaPlanilha(link: string): string {
   if (m) return m[1];
   const t = (link || '').trim();
   return /^[a-zA-Z0-9_-]{20,}$/.test(t) ? t : '';
+}
+
+/* ---------------- conferir e importar ---------------- */
+
+export interface ConversaParaLigar { id: string; waId: string; nome?: string; alunoId?: string | null }
+
+/** O que a tela mostra antes de importar, venha a leitura do Google ou de um arquivo. */
+export interface Conferencia {
+  titulo: string;
+  abas: string[];
+  aba: string;
+  leitura: Omit<Leitura, 'alunos'> & { total: number; ativos: number; contas: ReturnType<typeof contas> };
+  amostra: AlunoDaPlanilha[];
+  plano: { novos: number; atualizados: number; iguais: number; foraDaPlanilha: number; exemplosNovos: string[]; exemplosAtualizados: string[]; exemplosFora: string[] };
+  vincular: number;
+  vincularPeloNome: number;
+}
+
+/** Os alunos como ficam depois de aplicar o plano (os novos com o id que vão ganhar). */
+export function alunosDepois(existentes: AlunoDoSistema[], plano: Plano, idsNovos?: string[]): AlunoDoSistema[] {
+  const mudados = new Map(plano.atualizados.map((a) => [a.id, a.campos]));
+  return [
+    ...existentes.filter((e) => !e.teste).map((e) => ({ ...e, ...(mudados.get(e.id) || {}) }) as AlunoDoSistema),
+    ...plano.novos.map((n, i) => ({ ...n, id: idsNovos?.[i] || `novo-${i}` }) as AlunoDoSistema),
+  ];
+}
+
+/** Lê o plano e as conversas que vão se ligar, sem gravar nada. */
+export function confere(
+  leitura: Leitura,
+  existentes: AlunoDoSistema[],
+  conversas: ConversaParaLigar[],
+  meta: { titulo: string; abas: string[]; aba: string },
+): { conferencia: Conferencia; plano: Plano } {
+  const plano = planeja(leitura, existentes);
+  const ligacoes = vinculaConversas(conversas, alunosDepois(existentes, plano));
+  const { alunos, ...resto } = leitura;
+  return {
+    plano,
+    conferencia: {
+      ...meta,
+      leitura: { ...resto, total: alunos.length, ativos: alunos.filter((a) => a.ativo).length, contas: contas(alunos) },
+      amostra: alunos.slice(0, 8),
+      plano: {
+        novos: plano.novos.length, atualizados: plano.atualizados.length, iguais: plano.iguais, foraDaPlanilha: plano.foraDaPlanilha.length,
+        exemplosNovos: plano.novos.slice(0, 5).map((n) => n.nome),
+        exemplosAtualizados: plano.atualizados.slice(0, 5).map((a) => `${a.nome} (${a.mudou.map((k) => NOME_DO_CAMPO_GRAVADO[k] || k).join(', ') || 'liga à planilha'})`),
+        exemplosFora: plano.foraDaPlanilha.slice(0, 5).map((f) => f.nome),
+      },
+      vincular: ligacoes.length,
+      vincularPeloNome: ligacoes.filter((v) => v.como === 'nome').length,
+    },
+  };
+}
+
+/* o nome do que mudou, na língua da escola */
+const NOME_DO_CAMPO_GRAVADO: Record<string, string> = {
+  nome: 'nome', menor: 'menor de idade', telefone: 'telefone', responsavelNome: 'responsável', responsavelTelefone: 'telefone do responsável',
+  email: 'e-mail', documento: 'CPF', codigo: 'código', nivel: 'nível', livroOriginal: 'livro', tipoCurso: 'tipo de curso',
+  professorDoLivro: 'professor', licao: 'lição', trilha: 'curso', situacao: 'situação', ativo: 'ativo', marcouSemana: 'marcação',
+  horarioFixoTexto: 'horário fixo', horariosFixos: 'horário fixo', temFixo: 'fixo', modalidade: 'modalidade', saude: 'classificação',
+  appAtivo: 'app', nexiaAtivo: 'Nex-IA', pendenciaLivro: 'falta de livro', contratoFim: 'fim do contrato', contratoAssinado: 'contrato assinado',
+  observacao: 'observação',
+};
+
+/** Uma escrita da importação: aluno novo, aluno que muda, conversa que se liga. */
+export type EscritaDaImportacao =
+  | { tipo: 'definir'; colecao: 'alunos'; id: string; campos: Record<string, unknown> }
+  | { tipo: 'atualizar'; colecao: 'alunos' | 'conversas'; id: string; campos: Record<string, unknown> };
+
+/** Tudo o que a importação grava, para ir num lote só (no navegador ou no servidor). */
+export function escritasDaImportacao(
+  plano: Plano,
+  existentes: AlunoDoSistema[],
+  conversas: ConversaParaLigar[],
+  idsNovos: string[],
+  agora: string,
+): { escritas: EscritaDaImportacao[]; ligadas: number } {
+  const escritas: EscritaDaImportacao[] = [];
+  plano.novos.forEach((n, i) => escritas.push({ tipo: 'definir', colecao: 'alunos', id: idsNovos[i], campos: { ...n, criadoEm: agora, atualizadoEm: agora } }));
+  plano.atualizados.forEach((a) => escritas.push({ tipo: 'atualizar', colecao: 'alunos', id: a.id, campos: { ...a.campos, atualizadoEm: agora } }));
+  const ligar = vinculaConversas(conversas, alunosDepois(existentes, plano, idsNovos));
+  ligar.forEach((v) => escritas.push({ tipo: 'atualizar', colecao: 'conversas', id: v.conversaId, campos: { alunoId: v.alunoId } }));
+  return { escritas, ligadas: ligar.length };
 }

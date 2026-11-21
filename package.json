@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^1.10.0",
     "@fullcalendar/react": "^7.1.5",
     "@vercel/functions": "^2.2.13",
+    "fflate": "^0.8.2",
     "firebase": "^13.4.0",
     "firebase-admin": "^14.5.1",
     "google-auth-library": "^11.3.4",

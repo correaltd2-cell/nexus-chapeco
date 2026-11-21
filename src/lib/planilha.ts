@@ -5,9 +5,10 @@
    Google Sheets no projeto. Nada de chave nova. */
 import 'server-only';
 import { JWT } from 'google-auth-library';
-import type { Firestore, WriteBatch } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import {
-  contas, lePlanilha, planeja, vinculaConversas, type AlunoDoSistema, type Leitura, type Mapa, type Plano,
+  confere as confereLeitura, contas, escritasDaImportacao, lePlanilha,
+  type AlunoDoSistema, type ConversaParaLigar, type Mapa,
 } from '@/lib/dominio/planilha';
 import { falhou, descreveErro } from '@/lib/saude';
 
@@ -92,15 +93,9 @@ async function alunosDoSistema(bd: Firestore): Promise<AlunoDoSistema[]> {
   return s.docs.map((d) => ({ ...(d.data() as AlunoDoSistema), id: d.id }));
 }
 
-export interface Conferencia {
-  titulo: string;
-  abas: string[];
-  aba: string;
-  leitura: Omit<Leitura, 'alunos'> & { total: number; ativos: number; contas: ReturnType<typeof contas> };
-  amostra: Leitura['alunos'];
-  plano: { novos: number; atualizados: number; iguais: number; foraDaPlanilha: number; exemplosNovos: string[]; exemplosAtualizados: string[]; exemplosFora: string[] };
-  vincular: number;
-  vincularPeloNome: number;
+async function conversasDo(bd: Firestore): Promise<ConversaParaLigar[]> {
+  const s = await bd.collection('conversas').select('waId', 'alunoId', 'nome').get();
+  return s.docs.map((d) => ({ id: d.id, ...(d.data() as { waId: string; nome?: string; alunoId?: string }) }));
 }
 
 /** Lê e compara, sem gravar nada: é o que a tela mostra antes de importar. */
@@ -110,34 +105,8 @@ export async function confere(bd: Firestore, cfg: { planilhaId: string; aba?: st
   if (!aba) throw new ErroDaPlanilha('A planilha não tem nenhuma aba.');
   const leitura = lePlanilha(await linhasDa(cfg.planilhaId, aba), cfg.mapa);
   const existentes = await alunosDoSistema(bd);
-  const plano = planeja(leitura, existentes);
-  const conversas = await bd.collection('conversas').select('waId', 'alunoId', 'nome').get();
-  const depois = alunosDepois(existentes, plano);
-  const ligacoes = vinculaConversas(conversas.docs.map((d) => ({ id: d.id, ...(d.data() as { waId: string; nome?: string; alunoId?: string }) })), depois);
-  const { alunos, ...resto } = leitura;
-  const conferencia: Conferencia = {
-    titulo, abas, aba,
-    leitura: { ...resto, total: alunos.length, ativos: alunos.filter((a) => a.ativo).length, contas: contas(alunos) },
-    amostra: alunos.slice(0, 8),
-    plano: {
-      novos: plano.novos.length, atualizados: plano.atualizados.length, iguais: plano.iguais, foraDaPlanilha: plano.foraDaPlanilha.length,
-      exemplosNovos: plano.novos.slice(0, 5).map((n) => n.nome),
-      exemplosAtualizados: plano.atualizados.slice(0, 5).map((a) => `${a.nome} (${a.mudou.join(', ') || 'liga à planilha'})`),
-      exemplosFora: plano.foraDaPlanilha.slice(0, 5).map((f) => f.nome),
-    },
-    vincular: ligacoes.length,
-    vincularPeloNome: ligacoes.filter((v) => v.como === 'nome').length,
-  };
+  const { conferencia, plano } = confereLeitura(leitura, existentes, await conversasDo(bd), { titulo, abas, aba });
   return { conferencia, plano, existentes, leitura };
-}
-
-/* os alunos como ficam depois de aplicar (os novos ganham um id provisório) */
-function alunosDepois(existentes: AlunoDoSistema[], plano: Plano, idsNovos?: string[]) {
-  const mudados = new Map(plano.atualizados.map((a) => [a.id, a.campos]));
-  return [
-    ...existentes.filter((e) => !e.teste).map((e) => ({ ...e, ...(mudados.get(e.id) || {}) }) as AlunoDoSistema),
-    ...plano.novos.map((n, i) => ({ ...n, id: idsNovos?.[i] || `novo-${i}` }) as AlunoDoSistema),
-  ];
 }
 
 /** Lê, compara e grava: alunos novos, alunos atualizados e conversas ligadas pelo telefone. */
@@ -145,28 +114,21 @@ export async function importa(bd: Firestore, cfg: ConfigDaPlanilha, quem: string
   try {
     const { conferencia, plano, existentes, leitura } = await confere(bd, cfg);
     const agora = new Date().toISOString();
-    const refsNovos = plano.novos.map(() => bd.collection('alunos').doc());
-    const ops: ((l: WriteBatch) => void)[] = [];
-    plano.novos.forEach((n, i) => ops.push((l) => l.set(refsNovos[i], { ...n, criadoEm: agora, atualizadoEm: agora })));
-    plano.atualizados.forEach((a) => ops.push((l) => l.update(bd.doc(`alunos/${a.id}`), { ...a.campos, atualizadoEm: agora })));
-
-    const conversas = await bd.collection('conversas').select('waId', 'alunoId', 'nome').get();
-    const ligar = vinculaConversas(
-      conversas.docs.map((d) => ({ id: d.id, ...(d.data() as { waId: string; nome?: string; alunoId?: string }) })),
-      alunosDepois(existentes, plano, refsNovos.map((r) => r.id)),
-    );
-    ligar.forEach((v) => ops.push((l) => l.update(bd.doc(`conversas/${v.conversaId}`), { alunoId: v.alunoId })));
-
-    for (let i = 0; i < ops.length; i += 450) {
+    const idsNovos = plano.novos.map(() => bd.collection('alunos').doc().id);
+    const { escritas, ligadas } = escritasDaImportacao(plano, existentes, await conversasDo(bd), idsNovos, agora);
+    for (let i = 0; i < escritas.length; i += 450) {
       const lote = bd.batch();
-      ops.slice(i, i + 450).forEach((op) => op(lote));
+      for (const e of escritas.slice(i, i + 450)) {
+        if (e.tipo === 'definir') lote.set(bd.doc(`${e.colecao}/${e.id}`), e.campos);
+        else lote.update(bd.doc(`${e.colecao}/${e.id}`), e.campos);
+      }
       await lote.commit();
     }
     const resumo: ResumoDaAtualizacao = {
       quando: agora, quem, titulo: conferencia.titulo, aba: conferencia.aba,
       lidos: leitura.alunos.length, ativos: conferencia.leitura.ativos, contas: conferencia.leitura.contas,
       novos: plano.novos.length, atualizados: plano.atualizados.length, iguais: plano.iguais,
-      foraDaPlanilha: plano.foraDaPlanilha.length, vinculadas: ligar.length, problemas: leitura.problemas.length,
+      foraDaPlanilha: plano.foraDaPlanilha.length, vinculadas: ligadas, problemas: leitura.problemas.length,
     };
     await bd.doc('config/planilha').set({ ...cfg, aba: conferencia.aba, titulo: conferencia.titulo, ultima: resumo, erro: null }, { merge: true });
     return resumo;

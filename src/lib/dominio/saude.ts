@@ -7,7 +7,7 @@
    Prova: node --experimental-strip-types testes/saude.ts */
 import { duracao } from './formato.ts';
 
-export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'midia' | 'agenda' | 'ia' | 'relogio' | 'agendadas' | 'planilha';
+export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'midia' | 'agenda' | 'ia' | 'relogio' | 'agendadas' | 'planilha' | 'alunos';
 export type Batida = 'webhookEm' | 'entradaEm' | 'saidaEm' | 'relogioEm' | 'agendadasEm';
 
 export interface Falha { motivo: string; em: string; vezes: number }
@@ -86,6 +86,11 @@ const SOBRE_FALHA: Record<OndeFalha, { titulo: string; conserto: string; grave: 
   planilha: {
     titulo: 'A planilha de alunos não foi lida',
     conserto: 'Os alunos que já estão no sistema continuam valendo. Em Alunos, Planilha do Google, toque em Atualizar agora: a tela diz o que houve (planilha não compartilhada com o sistema, API do Google Sheets desligada ou link trocado).',
+    grave: false,
+  },
+  alunos: {
+    titulo: 'A marcação da semana nova não começou',
+    conserto: 'A coluna Marcou ficou como estava. Em Alunos, toque de novo em Começar a semana nova; se repetir, os registros da Vercel em /api/alunos/semana dizem o porquê.',
     grave: false,
   },
   agendadas: {

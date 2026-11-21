@@ -1,43 +1,32 @@
 'use client';
-/* Alunos: a lista da escola, puxada da planilha do Google que a escola já mantém.
-   Em cima, as contas do painel da planilha feitas certo (ativos, quem marcou a semana,
-   quem não marcou, trancados, off, obs); depois a planilha (ligar, conferir antes de
-   importar, atualizar agora); embaixo, os alunos, com o detalhe de cada um, quem já tem
-   conversa ligada e o CSV para o relatório.
-   As regras da planilha moram em src/lib/dominio/planilha.ts; quem lê o Google é o
-   servidor (/api/alunos/planilha), com a conta de serviço do sistema. */
-import { Fragment, useEffect, useMemo, useState } from 'react';
+/* Alunos: a planilha de alunos da escola, dentro do sistema.
+   Em cima, as contas que o painel da planilha antiga fazia (ativos, quem marcou a semana,
+   quem não marcou, trancados, off, obs) e a marcação da semana; embaixo, os alunos, na
+   planilha editável (as colunas da aba ATIVOS) ou na lista com o detalhe de cada um.
+   A carga inicial vem do arquivo que a escola já tem (Excel ou CSV), conferida antes de
+   gravar; a ligação com a planilha do Google fica guardada para depois.
+   Regras: dominio/alunos.ts (célula, aluno novo, semana) e dominio/planilha.ts (leitura). */
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { assina, modoDemo } from '@/lib/dados/fonte';
+import { assina, cria } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
-import {
-  CAMPOS, NOME_DA_SITUACAO, NOME_DO_CAMPO, contas, horarioEmTexto, normal,
-  type Campo, type Mapa, type SituacaoAluno,
-} from '@/lib/dominio/planilha';
+import GradeDeAlunos from '@/componentes/alunos-grade';
+import SemanaDaMarcacao from '@/componentes/alunos-semana';
+import { PlanilhaDoGoogle, TrazerDeArquivo } from '@/componentes/alunos-importar';
+import { NOME_DA_SITUACAO, contas, horarioEmTexto, normal, type AlunoDoSistema, type SituacaoAluno } from '@/lib/dominio/planilha';
+import { dataCompleta, novoAluno, type AlunoDaGrade } from '@/lib/dominio/alunos';
 import { alunosDoContato } from '@/lib/dominio/contato';
 import { csv } from '@/lib/dominio/agenda';
-import { dataBR, dataHoraBR, telefoneLegivel } from '@/lib/dominio/formato';
+import { telefoneLegivel } from '@/lib/dominio/formato';
 import type { Aluno, Conversa } from '@/lib/dominio/tipos';
 
 type AlunoComOrigem = Aluno & { teste?: boolean };
 type Filtro = 'ativos' | 'nao_marcaram' | 'trancados' | 'off' | 'obs' | 'inativos' | 'todos';
 
-type Contas = ReturnType<typeof contas>;
-interface Resumo { quando: string; quem: string; titulo: string; aba: string; lidos: number; ativos: number; novos: number; atualizados: number; iguais: number; foraDaPlanilha: number; vinculadas: number; problemas: number; contas?: Contas }
-interface ConfigSalva { planilhaId: string; aba: string; titulo?: string; mapa?: Mapa; automatico: boolean; ultima?: Resumo; erro?: { quando: string; motivo: string } | null }
-interface Amostra { linha: number; nome: string; menor: boolean; telefone: string; nivel: string; tipoCurso: string | null; situacao: SituacaoAluno; marcouSemana: boolean | null; horarioFixoTexto: string; horariosFixos: { dia: number; hora: string }[]; trilha: string }
-interface Conferencia {
-  titulo: string; abas: string[]; aba: string;
-  leitura: { cabecalho: string[]; linhaCabecalho: number; colunas: Partial<Record<Campo, number>>; colunaDeMarcacao: boolean; problemas: { linha: number; motivo: string }[]; situacoesDesconhecidas: string[]; total: number; ativos: number; contas: Contas };
-  amostra: Amostra[];
-  plano: { novos: number; atualizados: number; iguais: number; foraDaPlanilha: number; exemplosNovos: string[]; exemplosAtualizados: string[]; exemplosFora: string[] };
-  vincular: number;
-  vincularPeloNome: number;
-}
-
 const VE_TODAS = ['admin', 'gestor', 'recepcao'];
+const EDITA = ['admin', 'gestor', 'recepcao', 'coordenacao'];
 const situacaoDe = (a: Pick<Aluno, 'situacao' | 'ativo'>): SituacaoAluno => a.situacao ?? (a.ativo ? 'ativo' : 'inativo');
 const NOME_DA_SAUDE = { evoluindo: 'Evoluindo', atencao: 'Atenção', critico: 'Crítico' } as const;
 const NOME_DO_TIPO = { turma: 'turma', particular: 'particular', clube: 'clube de conversação' } as const;
@@ -52,7 +41,13 @@ export default function Alunos() {
   const [semConversa, setSemConversa] = useState(false);
   const [busca, setBusca] = useState('');
   const [aberto, setAberto] = useState<string | null>(null);
+  const [vista, setVista] = useState<'planilha' | 'lista'>('planilha');
+  const [importando, setImportando] = useState(false);
+  const [novoNome, setNovoNome] = useState<string | null>(null);
+  const [destaque, setDestaque] = useState<string | null>(null);
+  const [googleAberto, setGoogleAberto] = useState(false);
   const veConversas = Boolean(perfil && VE_TODAS.includes(perfil.papel));
+  const podeEditar = Boolean(perfil && EDITA.includes(perfil.papel));
 
   useEffect(() => assina('alunos', (d) => setAlunos((d as unknown as AlunoComOrigem[]).filter((a) => !a.teste).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')))), []);
   useEffect(() => (veConversas ? assina('conversas', (d) => setConversas(d as unknown as Conversa[])) : undefined), [veConversas]);
@@ -70,6 +65,28 @@ export default function Alunos() {
     situacao: situacaoDe(a), marcouSemana: a.marcouSemana ?? null, horariosFixos: a.horariosFixos || [], temFixo: a.temFixo ?? null,
   }))), [alunos]);
   const temMarcacao = alunos.some((a) => typeof a.marcouSemana === 'boolean');
+
+  /* o que a importação compara: os alunos e as conversas como estão agora */
+  const paraImportar = useMemo(() => ({
+    alunos: alunos as unknown as AlunoDoSistema[],
+    conversas: conversas.map((c) => ({ id: c.id, waId: c.waId, nome: c.nome, alunoId: c.alunoId })),
+  }), [alunos, conversas]);
+
+  async function criaAluno(e: FormEvent) {
+    e.preventDefault();
+    const r = novoAluno(novoNome || '', new Date().toISOString());
+    if ('erro' in r) { avisa(r.erro); return; }
+    try {
+      const id = await cria('alunos', r.campos);
+      /* o aluno novo aparece: limpa o que o esconderia e leva o foco para a linha dele */
+      setFiltro('ativos'); setTrilha('todas'); setSemConversa(false); setBusca(''); setVista('planilha');
+      setNovoNome(null); setDestaque(id);
+      setTimeout(() => setDestaque((d) => (d === id ? null : d)), 5000);
+      avisa(`${String(r.campos.nome)} entrou. Preencha o código, o livro e o horário.`);
+    } catch {
+      avisa('Não consegui criar o aluno. Confira a internet e tente de novo.');
+    }
+  }
 
   const passa = (a: AlunoComOrigem) => {
     const s = situacaoDe(a);
@@ -105,7 +122,7 @@ export default function Alunos() {
       'Classificação', 'App', 'Nex-IA', 'Falta por livro', 'Fim do contrato', 'Telefone', 'Responsável', 'Telefone do responsável', 'Observação', 'Conversa no sistema'],
     visiveis.map((a) => [a.codigo || '', a.nome, sim(a.menor), NOME_DA_SITUACAO[situacaoDe(a)], situacaoDe(a) === 'ativo' ? sim(a.marcouSemana) : '',
       horarioDe(a), a.livroOriginal || a.nivel, a.tipoCurso ? NOME_DO_TIPO[a.tipoCurso] : '', a.modalidade || '', a.trilha === 'kids' ? 'Kids' : 'Adultos',
-      a.saude ? NOME_DA_SAUDE[a.saude] : '', sim(a.appAtivo), sim(a.nexiaAtivo), sim(a.pendenciaLivro), a.contratoFim ? dataBR(a.contratoFim) : '',
+      a.saude ? NOME_DA_SAUDE[a.saude] : '', sim(a.appAtivo), sim(a.nexiaAtivo), sim(a.pendenciaLivro), a.contratoFim ? dataCompleta(a.contratoFim) : '',
       a.telefone ? telefoneLegivel(a.telefone) : '', a.responsavelNome || '', a.responsavelTelefone ? telefoneLegivel(a.responsavelTelefone) : '',
       a.observacao || '', conversaDe.has(a.id) ? 'sim' : 'não']));
     const url = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }));
@@ -123,16 +140,21 @@ export default function Alunos() {
     <div className="alu">
       <header className="vh alu-h">
         <h1>Alunos</h1>
+        <div className="alu-acoes">
+          {veConversas && alunos.length > 0 && !importando && (
+            <button type="button" className="btn" onClick={() => setImportando(true)}><Ic n="doc" />Trazer de um arquivo</button>
+          )}
+          {podeEditar && (
+            <button type="button" className="btn p" onClick={() => setNovoNome(novoNome === null ? '' : null)}><Ic n="mais" />Novo aluno</button>
+          )}
+        </div>
       </header>
       <div className="alu-corpo">
         {alunos.length > 0 && (
           <section className="rel-kpis alu-kpis" aria-label="Contas dos alunos">
             {([
               ['Ativos', conta.ativos, `de ${conta.total} alunos`, 'ativos'],
-              ...(temMarcacao ? [
-                ['Marcaram a próxima semana', conta.marcaram, `${conta.ativos ? Math.round((conta.marcaram / conta.ativos) * 100) : 0}% dos ativos`, 'ativos'],
-                ['Não marcaram', conta.naoMarcaram, 'ativos sem aula marcada', 'nao_marcaram'],
-              ] : []),
+              ...(temMarcacao ? [['Não marcaram', conta.naoMarcaram, 'ativos sem aula marcada', 'nao_marcaram']] : []),
               ['Trancados', conta.trancados, 'matrícula suspensa', 'trancados'],
               ['Off e obs', conta.off + conta.obs, `${conta.off} off, ${conta.obs} obs`, 'off'],
               ['Com horário fixo', conta.comFixo, 'entre os ativos', 'ativos'],
@@ -144,7 +166,27 @@ export default function Alunos() {
           </section>
         )}
 
-        <PlanilhaDoGoogle />
+        {temMarcacao && <SemanaDaMarcacao alunos={alunos as AlunoDaGrade[]} aoVerQuemNaoMarcou={() => { setFiltro('nao_marcaram'); setTrilha('todas'); setBusca(''); setSemConversa(false); }} />}
+
+        {veConversas && (importando || !alunos.length) && (
+          importando ? (
+            <TrazerDeArquivo alunos={paraImportar.alunos} conversas={paraImportar.conversas} aoFechar={() => setImportando(false)} />
+          ) : (
+            <section className="bl alu-pl alu-convite">
+              <p className="bt">Começar a planilha de alunos</p>
+              <div className="frm">
+                <p className="alu-pl-linha">
+                  <Ic n="doc" />
+                  <span>
+                    Traga a planilha que a escola já usa (a de marcação, aba ATIVOS) em Excel ou CSV: o sistema reconhece as colunas,
+                    mostra o que vai entrar e só grava quando você mandar. Depois a lista mora aqui e se edita como planilha.
+                  </span>
+                </p>
+                <div className="ln"><button type="button" className="btn p" onClick={() => setImportando(true)}><Ic n="doc" />Trazer de um arquivo</button></div>
+              </div>
+            </section>
+          )
+        )}
 
         <section className="bl alu-lista">
           <div className="alu-filtros">
@@ -171,13 +213,31 @@ export default function Alunos() {
                      onChange={(e) => setBusca(e.target.value)} />
             </label>
             <span className="ag-conta num">{visiveis.length} {visiveis.length === 1 ? 'aluno' : 'alunos'}</span>
+            <div className="chips alu-vista" role="group" aria-label="Como mostrar">
+              <button type="button" className="chip" aria-pressed={vista === 'planilha'} onClick={() => setVista('planilha')}><Ic n="grade" />Planilha</button>
+              <button type="button" className="chip" aria-pressed={vista === 'lista'} onClick={() => setVista('lista')}><Ic n="lista" />Lista</button>
+            </div>
             <button className="btn" onClick={baixa} disabled={!visiveis.length}><Ic n="doc" />Baixar CSV</button>
           </div>
 
+          {novoNome !== null && (
+            <form className="alu-novo" onSubmit={(e) => void criaAluno(e)}>
+              <label className="alu-campo">Nome do aluno
+                <input className="cx" value={novoNome} autoFocus placeholder="Nome e sobrenome (escreva - menor no fim se for menor de idade)"
+                       onChange={(e) => setNovoNome(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNovoNome(null); }} />
+              </label>
+              <button type="submit" className="btn p" disabled={!novoNome.trim()}>Criar aluno</button>
+              <button type="button" className="btn" onClick={() => setNovoNome(null)}>Cancelar</button>
+            </form>
+          )}
+
           {!alunos.length ? (
-            <p className="vz">Nenhum aluno no sistema ainda. Ligue a planilha do Google aqui em cima e importe: a lista aparece aqui e as conversas se ligam aos alunos.</p>
+            <p className="vz">Nenhum aluno no sistema ainda. Traga a planilha da escola aqui em cima ou toque em Novo aluno: a lista aparece aqui e as conversas se ligam aos alunos.</p>
           ) : !visiveis.length ? (
             <p className="vz">Nenhum aluno com esse filtro.</p>
+          ) : vista === 'planilha' ? (
+            <GradeDeAlunos alunos={visiveis as AlunoDaGrade[]} todos={alunos as AlunoDaGrade[]} podeEditar={podeEditar}
+                           conversaDe={veConversas ? conversaDe : undefined} destaque={destaque} />
           ) : (
             <div className="alu-tab-caixa">
               <table className="rel-tab alu-tab">
@@ -230,7 +290,7 @@ export default function Alunos() {
                                 {a.pendenciaLivro && <><dt>Livro</dt><dd className="alu-alerta">falta o livro</dd></>}
                                 <dt>Contrato</dt>
                                 <dd className={vencido ? 'alu-alerta' : undefined}>
-                                  {a.contratoFim ? `${vencido ? 'venceu' : 'vence'} em ${dataBR(a.contratoFim)}` : 'sem data de fim na planilha'}{a.contratoAssinado ? ' · assinado' : ''}
+                                  {a.contratoFim ? `${vencido ? 'venceu' : 'vence'} em ${dataCompleta(a.contratoFim)}` : 'sem data de fim na planilha'}{a.contratoAssinado ? ' · assinado' : ''}
                                 </dd>
                                 <dt>Telefone</dt>
                                 <dd>{a.telefone ? telefoneLegivel(a.telefone) : 'ainda sem'}{a.responsavelTelefone ? ` · responsável ${telefoneLegivel(a.responsavelTelefone)}` : ''}</dd>
@@ -247,277 +307,14 @@ export default function Alunos() {
             </div>
           )}
         </section>
+
+        {veConversas && (
+          <details className="bl alu-google" onToggle={(e) => setGoogleAberto((e.target as HTMLDetailsElement).open)}>
+            <summary><Ic n="lista" />Ligar a planilha do Google <span>fica para depois</span></summary>
+            {googleAberto && <PlanilhaDoGoogle />}
+          </details>
+        )}
       </div>
     </div>
-  );
-}
-
-/* ================= a planilha do Google ================= */
-
-function PlanilhaDoGoogle() {
-  const { perfil, usuario } = useSessao();
-  const gestao = perfil?.papel === 'admin' || perfil?.papel === 'gestor';
-  const atualiza = gestao || perfil?.papel === 'recepcao';
-  const [estado, setEstado] = useState<{ email: string; projeto: string; config: ConfigSalva | null } | null>(null);
-  const [montando, setMontando] = useState(false);
-  const [link, setLink] = useState('');
-  const [aba, setAba] = useState('');
-  const [mapa, setMapa] = useState<Mapa>({});
-  const [automatico, setAutomatico] = useState(true);
-  const [conf, setConf] = useState<Conferencia | null>(null);
-  const [indo, setIndo] = useState('');
-  const [erro, setErro] = useState('');
-
-  async function chama(metodo: 'GET' | 'POST', corpo?: unknown) {
-    if (!usuario) throw new Error('sem login');
-    const token = await usuario.getIdToken();
-    const r = await fetch('/api/alunos/planilha', {
-      method: metodo, headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      ...(corpo ? { body: JSON.stringify(corpo) } : {}),
-    });
-    return (await r.json()) as Record<string, unknown>;
-  }
-
-  async function recarrega() {
-    if (modoDemo || !usuario) return;
-    const r = await chama('GET');
-    if (r.ok) setEstado({ email: String(r.email || ''), projeto: String(r.projeto || ''), config: (r.config as ConfigSalva) || null });
-  }
-  useEffect(() => {
-    if (modoDemo || !usuario) return;
-    let vivo = true;
-    void (async () => {
-      const token = await usuario.getIdToken();
-      const r = (await (await fetch('/api/alunos/planilha', { headers: { authorization: `Bearer ${token}` } })).json()) as Record<string, unknown>;
-      if (vivo && r.ok) setEstado({ email: String(r.email || ''), projeto: String(r.projeto || ''), config: (r.config as ConfigSalva) || null });
-    })();
-    return () => { vivo = false; };
-  }, [usuario]);
-
-  const config = estado?.config;
-
-  async function conferir(o: { aba?: string; mapa?: Mapa } = {}) {
-    setIndo('Lendo a planilha...'); setErro('');
-    try {
-      const r = await chama('POST', { acao: 'conferir', link: link || config?.planilhaId || '', aba: o.aba ?? aba, mapa: o.mapa ?? mapa });
-      if (!r.ok) { setErro(String(r.erro)); setConf(null); return; }
-      const c = r.conferencia as Conferencia;
-      setConf(c); setAba(c.aba);
-      /* o mapa na tela começa com o que foi reconhecido */
-      const reconhecido: Mapa = {};
-      for (const { campo } of CAMPOS) {
-        const i = c.leitura.colunas[campo];
-        reconhecido[campo] = i === undefined ? null : c.leitura.cabecalho[i];
-      }
-      setMapa(reconhecido);
-    } catch { setErro('Não consegui falar com o servidor.'); } finally { setIndo(''); }
-  }
-
-  async function importar() {
-    setIndo('Importando...'); setErro('');
-    try {
-      const r = await chama('POST', { acao: 'importar', link: link || config?.planilhaId || '', aba, mapa, automatico });
-      if (!r.ok) { setErro(String(r.erro)); return; }
-      const res = r.resumo as Resumo;
-      avisa(`${res.novos} alunos novos, ${res.atualizados} atualizados, ${res.vinculadas} conversas ligadas`);
-      setConf(null); setMontando(false); setLink('');
-      await recarrega();
-    } catch { setErro('Não consegui falar com o servidor.'); } finally { setIndo(''); }
-  }
-
-  async function atualizaAgora() {
-    setIndo('Atualizando...'); setErro('');
-    try {
-      const r = await chama('POST', { acao: 'importar' });
-      if (!r.ok) setErro(String(r.erro));
-      else { const res = r.resumo as Resumo; avisa(`${res.novos} novos, ${res.atualizados} atualizados, ${res.vinculadas} conversas ligadas`); }
-      await recarrega();
-    } catch { setErro('Não consegui falar com o servidor.'); } finally { setIndo(''); }
-  }
-
-  async function mudaAutomatico(v: boolean) {
-    const r = await chama('POST', { acao: 'automatico', automatico: v });
-    if (!r.ok) setErro(String(r.erro)); else { avisa(v ? 'Atualiza sozinha de hora em hora' : 'Atualização automática desligada'); await recarrega(); }
-  }
-
-  function copia(t: string) {
-    navigator.clipboard?.writeText(t).then(() => avisa('E-mail copiado'), () => undefined);
-  }
-
-  if (modoDemo) {
-    return (
-      <section className="bl alu-pl">
-        <p className="bt">Planilha do Google</p>
-        <p className="vz">
-          Na demonstração não há servidor para ler a planilha. No sistema publicado, a gestão cola aqui o link da planilha de marcação
-          (aba ATIVOS), confere o que vai entrar e importa; depois ela se atualiza sozinha de hora em hora, e as conversas se ligam aos alunos.
-        </p>
-      </section>
-    );
-  }
-  if (!estado) return <section className="bl alu-pl"><p className="bt">Planilha do Google</p><p className="vz">Carregando...</p></section>;
-
-  const ligada = Boolean(config?.planilhaId);
-  const erroSalvo = config?.erro && (!config.ultima || config.erro.quando > config.ultima.quando) ? config.erro : null;
-  const c = conf?.leitura.contas;
-
-  return (
-    <section className="bl alu-pl">
-      <p className="bt">Planilha do Google</p>
-
-      {ligada && !montando && (
-        <div className="frm">
-          <p className="alu-pl-linha">
-            <Ic n="lista" />
-            <span>Ligada à planilha <b>{config?.titulo || 'de alunos'}</b>, aba <b>{config?.aba}</b>.
-              {config?.automatico ? ' Atualiza sozinha de hora em hora.' : ' Atualiza quando alguém toca em Atualizar agora.'}</span>
-          </p>
-          {config?.ultima && (
-            <p className="obs">
-              Última leitura em {dataHoraBR(config.ultima.quando)}, por {config.ultima.quem}: {config.ultima.lidos} alunos na planilha,
-              {' '}{config.ultima.novos} novos, {config.ultima.atualizados} atualizados, {config.ultima.vinculadas} conversas ligadas
-              {config.ultima.foraDaPlanilha ? `, ${config.ultima.foraDaPlanilha} alunos do sistema que não estão mais na planilha` : ''}.
-              {' '}A marcação da semana mostrada aqui é a dessa leitura.
-            </p>
-          )}
-          {erroSalvo && <p className="erro">A última leitura falhou em {dataHoraBR(erroSalvo.quando)}: {erroSalvo.motivo}</p>}
-          <div className="ln">
-            {atualiza && <button className="btn p" disabled={Boolean(indo)} onClick={() => void atualizaAgora()}>{indo || 'Atualizar agora'}</button>}
-            {gestao && <button className="btn" onClick={() => { setMontando(true); setConf(null); setLink(''); setMapa(config?.mapa || {}); setAba(config?.aba || ''); setAutomatico(config?.automatico ?? true); }}>Trocar planilha ou colunas</button>}
-            {gestao && (
-              <label className="lig alu-auto">
-                <input type="checkbox" checked={Boolean(config?.automatico)} onChange={(e) => void mudaAutomatico(e.target.checked)} />
-                <span><b>Atualizar sozinha de hora em hora</b></span>
-              </label>
-            )}
-          </div>
-        </div>
-      )}
-
-      {(!ligada || montando) && (
-        gestao ? (
-          <div className="frm">
-            <ol className="alu-passos">
-              <li>
-                <b>Compartilhe a planilha com o sistema, como leitor.</b> No Google Sheets, toque em Compartilhar e adicione este e-mail:
-                <span className="alu-email"><code>{estado.email || 'conta de serviço não configurada'}</code>
-                  {estado.email && <button type="button" className="tx-btn" onClick={() => copia(estado.email)}>Copiar</button>}</span>
-              </li>
-              <li>
-                <b>Ligue a API do Google Sheets no projeto, uma vez só.</b>{' '}
-                <a href={`https://console.cloud.google.com/apis/library/sheets.googleapis.com?project=${estado.projeto}`} target="_blank" rel="noopener noreferrer">Abrir no Google Cloud</a> e tocar em Ativar.
-              </li>
-              <li>
-                <b>Cole o link da planilha</b> (o endereço que aparece no navegador quando ela está aberta). Na planilha de marcação, a aba é a ATIVOS.
-                <div className="ln">
-                  <input className="cx" value={link} placeholder="https://docs.google.com/spreadsheets/d/..." aria-label="Link da planilha"
-                         onChange={(e) => setLink(e.target.value)} />
-                  <button className="btn p" disabled={Boolean(indo) || (!link.trim() && !config?.planilhaId)} onClick={() => void conferir()}>
-                    {indo === 'Lendo a planilha...' ? indo : 'Conferir planilha'}
-                  </button>
-                  {montando && <button className="btn" onClick={() => { setMontando(false); setConf(null); }}>Cancelar</button>}
-                </div>
-              </li>
-            </ol>
-          </div>
-        ) : (
-          <p className="vz">A gestão ainda não ligou a planilha de alunos.</p>
-        )
-      )}
-
-      {erro && <p className="erro" style={{ margin: '0 18px 12px' }}>{erro}</p>}
-
-      {conf && (
-        <div className="frm alu-conf">
-          <div className="ln">
-            <label className="alu-campo">Aba
-              <select className="cx" value={aba} onChange={(e) => { setAba(e.target.value); void conferir({ aba: e.target.value, mapa: {} }); }}>
-                {conf.abas.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </label>
-            <p className="obs" style={{ alignSelf: 'end' }}>{conf.titulo}: cabeçalho na linha {conf.leitura.linhaCabecalho}.</p>
-          </div>
-
-          <p className="alu-sub">Colunas</p>
-          <p className="obs">O sistema reconheceu as colunas pelo nome. Se alguma estiver errada, troque aqui e confira de novo.</p>
-          <div className="alu-mapa">
-            {CAMPOS.map(({ campo, obrigatorio }) => (
-              <label key={campo} className="alu-campo">
-                <span>{NOME_DO_CAMPO[campo]}{obrigatorio ? ' *' : ''}</span>
-                <select className="cx" value={mapa[campo] ?? ''} onChange={(e) => setMapa({ ...mapa, [campo]: e.target.value || null })}>
-                  <option value="">não tem</option>
-                  {conf.leitura.cabecalho.map((h, i) => h && <option key={`${h}-${i}`} value={h}>{h}</option>)}
-                </select>
-              </label>
-            ))}
-          </div>
-          <div className="ln"><button className="btn" disabled={Boolean(indo)} onClick={() => void conferir({ mapa })}>Conferir de novo com estas colunas</button></div>
-
-          <p className="alu-sub">O que a planilha diz</p>
-          {c && (
-            <ul className="alu-res">
-              <li><b className="num">{c.total}</b> alunos, <b className="num">{c.ativos}</b> ativos.</li>
-              {conf.leitura.colunaDeMarcacao && <li><b className="num">{c.marcaram}</b> marcaram a próxima semana e <b className="num">{c.naoMarcaram}</b> ainda não.</li>}
-              <li><b className="num">{c.trancados}</b> trancados, <b className="num">{c.off}</b> off (inclusive quem volta num mês), <b className="num">{c.obs}</b> obs{c.inativos ? `, ${c.inativos} inativos` : ''}.</li>
-              <li><b className="num">{c.comFixo}</b> ativos com horário fixo.</li>
-            </ul>
-          )}
-
-          <p className="alu-sub">O que vai acontecer no sistema</p>
-          <ul className="alu-res">
-            <li><b className="num">{conf.plano.novos}</b> entram{conf.plano.exemplosNovos.length ? `: ${conf.plano.exemplosNovos.join(', ')}${conf.plano.novos > 5 ? '...' : ''}` : '.'}</li>
-            <li><b className="num">{conf.plano.atualizados}</b> já existem e mudam{conf.plano.exemplosAtualizados.length ? `: ${conf.plano.exemplosAtualizados.join('; ')}${conf.plano.atualizados > 5 ? '...' : ''}` : '.'}</li>
-            {conf.plano.iguais > 0 && <li><b className="num">{conf.plano.iguais}</b> já estão iguais.</li>}
-            <li>
-              <b className="num">{conf.vincular}</b> conversas sem aluno vão ficar ligadas
-              {conf.vincularPeloNome ? ` (${conf.vincularPeloNome} pelo nome do contato no WhatsApp, quando só um aluno bate)` : ''}.
-              {!conf.leitura.colunas.telefone && ' A planilha não tem telefone: as outras conversas se ligam no painel do contato, com um toque, e o número fica guardado no aluno.'}
-            </li>
-            {conf.plano.foraDaPlanilha > 0 && <li><b className="num">{conf.plano.foraDaPlanilha}</b> alunos do sistema não estão nesta planilha ({conf.plano.exemplosFora.join(', ')}). Ninguém é apagado nem desativado por isso.</li>}
-          </ul>
-          {conf.leitura.situacoesDesconhecidas.length > 0 && (
-            <p className="obs alerta">Situações que não reconheci, tratadas como ativo: {conf.leitura.situacoesDesconhecidas.join(', ')}.</p>
-          )}
-          {conf.leitura.problemas.length > 0 && (
-            <details className="alu-prob">
-              <summary>{conf.leitura.problemas.length} {conf.leitura.problemas.length === 1 ? 'linha com problema' : 'linhas com problema'}</summary>
-              <ul>{conf.leitura.problemas.slice(0, 40).map((p, i) => <li key={i}><span className="num">linha {p.linha}</span>: {p.motivo}</li>)}</ul>
-            </details>
-          )}
-
-          <p className="alu-sub">As primeiras linhas, como vão entrar</p>
-          <div className="alu-tab-caixa">
-            <table className="rel-tab">
-              <thead><tr><th>Linha</th><th>Aluno</th><th>Livro</th><th>Horário fixo</th><th>Situação</th></tr></thead>
-              <tbody>
-                {conf.amostra.map((a) => (
-                  <tr key={a.linha}>
-                    <td className="num">{a.linha}</td>
-                    <td>{a.nome}{a.menor && <small>menor de idade</small>}</td>
-                    <td>{a.nivel || '—'}{(a.tipoCurso && a.tipoCurso !== 'turma') || a.trilha === 'kids' ? <small>{[a.tipoCurso && a.tipoCurso !== 'turma' ? a.tipoCurso : '', a.trilha === 'kids' ? 'Kids' : ''].filter(Boolean).join(' · ')}</small> : null}</td>
-                    <td>{a.horariosFixos.length ? horarioEmTexto(a.horariosFixos) : a.horarioFixoTexto || '—'}</td>
-                    <td>
-                      <span className={`alu-sit ${a.situacao}`}>{NOME_DA_SITUACAO[a.situacao]}</span>
-                      {a.situacao === 'ativo' && typeof a.marcouSemana === 'boolean' && <small>{a.marcouSemana ? 'marcou a semana' : 'não marcou'}</small>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <label className="lig">
-            <input type="checkbox" checked={automatico} onChange={(e) => setAutomatico(e.target.checked)} />
-            <span><b>Atualizar sozinha de hora em hora</b>A escola continua mexendo na planilha como sempre; o sistema acompanha.</span>
-          </label>
-          <div className="ln">
-            <button className="btn p" disabled={Boolean(indo) || !conf.leitura.total || mapa.nome === null} onClick={() => void importar()}>
-              {indo === 'Importando...' ? indo : `Importar ${conf.leitura.total} alunos`}
-            </button>
-            {mapa.nome === null && <span className="obs alerta">Escolha a coluna do nome do aluno.</span>}
-          </div>
-        </div>
-      )}
-    </section>
   );
 }
