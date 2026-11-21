@@ -107,6 +107,8 @@ export interface Conversa {
   followUpEm?: string;         // quando saiu o 1º follow-up deste relogio
   aguardandoSetorDesde?: string; // passou para um setor que ainda nao respondeu
   processandoEm?: string;      // trava do cron, para dois nao mandarem a mesma coisa
+  ultimaDaEquipeEm?: string;   // a última vez que alguém da equipe falou com o contato
+  avisoForaEm?: string;        // o último aviso de fora do horário (um por fechamento)
   encerradaEm?: string;
   encerradaPor?: QuemEncerrou;
   encerradaPorNome?: string;

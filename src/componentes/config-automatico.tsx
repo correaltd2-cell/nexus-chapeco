@@ -9,8 +9,10 @@ import { assina, define, modoDemo } from '@/lib/dados/fonte';
 import { avisa } from '@/componentes/aviso';
 import { NOME_SETOR } from '@/lib/dominio/acessos';
 import {
-  LIMITE, leAutomatico, type ConfigAutomatico, type Destino, type Momento,
+  LIMITE, leAutomatico, situacaoDoHorario, type ConfigAutomatico, type Destino, type Momento,
 } from '@/lib/dominio/automatico';
+import { DIAS, faixasDoTexto, horarioEmTexto, textoDoDia } from '@/lib/dominio/horario';
+import { horaConhecida, useAgora } from '@/componentes/relogio';
 import { corta } from '@/lib/dominio/formato';
 import type { Conversa, Perfil } from '@/lib/dominio/tipos';
 
@@ -22,6 +24,7 @@ const MOMENTOS: { k: Momento; r: string }[] = [
   { k: 'despedida', r: 'despedida de quem já resolveu' },
   { k: 'saudacao', r: 'saudação com os botões' },
   { k: 'encaminha', r: 'aviso de que vai para a Recepção' },
+  { k: 'fora', r: 'aviso de fora do horário (conversa já com a equipe)' },
 ];
 
 const SITUACAO: Record<string, string> = {
@@ -81,6 +84,7 @@ export default function AtendimentoAutomatico({ salva, podeMexer, chama, perfis 
 
       <fieldset className="cfg-grupo" disabled={bloqueia}>
         <Saudacao rasc={rasc} muda={muda} />
+        <Horario rasc={rasc} muda={muda} />
         <Tom rasc={rasc} muda={muda} />
         <Tempos rasc={rasc} muda={muda} />
         <Assistente rasc={rasc} muda={muda} setRasc={setRasc} />
@@ -205,6 +209,69 @@ function Tom({ rasc, muda }: { rasc: ConfigAutomatico; muda: Muda }) {
   );
 }
 
+/* ---------------- horário de atendimento ---------------- */
+const ORDEM_DOS_DIAS = [1, 2, 3, 4, 5, 6, 0];
+
+function Horario({ rasc, muda }: { rasc: ConfigAutomatico; muda: Muda }) {
+  /* o que a pessoa está digitando em cada dia; vale quando dá para ler */
+  const [digitado, setDigitado] = useState<Record<number, string>>({});
+  const [erros, setErros] = useState<Record<number, string>>({});
+  const agora = useAgora();
+  const agoraSabido = horaConhecida(agora);
+  const sit = agoraSabido ? situacaoDoHorario(rasc, agora) : null;
+
+  function mudaDia(dia: number, texto: string) {
+    setDigitado((d) => ({ ...d, [dia]: texto }));
+    const r = faixasDoTexto(dia, texto);
+    if ('erro' in r) { setErros((e) => ({ ...e, [dia]: r.erro })); return; }
+    setErros((e) => { const n = { ...e }; delete n[dia]; return n; });
+    muda('faixas', [...rasc.faixas.filter((f) => f.dia !== dia), ...r.faixas].sort((x, y) => x.dia - y.dia || x.abre.localeCompare(y.abre)));
+  }
+
+  return (
+    <section className="bl">
+      <p className="bt">Horário de atendimento</p>
+      <div className="frm">
+        <label className="lig">
+          <input type="checkbox" checked={rasc.horarioLigado} onChange={(e) => muda('horarioLigado', e.target.checked)} />
+          <span>
+            <b>Usar o horário de atendimento</b>
+            Fora do horário os botões funcionam igual, e a IA avisa que a equipe está fora, diz quando
+            ela volta e pede para a pessoa já explicar o que precisa. O prazo para devolver a conversa
+            à Recepção só conta dentro do horário.
+          </span>
+        </label>
+        {rasc.horarioLigado && (
+          <>
+            <div className="cfg-dias">
+              {ORDEM_DOS_DIAS.map((d) => (
+                <div key={d} className="cfg-dia">
+                  <label htmlFor={`au-dia-${d}`}>{DIAS[d]}</label>
+                  <input id={`au-dia-${d}`} className={`cx num${erros[d] ? ' atr' : ''}`} placeholder="fechado"
+                         value={digitado[d] ?? textoDoDia(rasc.faixas, d)}
+                         onChange={(e) => mudaDia(d, e.target.value)}
+                         onBlur={() => { if (!erros[d]) setDigitado((x) => { const n = { ...x }; delete n[d]; return n; }); }} />
+                  {erros[d] && <span className="erro" style={{ margin: 0 }}>{erros[d]}</span>}
+                </div>
+              ))}
+            </div>
+            <p className="obs">
+              Escreva as faixas do dia como 08:00-12:00, 13:30-21:30. Vazio é fechado. Fica assim: {horarioEmTexto(rasc.faixas)}.
+              {sit && (sit.aberto ? ' Agora a equipe está no horário.' : ` Agora está fora do horário; a equipe volta ${sit.volta}.`)}
+            </p>
+            <Texto id="au-forai" rotulo="O que a IA faz fora do horário (instrução)" linhas={3}
+                   valor={rasc.foraInstrucao} aoMudar={(v) => muda('foraInstrucao', v)} />
+            <Texto id="au-foras" rotulo="Saudação de reserva fora do horário" valor={rasc.foraSaudReserva} aoMudar={(v) => muda('foraSaudReserva', v)}
+                   ajuda="{primeiro_nome} vira o nome do contato e {volta} vira quando a equipe volta (amanhã às 8h, segunda às 8h)." />
+            <Texto id="au-forae" rotulo="Aviso de reserva quando a conversa vai para a fila fora do horário" valor={rasc.foraEncaminhaReserva} aoMudar={(v) => muda('foraEncaminhaReserva', v)} />
+            <Texto id="au-foraa" rotulo="Aviso de reserva para quem escreve fora do horário numa conversa que já está com a equipe (um por noite)" valor={rasc.foraAvisoReserva} aoMudar={(v) => muda('foraAvisoReserva', v)} />
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /* ---------------- tempos ---------------- */
 function Tempos({ rasc, muda }: { rasc: ConfigAutomatico; muda: Muda }) {
   return (
@@ -242,8 +309,11 @@ function Tempos({ rasc, muda }: { rasc: ConfigAutomatico; muda: Muda }) {
             encerrar, sai uma despedida curta escrita pela IA.
           </span>
         </label>
-        <Minutos id="au-volta" antes="Setor que não respondeu devolve a conversa para a Recepção depois de" depois="horas"
+        <Minutos id="au-volta" antes="Setor que não respondeu devolve a conversa para a Recepção depois de"
+                 depois={rasc.horarioLigado ? 'horas de atendimento (fora do horário não conta)' : 'horas'}
                  valor={rasc.voltaHoras} min={1} max={72} aoMudar={(n) => muda('voltaHoras', n)} />
+        <Minutos id="au-recomeca" antes="Conversa parada, sem o contato esperando resposta, recomeça pelo menu depois de"
+                 depois="horas (0 desliga)" valor={rasc.recomecaHoras} min={0} max={168} aoMudar={(n) => muda('recomecaHoras', n)} />
       </div>
     </section>
   );
@@ -366,6 +436,7 @@ function Testar({ rasc, chama }: { rasc: ConfigAutomatico; chama: Chama }) {
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [conversaId, setConversaId] = useState('');
   const [momento, setMomento] = useState<Momento>('followup');
+  const [foraDoHorario, setForaDoHorario] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [leitura, setLeitura] = useState<Leitura | null>(null);
   const [reserva, setReserva] = useState('');
@@ -392,7 +463,7 @@ function Testar({ rasc, chama }: { rasc: ConfigAutomatico; chama: Chama }) {
     if (!conversaId) { setErro('Escolha uma conversa.'); return; }
     setGerando(true); setErro(''); setLeitura(null);
     try {
-      const r = await chama('/api/automatico/testar', { tipo: 'mensagem', momento, conversaId, config: rasc });
+      const r = await chama('/api/automatico/testar', { tipo: 'mensagem', momento, conversaId, config: rasc, foraDoHorario });
       if (!r.ok) { setErro(String(r.erro || 'Não consegui gerar agora.')); return; }
       setLeitura(r.leitura as Leitura); setReserva(String(r.reserva || ''));
     } catch {
@@ -409,7 +480,7 @@ function Testar({ rasc, chama }: { rasc: ConfigAutomatico; chama: Chama }) {
     setTurnos(novos); setEscrito(''); setGerando(true); setErro('');
     try {
       const r = await chama('/api/automatico/testar', {
-        tipo: 'assistente', config: rasc, nome: 'Aluno de teste', linhas: novos.map(({ de, texto }) => ({ de, texto })),
+        tipo: 'assistente', config: rasc, nome: 'Aluno de teste', linhas: novos.map(({ de, texto }) => ({ de, texto })), foraDoHorario,
       });
       if (!r.ok) { setErro(String(r.erro || 'Não consegui gerar agora.')); setTurnos(turnos); setEscrito(t); return; }
       const resp = r.resposta as RespostaAssistente;
@@ -441,6 +512,10 @@ function Testar({ rasc, chama }: { rasc: ConfigAutomatico; chama: Chama }) {
             {gerando ? 'Gerando...' : 'Gerar sem enviar'}
           </button>
         </div>
+        <label className="lig">
+          <input type="checkbox" checked={foraDoHorario} onChange={(e) => setForaDoHorario(e.target.checked)} />
+          <span><b>Como se fosse fora do horário</b>A IA escreve como escreveria hoje às 22h30.</span>
+        </label>
         {leitura && (
           <div className="teste-res">
             <p><b>{escolhida?.nome || 'Contato'}</b> <span className="obs" style={{ padding: 0 }}>{SITUACAO[leitura.situacao] || leitura.situacao}</span></p>

@@ -17,11 +17,12 @@ import { NOME_SETOR } from '@/lib/dominio/acessos';
 import { respostaDasAulas } from '@/lib/dominio/agenda';
 import { aulasDoContato } from '@/lib/agenda-servidor';
 import { descreveErro, falhou } from '@/lib/saude';
+import { comReserva } from '@/lib/firebase/indice';
 import {
-  BOTOES_AJUDOU, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, depoisDoMenuConfuso, destinoDoAssunto,
+  BOTOES_AJUDOU, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, avisaForaDoHorario, depoisDoMenuConfuso, destinoDoAssunto,
   deveVoltarParaRecepcao, escolhaDoMenu, idDaPergunta, idDoBotao, leAutomatico, pareceDespedida,
-  primeiro, promptMensagem, reservaDo, setorDoPassa, turnosDoAssistente,
-  type ConfigAutomatico, type ContextoDaConversa, type Destino, type Linha, type Momento,
+  primeiro, promptMensagem, recomecaAtendimento, reservaDo, setorDoPassa, situacaoDoHorario, turnosDoAssistente,
+  type ConfigAutomatico, type ContextoDaConversa, type Destino, type Linha, type Momento, type SituacaoDoHorario,
 } from '@/lib/dominio/automatico';
 import type { Conversa, Mensagem, Perfil, QuemEncerrou, Setor } from '@/lib/dominio/tipos';
 
@@ -39,10 +40,15 @@ export async function leConfig(bd: Firestore): Promise<ConfigAutomatico> {
     pediria o índice decrescente, e foi isso que derrubou o "Encerrar atendimento". */
 export async function linhasDoAtendimento(bd: Firestore, conversaId: string, desde?: string): Promise<Linha[]> {
   const piso = desde || new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const s = await bd.collection('mensagens')
-    .where('conversaId', '==', conversaId).where('criadaEm', '>=', piso).orderBy('criadaEm').get();
-  return s.docs
-    .map((d) => d.data() as Mensagem)
+  const mensagens = await comReserva('mensagens do atendimento',
+    async () => (await bd.collection('mensagens')
+      .where('conversaId', '==', conversaId).where('criadaEm', '>=', piso).orderBy('criadaEm').get())
+      .docs.map((d) => d.data() as Mensagem),
+    async () => (await bd.collection('mensagens').where('conversaId', '==', conversaId).get())
+      .docs.map((d) => d.data() as Mensagem)
+      .filter((m) => (m.criadaEm || '') >= piso)
+      .sort((a, b) => (a.criadaEm || '').localeCompare(b.criadaEm || '')));
+  return mensagens
     .filter((m) => m.autor !== 'sistema')
     .slice(-30)
     .map((m) => ({
@@ -52,14 +58,14 @@ export async function linhasDoAtendimento(bd: Firestore, conversaId: string, des
     }));
 }
 
-export const contextoDe = (c: Partial<Conversa>, linhas: Linha[]): ContextoDaConversa => ({
-  nome: c.nome || '', ehAluno: Boolean(c.alunoId), observacao: c.observacao, linhas,
+export const contextoDe = (c: Partial<Conversa>, linhas: Linha[], horario?: SituacaoDoHorario): ContextoDaConversa => ({
+  nome: c.nome || '', ehAluno: Boolean(c.alunoId), observacao: c.observacao, linhas, horario,
 });
 
 /** O texto de um momento: a IA escreve; sem ela, o texto de reserva das Configurações. */
 async function textoDo(momento: Momento, cfg: ConfigAutomatico, ctx: ContextoDaConversa) {
   const leitura = await escreveMensagem(promptMensagem(cfg, momento, ctx));
-  return { leitura, texto: leitura?.mensagem || reservaDo(momento, cfg, ctx.nome) };
+  return { leitura, texto: leitura?.mensagem || reservaDo(momento, cfg, ctx.nome, ctx.horario) };
 }
 
 /* ---------------- falar com o contato ---------------- */
@@ -110,7 +116,7 @@ async function recado(bd: Firestore, conversaId: string, texto: string) {
     começa, a nao ser que tenha saido por modelo (janela fechada: nao ha o que retomar). */
 export function camposDaFalaDaEscola(quando: string, ligaRelogio = true): Record<string, unknown> {
   return {
-    etapa: 'gente', tentativasMenu: APAGA(), aguardandoSetorDesde: APAGA(),
+    etapa: 'gente', tentativasMenu: APAGA(), aguardandoSetorDesde: APAGA(), ultimaDaEquipeEm: quando,
     relogioMotivo: APAGA(), followUpEm: APAGA(),
     relogioDesde: ligaRelogio ? quando : APAGA(),
   };
@@ -153,6 +159,7 @@ interface Rodada {
   ref: DocumentReference;
   c: Partial<Conversa>;      // como estava antes desta mensagem, com a janela ja renovada
   cfg: ConfigAutomatico;
+  horario: SituacaoDoHorario;   // a equipe está no horário agora? quando volta?
   texto: string;
   quando: string;
   resposta: { id?: string; titulo?: string };
@@ -165,14 +172,19 @@ export async function atendeAoVivo(
   const cfg = await leConfig(bd);
   if (!cfg.ligado || !temConfig()) return;
 
+  const agora = new Date();
   const r: Rodada = {
-    bd, ref, c: { ...antes, janelaAte }, cfg, texto, quando, resposta: respostaInterativa(m, texto),
+    bd, ref, c: { ...antes, janelaAte }, cfg, horario: situacaoDoHorario(cfg, agora),
+    texto, quando, resposta: respostaInterativa(m, texto),
   };
-  const novo = antes.estado === 'encerrada' || antes.etapa === 'inicio';
+  /* conversa que ficou parada horas, sem ninguém esperando resposta, recomeça pelo menu */
+  const recomeca = recomecaAtendimento(antes, cfg, agora);
+  const novo = antes.estado === 'encerrada' || antes.etapa === 'inicio' || recomeca;
   /* o contato falou: o relógio para, quem decide o próximo passo é a etapa */
   const paraRelogio = { relogioDesde: APAGA(), relogioMotivo: APAGA(), followUpEm: APAGA() };
 
   if (novo) {
+    if (recomeca) await recado(bd, ref.id, `A conversa estava parada desde ${new Date(antes.ultimaEm || quando).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}: o atendimento recomeçou pelo menu.`);
     await ref.update({
       ...paraRelogio, etapa: 'menu', tentativasMenu: 0, atendimentoDesde: quando,
       setor: 'recepcao', aguardandoSetorDesde: APAGA(),
@@ -207,18 +219,24 @@ export async function atendeAoVivo(
   }
 
   /* com gente: nada responde sozinho. Se parece despedida, o relógio liga para a IA
-     confirmar, lendo a conversa, se resolveu de verdade. */
+     confirmar, lendo a conversa, se resolveu de verdade. Fora do horário, um aviso de
+     que a equipe volta tal hora, uma vez por fechamento. */
   if (pareceDespedida(texto)) {
     await ref.update({ relogioDesde: quando, relogioMotivo: 'despedida', followUpEm: APAGA() });
-  } else {
-    await ref.update(paraRelogio);
+    return;
+  }
+  await ref.update(paraRelogio);
+  if (avisaForaDoHorario(antes, cfg, agora)) {
+    const linhas = await linhasDoAtendimento(bd, ref.id, antes.atendimentoDesde || quando);
+    const { texto: aviso } = await textoDo('fora', cfg, contextoDe(r.c, linhas, r.horario));
+    if (await fala(bd, ref, r.c, { texto: aviso, relogio: 'nao' })) await ref.update({ avisoForaEm: agora.toISOString() });
   }
 }
 
 async function mandaMenu(r: Rodada, qual: 'saudacao' | 'denovo') {
   const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.quando);
   const texto = qual === 'saudacao'
-    ? (await textoDo('saudacao', r.cfg, contextoDe(r.c, linhas))).texto
+    ? (await textoDo('saudacao', r.cfg, contextoDe(r.c, linhas, r.horario))).texto
     : r.cfg.menuDeNovo;
   await fala(r.bd, r.ref, r.c, {
     texto,
@@ -266,8 +284,10 @@ async function paraRecepcao(r: Rodada) {
     etapa: 'gente', tentativasMenu: APAGA(),
   });
   const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.c.atendimentoDesde || r.quando);
-  const { texto } = await textoDo('encaminha', r.cfg, contextoDe(r.c, linhas));
-  await fala(r.bd, r.ref, r.c, { texto, relogio: 'nao' });
+  const { texto } = await textoDo('encaminha', r.cfg, contextoDe(r.c, linhas, r.horario));
+  const ok = await fala(r.bd, r.ref, r.c, { texto, relogio: 'nao' });
+  /* fora do horário este aviso já disse quando a equipe volta: não repete até fechar de novo */
+  if (ok && !r.horario.aberto) await r.ref.update({ avisoForaEm: agoraIso() });
 }
 
 /** O assistente não resolveu: passa para gente, com um resumo para ninguém perguntar tudo de novo. */
@@ -279,14 +299,15 @@ async function passaParaGente(r: Rodada, resumo: string, avisa: boolean) {
     aguardandoSetorDesde: setor === 'recepcao' ? APAGA() : agoraIso(),
   });
   await recado(r.bd, r.ref.id, `O assistente passou a conversa para ${NOME_SETOR[setor]}. Resumo: ${resumo}`);
-  if (avisa) await fala(r.bd, r.ref, r.c, { texto: reservaDo('encaminha', r.cfg, r.c.nome || ''), relogio: 'nao' });
+  if (avisa) await fala(r.bd, r.ref, r.c, { texto: reservaDo('encaminha', r.cfg, r.c.nome || '', r.horario), relogio: 'nao' });
+  if (!r.horario.aberto) await r.ref.update({ avisoForaEm: agoraIso() });
 }
 
 async function assistente(r: Rodada) {
   const { cfg } = r;
   if (cfg.modo === 'ia' && iaLigada()) {
     const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.c.atendimentoDesde || r.quando);
-    const resposta = await respondeComoAssistente(turnosDoAssistente(cfg, contextoDe(r.c, linhas)));
+    const resposta = await respondeComoAssistente(turnosDoAssistente(cfg, contextoDe(r.c, linhas, r.horario)));
     if (resposta) {
       const passa = resposta.acao === 'passar';
       await fala(r.bd, r.ref, r.c, { texto: resposta.mensagem, relogio: passa ? 'nao' : 'liga' });
@@ -361,7 +382,7 @@ export async function rodaRelogios(bd: Firestore, agora = new Date()) {
     try {
       const acao = acaoDoRelogio(c as Conversa, cfg, agora);
       if (acao === 'nada') continue;
-      const ctx = contextoDe(c, await linhasDoAtendimento(bd, doc.id, c.atendimentoDesde));
+      const ctx = contextoDe(c, await linhasDoAtendimento(bd, doc.id, c.atendimentoDesde), situacaoDoHorario(cfg, agora));
       const momento: Momento = acao === 'followup' ? 'followup' : acao === 'encerra' ? 'encerramento' : 'despedida';
       const leitura: Leitura | null = await escreveMensagem(promptMensagem(cfg, momento, ctx));
 
@@ -451,7 +472,7 @@ export async function transfere(
 export async function encerraNaMao(bd: Firestore, ref: DocumentReference, c: Conversa, quemNome: string) {
   const cfg = await leConfig(bd);
   if (cfg.ligado && cfg.manualDespedida && temConfig() && janelaAberta(c)) {
-    const ctx = contextoDe(c, await linhasDoAtendimento(bd, ref.id, c.atendimentoDesde));
+    const ctx = contextoDe(c, await linhasDoAtendimento(bd, ref.id, c.atendimentoDesde), situacaoDoHorario(cfg, new Date()));
     /* quem encerra é gente, de propósito: sai a despedida, a não ser que a escola tenha
        escolhido encerrar calado as conversas já resolvidas */
     const { leitura, texto } = await textoDo('despedida', cfg, ctx);

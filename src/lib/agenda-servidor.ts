@@ -11,6 +11,8 @@ import { mandaTemplate, mandaTexto, temConfig } from '@/lib/whatsapp/cloud';
 import { garanteConversa } from '@/lib/whatsapp/recebimento';
 import { resumeProgresso } from '@/lib/ia/claude';
 import { falhou, descreveErro } from '@/lib/saude';
+import { comReserva } from '@/lib/firebase/indice';
+import { leAutomatico, situacaoDoHorario, type ConfigAutomatico } from '@/lib/dominio/automatico';
 import {
   contaComoAula, diaPorExtenso, horaFalada, lePayload, payloadDoLembrete, precisaLembrete, promptDoResumo, proximasAulas, resumoSemIa,
   type Agendamento, type AlunoNaAula, type AulaDoHistorico, type ResumoDoAluno, type StatusAula,
@@ -186,7 +188,12 @@ export async function respondeLembrete(
         criadaEm: quando,
       });
       await conversa.update({ setor: 'recepcao', estado: 'aguardando', aguardandoDesde: quando, etapa: 'gente', agenteAtivo: false });
-      resposta = 'Certo! A recepção vai te chamar por aqui para escolher outro horário.';
+      /* de noite ou no fim de semana, diz quando a recepção volta */
+      const cfg = leAutomatico((await bd.doc('config/automatico').get()).data() as Partial<ConfigAutomatico> | undefined);
+      const h = situacaoDoHorario(cfg, new Date());
+      resposta = h.aberto || !h.volta
+        ? 'Certo! A recepção vai te chamar por aqui para escolher outro horário.'
+        : `Certo! A recepção está fora do horário agora e ${h.volta} te chama por aqui para escolher outro horário.`;
     }
 
     /* a pessoa acabou de escrever: a janela está aberta e cabe um texto simples */
@@ -238,9 +245,12 @@ export async function aulasDoContato(bd: Firestore, c: { alunoId?: string | null
   const desde = new Date(agora.getTime() - 6 * 3_600_000).toISOString();
   let melhor: { aluno: Aluno; lista: Agendamento[] } | null = null;
   for (const aluno of await alunosDoNumero(bd, c.alunoId, c.waId)) {
-    const s = await bd.collection('agendamentos').where('alunoIds', 'array-contains', aluno.id)
-      .where('inicio', '>=', desde).orderBy('inicio').limit(12).get();
-    const lista = proximasAulas(s.docs.map((d) => ({ ...(d.data() as Agendamento), id: d.id })), agora, 3);
+    const doAluno = await comReserva('próximas aulas do aluno',
+      async () => (await bd.collection('agendamentos').where('alunoIds', 'array-contains', aluno.id)
+        .where('inicio', '>=', desde).orderBy('inicio').limit(12).get()).docs.map((d) => ({ ...(d.data() as Agendamento), id: d.id })),
+      async () => (await bd.collection('agendamentos').where('alunoIds', 'array-contains', aluno.id).get())
+        .docs.map((d) => ({ ...(d.data() as Agendamento), id: d.id })).filter((x) => x.inicio >= desde));
+    const lista = proximasAulas(doAluno, agora, 3);
     if (lista.length && (!melhor || lista[0].inicio < melhor.lista[0].inicio)) melhor = { aluno, lista };
   }
   if (!melhor) return null;
@@ -263,10 +273,12 @@ export async function resumosDaAula(bd: Firestore, agendamentoId: string): Promi
   const ag = { ...(snap.data() as Agendamento), id: snap.id };
   const saida: ResumoDoAluno[] = [];
   for (const a of ag.alunos || []) {
-    const anteriores = await bd.collection('agendamentos').where('alunoIds', 'array-contains', a.id)
-      .orderBy('inicio', 'desc').limit(12).get();
-    const lista = anteriores.docs.map((d) => ({ ...(d.data() as Agendamento), id: d.id }))
-      .filter((x) => x.inicio < ag.inicio && contaComoAula(x.status)).slice(0, 5);
+    const anteriores = await comReserva('aulas anteriores do aluno',
+      async () => (await bd.collection('agendamentos').where('alunoIds', 'array-contains', a.id)
+        .orderBy('inicio', 'desc').limit(12).get()).docs.map((d) => ({ ...(d.data() as Agendamento), id: d.id })),
+      async () => (await bd.collection('agendamentos').where('alunoIds', 'array-contains', a.id).get())
+        .docs.map((d) => ({ ...(d.data() as Agendamento), id: d.id })).sort((x, y) => y.inicio.localeCompare(x.inicio)));
+    const lista = anteriores.filter((x) => x.inicio < ag.inicio && contaComoAula(x.status)).slice(0, 5);
     const historico: AulaDoHistorico[] = [];
     for (const x of lista) {
       const sub = (await bd.doc(`agendamentos/${x.id}/alunos/${a.id}`).get()).data() as AlunoNaAula | undefined;

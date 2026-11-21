@@ -7,7 +7,7 @@ import { adminBd, quemChamou } from '@/lib/firebase/admin';
 import { escreveMensagem, iaLigada, respondeComoAssistente } from '@/lib/ia/claude';
 import { contextoDe, linhasDoAtendimento } from '@/lib/whatsapp/automatico';
 import {
-  leAutomatico, promptMensagem, reservaDo, turnosDoAssistente,
+  leAutomatico, promptMensagem, reservaDo, situacaoDoHorario, turnosDoAssistente,
   type ConfigAutomatico, type Linha, type Momento,
 } from '@/lib/dominio/automatico';
 import type { Conversa } from '@/lib/dominio/tipos';
@@ -15,7 +15,13 @@ import type { Conversa } from '@/lib/dominio/tipos';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MOMENTOS: Momento[] = ['saudacao', 'encaminha', 'followup', 'encerramento', 'despedida'];
+const MOMENTOS: Momento[] = ['saudacao', 'encaminha', 'followup', 'encerramento', 'despedida', 'fora'];
+
+/** "Como se fosse fora do horário": a mesma conversa, hoje às 22h30 em Chapecó. */
+function hojeDeNoite() {
+  const dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  return new Date(`${dia}T22:30:00-03:00`);
+}
 const erro = (texto: string, status = 400) => NextResponse.json({ ok: false, erro: texto }, { status });
 
 export async function POST(req: Request) {
@@ -28,9 +34,10 @@ export async function POST(req: Request) {
 
   const corpo = (await req.json().catch(() => ({}))) as {
     config?: Partial<ConfigAutomatico>; tipo?: 'mensagem' | 'assistente';
-    momento?: Momento; conversaId?: string; nome?: string; linhas?: Linha[];
+    momento?: Momento; conversaId?: string; nome?: string; linhas?: Linha[]; foraDoHorario?: boolean;
   };
   const cfg = leAutomatico(corpo.config);
+  const horario = situacaoDoHorario(cfg, corpo.foraDoHorario ? hojeDeNoite() : new Date());
 
   if (corpo.tipo === 'assistente') {
     const linhas = (Array.isArray(corpo.linhas) ? corpo.linhas : [])
@@ -39,7 +46,7 @@ export async function POST(req: Request) {
       .map((l) => ({ de: l.de, texto: l.texto.slice(0, 1000) }));
     if (!linhas.length || linhas[linhas.length - 1].de !== 'aluno') return erro('Escreva a mensagem do aluno.');
     const resposta = await respondeComoAssistente(
-      turnosDoAssistente(cfg, { nome: corpo.nome || 'Aluno de teste', ehAluno: true, linhas }));
+      turnosDoAssistente(cfg, { nome: corpo.nome || 'Aluno de teste', ehAluno: true, linhas, horario }));
     if (!resposta) return erro('A IA não respondeu agora. Tente de novo daqui a pouco.', 200);
     return NextResponse.json({ ok: true, resposta });
   }
@@ -50,8 +57,8 @@ export async function POST(req: Request) {
   const snap = await bd.doc(`conversas/${corpo.conversaId}`).get();
   if (!snap.exists) return erro('Conversa não encontrada.', 404);
   const conversa = snap.data() as Conversa;
-  const ctx = contextoDe(conversa, await linhasDoAtendimento(bd, snap.id));
+  const ctx = contextoDe(conversa, await linhasDoAtendimento(bd, snap.id), horario);
   const leitura = await escreveMensagem(promptMensagem(cfg, momento, ctx));
   if (!leitura) return erro('A IA não respondeu agora. Tente de novo daqui a pouco.', 200);
-  return NextResponse.json({ ok: true, leitura, reserva: reservaDo(momento, cfg, conversa.nome || '') });
+  return NextResponse.json({ ok: true, leitura, reserva: reservaDo(momento, cfg, conversa.nome || '', horario) });
 }

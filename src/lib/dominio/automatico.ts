@@ -11,9 +11,16 @@
      escola; se quem espera é o aluno, nada se encerra e o time ve o tempo de aguardo
    - follow-up, despedida e saudação sao escritos pela IA lendo a conversa, no jeito
      de falar da escola; sem IA, sai o texto de reserva
-   - tudo nasce desligado */
+   - tudo nasce desligado
+   E o que foi pedido em 21/11/2026: horário de atendimento (segunda a sexta, 8h às 12h e
+   13h30 às 21h30; sábado, 9h às 12h). Fora dele os botões funcionam igual, e a IA avisa
+   que a equipe está fora, diz quando volta e pede para a pessoa já explicar o que precisa. */
 import type { Setor } from './tipos';
 import type { Assunto } from './triagem';
+import {
+  HORARIO_PADRAO, estaAberto, horarioEmTexto, leFaixas, minutosUteis, proximaAbertura, ultimoFechamento,
+  type Faixa,
+} from './horario.ts';
 
 /* aulas: a próxima aula do aluno, lida da agenda, com Confirmar e Remarcar */
 export type Destino = 'recepcao' | 'assistente' | 'aulas';
@@ -56,6 +63,16 @@ export interface ConfigAutomatico {
   avisoLigado: boolean;
   avisoModelo: string;
   avisoIdioma: string;
+  /** Horário de atendimento da equipe. Fora dele, a IA avisa que a equipe está fora e quando volta. */
+  horarioLigado: boolean;
+  faixas: Faixa[];
+  foraInstrucao: string;
+  foraSaudReserva: string;
+  foraEncaminhaReserva: string;
+  /** Conversa que já está com a equipe e o contato escreve fora do horário: um aviso por fechamento. */
+  foraAvisoReserva: string;
+  /** Conversa parada há tanto tempo, sem o contato esperando resposta, recomeça pelo menu. 0 desliga. */
+  recomecaHoras: number;
 }
 
 /** Limites da Meta: 3 botoes de ate 20 letras; lista com linhas de ate 24 letras, ate 10 linhas. */
@@ -102,6 +119,13 @@ export const AUTOMATICO_PADRAO: ConfigAutomatico = {
   avisoLigado: false,
   avisoModelo: 'aviso_demanda_coordenacao',
   avisoIdioma: 'pt_BR',
+  horarioLigado: true,
+  faixas: HORARIO_PADRAO,
+  foraInstrucao: 'Avisa com leveza que agora a equipe está fora do horário de atendimento e diz quando ela volta, com o dia e a hora escritos aqui. Pede para a pessoa já explicar por escrito o que precisa, para agilizar, porque assim que a equipe voltar ela retoma o contato. Não promete resolver agora e não dá outro prazo.',
+  foraSaudReserva: 'Oi, {primeiro_nome}! Aqui é a Nexus Chapecó 🧡 Agora a equipe está fora do horário, mas já escolhe uma opção aqui embaixo e me conta o que precisa: {volta} a gente retoma contigo.',
+  foraEncaminhaReserva: 'Anotado, {primeiro_nome}! Já me conta aqui o que precisa, que {volta} a equipe te responde 😊',
+  foraAvisoReserva: 'Recebi, {primeiro_nome}! A equipe está fora do horário agora e {volta} te responde por aqui 😊',
+  recomecaHoras: 12,
 };
 
 /* ---------------- leitura segura da configuração ---------------- */
@@ -159,7 +183,60 @@ export function leAutomatico(bruto?: Partial<ConfigAutomatico> | null): ConfigAu
     avisoLigado: b.avisoLigado === true,
     avisoModelo: texto(b.avisoModelo, P.avisoModelo, 120).toLowerCase().replace(/[^a-z0-9_]/g, '_'),
     avisoIdioma: texto(b.avisoIdioma, P.avisoIdioma, 12),
+    /* o horário vem ligado: foi pedido do cliente, e documento salvo antes dele não tem o campo */
+    horarioLigado: b.horarioLigado !== false,
+    faixas: b.faixas === undefined ? P.faixas.map((f) => ({ ...f })) : leFaixas(b.faixas),
+    foraInstrucao: texto(b.foraInstrucao, P.foraInstrucao),
+    foraSaudReserva: texto(b.foraSaudReserva, P.foraSaudReserva, 1000),
+    foraEncaminhaReserva: texto(b.foraEncaminhaReserva, P.foraEncaminhaReserva, 1000),
+    foraAvisoReserva: texto(b.foraAvisoReserva, P.foraAvisoReserva, 1000),
+    recomecaHoras: inteiro(b.recomecaHoras, P.recomecaHoras, 0, 168),
   };
+}
+
+/* ---------------- o horário de atendimento ---------------- */
+
+export interface SituacaoDoHorario {
+  aberto: boolean;
+  /** quando a equipe volta, como se fala: "hoje às 13h30", "amanhã às 8h", "segunda às 8h" */
+  volta: string;
+  /** o horário inteiro, para a IA saber */
+  texto: string;
+}
+
+/** A equipe está no horário agora? Sem horário ligado (ou sem faixa nenhuma), sempre está. */
+export function situacaoDoHorario(cfg: ConfigAutomatico, agora: Date): SituacaoDoHorario {
+  const texto = horarioEmTexto(cfg.faixas);
+  if (!cfg.horarioLigado || !cfg.faixas.length) return { aberto: true, volta: '', texto };
+  const aberto = estaAberto(cfg.faixas, agora);
+  return { aberto, volta: aberto ? '' : proximaAbertura(cfg.faixas, agora)?.texto || '', texto };
+}
+
+/** A conversa já está com a equipe e o contato escreveu fora do horário: avisa uma vez
+    por fechamento, e só se ninguém da equipe falou com ele depois que fechou (quem fica
+    até mais tarde respondendo não precisa de aviso por cima). */
+export function avisaForaDoHorario(
+  c: { avisoForaEm?: string | null; ultimaDaEquipeEm?: string | null },
+  cfg: ConfigAutomatico, agora: Date,
+): boolean {
+  if (situacaoDoHorario(cfg, agora).aberto) return false;
+  const fechou = ultimoFechamento(cfg.faixas, agora)?.getTime() ?? 0;
+  const depois = (iso?: string | null) => Boolean(iso) && Date.parse(iso as string) >= fechou;
+  return !depois(c.avisoForaEm) && !depois(c.ultimaDaEquipeEm);
+}
+
+/** Conversa que ficou parada (ninguém fechou) e o contato volta a escrever horas depois:
+    recomeça pelo menu, como uma conversa nova. Não quando ele está esperando resposta da
+    gente (aí quem responde é gente), nem no meio do menu, do assistente ou das aulas. */
+export function recomecaAtendimento(
+  c: { estado?: string; etapa?: string; ultimaEm?: string },
+  cfg: ConfigAutomatico, agora: Date,
+): boolean {
+  if (!cfg.recomecaHoras || c.estado === 'aguardando' || c.estado === 'encerrada') return false;
+  if (c.etapa && c.etapa !== 'gente') return false;
+  if (!c.ultimaEm) return false;
+  const horas = (agora.getTime() - new Date(c.ultimaEm).getTime()) / 3_600_000;
+  return Number.isFinite(horas) && horas >= cfg.recomecaHoras;
 }
 
 /* ---------------- roteamento ---------------- */
@@ -236,13 +313,18 @@ export function deveVoltarParaRecepcao(
   cfg: ConfigAutomatico, agora: Date,
 ): boolean {
   if (c.estado === 'encerrada' || c.setor === 'recepcao' || !c.aguardandoSetorDesde) return false;
-  const h = (agora.getTime() - new Date(c.aguardandoSetorDesde).getTime()) / 3_600_000;
+  const desde = new Date(c.aguardandoSetorDesde);
+  /* com horário de atendimento, só conta o tempo em que a equipe estava: passar para o
+     Financeiro às 21h não devolve para a Recepção às 23h */
+  const h = cfg.horarioLigado && cfg.faixas.length
+    ? minutosUteis(cfg.faixas, desde, agora) / 60
+    : (agora.getTime() - desde.getTime()) / 3_600_000;
   return Number.isFinite(h) && h >= cfg.voltaHoras;
 }
 
 /* ---------------- os textos da IA ---------------- */
 
-export type Momento = 'saudacao' | 'encaminha' | 'followup' | 'encerramento' | 'despedida';
+export type Momento = 'saudacao' | 'encaminha' | 'followup' | 'encerramento' | 'despedida' | 'fora';
 
 export interface Linha { de: 'aluno' | 'escola'; quem?: string; texto: string }
 
@@ -251,20 +333,27 @@ export interface ContextoDaConversa {
   ehAluno: boolean;
   observacao?: string;
   linhas: Linha[];
+  /** o horário de atendimento agora; sem ele, a IA trata como dentro do horário */
+  horario?: SituacaoDoHorario;
 }
 
 export const primeiro = (nome: string) => (nome || '').trim().split(/\s+/)[0] || '';
 
 /** Texto de reserva com o nome do contato: é o que sai quando a IA não responde. */
-export const comNome = (modelo: string, nome: string) =>
-  modelo.split('{primeiro_nome}').join(primeiro(nome) || 'tudo bem').replace(/\s+([!?.,])/g, '$1');
+export const comNome = (modelo: string, nome: string, volta = '') =>
+  modelo.split('{primeiro_nome}').join(primeiro(nome) || 'tudo bem')
+    .split('{volta}').join(volta || 'no próximo horário de atendimento')
+    .replace(/\s+([!?.,])/g, '$1');
 
-export function reservaDo(momento: Momento, cfg: ConfigAutomatico, nome: string) {
+export function reservaDo(momento: Momento, cfg: ConfigAutomatico, nome: string, horario?: SituacaoDoHorario) {
+  const fora = horario && !horario.aberto;
   const t = {
-    saudacao: cfg.saudReserva, encaminha: cfg.encaminhaReserva, followup: cfg.fu1Reserva,
-    encerramento: cfg.encReserva, despedida: cfg.despedidaReserva,
+    saudacao: fora ? cfg.foraSaudReserva : cfg.saudReserva,
+    encaminha: fora ? cfg.foraEncaminhaReserva : cfg.encaminhaReserva,
+    followup: cfg.fu1Reserva, encerramento: cfg.encReserva, despedida: cfg.despedidaReserva,
+    fora: cfg.foraAvisoReserva,
   }[momento];
-  return comNome(t, nome);
+  return comNome(t, nome, horario?.volta);
 }
 
 const REGRAS_FIXAS = [
@@ -284,6 +373,12 @@ export function transcricao(linhas: Linha[]) {
     : '(sem mensagens ainda)';
 }
 
+function blocoDoHorario(ctx: ContextoDaConversa) {
+  const h = ctx.horario;
+  if (!h) return '';
+  return `\nHORÁRIO DE ATENDIMENTO DA EQUIPE: ${h.texto}.\nAGORA: ${h.aberto ? 'a equipe está no horário.' : `a equipe está fora do horário e volta ${h.volta || 'no próximo horário de atendimento'}.`}\n`;
+}
+
 function quemE(ctx: ContextoDaConversa) {
   const quem = ctx.ehAluno ? 'já é aluno(a) cadastrado(a) da escola' : 'ainda não é aluno cadastrado; o nome veio do perfil do WhatsApp';
   return `CONTATO: ${ctx.nome || 'sem nome'} (primeiro nome: ${primeiro(ctx.nome) || 'desconhecido'}), ${quem}.${ctx.observacao ? `\nO QUE O TIME ANOTOU SOBRE ELE: ${ctx.observacao}` : ''}`;
@@ -292,14 +387,23 @@ function quemE(ctx: ContextoDaConversa) {
 /** O pedido para a IA escrever uma mensagem do atendimento. A resposta vem em JSON
     {situacao, pendencia, mensagem}, com o formato garantido pelo servidor. */
 export function promptMensagem(cfg: ConfigAutomatico, momento: Momento, ctx: ContextoDaConversa): string {
-  const cab = `Tu escreve mensagens de WhatsApp em nome da Nexus English Center, unidade Chapecó, uma escola de inglês próxima do aluno.\n\n${blocoDoTom(cfg)}\n\n${REGRAS_FIXAS}\n\n${quemE(ctx)}\n\nCONVERSA DESTE ATENDIMENTO, DA MAIS ANTIGA PARA A MAIS NOVA:\n${transcricao(ctx.linhas)}\n`;
+  const cab = `Tu escreve mensagens de WhatsApp em nome da Nexus English Center, unidade Chapecó, uma escola de inglês próxima do aluno.\n\n${blocoDoTom(cfg)}\n\n${REGRAS_FIXAS}\n${blocoDoHorario(ctx)}\n${quemE(ctx)}\n\nCONVERSA DESTE ATENDIMENTO, DA MAIS ANTIGA PARA A MAIS NOVA:\n${transcricao(ctx.linhas)}\n`;
   const botoes = cfg.botoes.map((b) => `"${b.texto}"`).join(', ');
+  const fora = ctx.horario && !ctx.horario.aberto;
+  const volta = ctx.horario?.volta || 'no próximo horário de atendimento';
+  const instrucaoFora = `\nFORA DO HORÁRIO, A MENSAGEM TAMBÉM PRECISA: ${cfg.foraInstrucao} A equipe volta ${volta}.`;
 
   if (momento === 'saudacao') {
-    return `${cab}\nMOMENTO: o contato acabou de escrever e começa um atendimento novo. Escreva a saudação que vai junto com os botões ${botoes}. Não repita os botões no texto.\nO QUE A SAUDAÇÃO PRECISA FAZER: ${cfg.saudInstrucao}\n\nResponda com situacao "pendente", pendencia vazia e a saudação em mensagem.`;
+    return `${cab}\nMOMENTO: o contato acabou de escrever e começa um atendimento novo. Escreva a saudação que vai junto com os botões ${botoes}. Não repita os botões no texto.\nO QUE A SAUDAÇÃO PRECISA FAZER: ${cfg.saudInstrucao}${fora ? `${instrucaoFora} Os botões continuam valendo: a pessoa escolhe o assunto e já explica.` : ''}\n\nResponda com situacao "pendente", pendencia vazia e a saudação em mensagem.`;
   }
   if (momento === 'encaminha') {
+    if (fora) {
+      return `${cab}\nMOMENTO: a conversa entrou na fila da equipe, que agora está fora do horário. Escreva um aviso curto.${instrucaoFora}\nNão responda a pergunta dele.\n\nResponda com situacao "pendente", pendencia vazia e o aviso em mensagem.`;
+    }
     return `${cab}\nMOMENTO: a conversa está indo agora para uma pessoa do time, que vai responder por aqui. Escreva um aviso curto para o contato saber que foi ouvido e que alguém já vai responder. Não responda a pergunta dele e não diga quanto tempo vai levar.\n\nResponda com situacao "pendente", pendencia vazia e o aviso em mensagem.`;
+  }
+  if (momento === 'fora') {
+    return `${cab}\nMOMENTO: o contato escreveu fora do horário numa conversa que já está com a equipe. Escreva um aviso curto: a mensagem chegou, a equipe está fora do horário e volta ${volta}, e responde por aqui. Se ele ainda não disse o que precisa, peça para já deixar escrito. Não responda a pergunta dele.\n\nResponda com situacao "pendente", pendencia vazia e o aviso em mensagem.`;
   }
 
   const leitura = `\nAntes de escrever, leia de quem é a vez:\n- "pendente": a última fala que espera resposta é da escola, e ficou algo esperando o contato.\n- "resolvida": o contato já agradeceu, confirmou ou se despediu, e não falta nada.\n- "aluno_esperando": o contato está esperando uma resposta ou uma ação da escola.\nSe for "aluno_esperando", deixe a mensagem vazia: não se manda nada para quem está esperando a gente.\nSe for "resolvida", ${cfg.resolvida === 'despedida' ? 'escreva só uma despedida curta, sem perguntar nada.' : 'deixe a mensagem vazia.'}\nEm pendencia, escreva numa frase curta o que ficou pendente.`;
@@ -320,7 +424,10 @@ export function regrasDoAssistente(cfg: ConfigAutomatico, ctx: ContextoDaConvers
     ? cfg.faq.map((q) => `- ${q.t}: ${q.r || '(sem resposta escrita)'}`).join('\n')
     : '(nenhuma pergunta escrita ainda)';
   const quem = cfg.passaPara === 'recepcao' ? 'a Recepção' : 'uma pessoa do Financeiro';
-  return `Tu é o assistente do financeiro e dos contratos da Nexus English Center, unidade Chapecó, conversando pelo WhatsApp.\n\nCOMPORTAMENTO, ESCRITO PELA ESCOLA:\n${cfg.prompt}\n\n${blocoDoTom(cfg)}\n\nPERGUNTAS E RESPOSTAS DA ESCOLA (a única fonte do que tu pode afirmar):\n${faq}\n\nQUANDO PASSAR PARA UMA PESSOA:\n${cfg.passaQuando}\nQuem assume é ${quem}.\n\n${REGRAS_FIXAS}\n\n${quemE(ctx)}\n\nEm acao, "responder" quando a resposta está nas perguntas e respostas, e "passar" quando precisa de gente. Em mensagem, o que o contato vai ler. Em resumo, só quando for passar: uma ou duas frases para a pessoa que vai assumir.\n\nA conversa começa agora.`;
+  const fora = ctx.horario && !ctx.horario.aberto
+    ? `\nAGORA A EQUIPE ESTÁ FORA DO HORÁRIO e volta ${ctx.horario.volta || 'no próximo horário de atendimento'}. Tu continua respondendo o que está nas perguntas e respostas. Se for passar para uma pessoa, diga que a equipe está fora do horário, quando volta, e peça para o contato já deixar escrito o que precisa.`
+    : '';
+  return `Tu é o assistente do financeiro e dos contratos da Nexus English Center, unidade Chapecó, conversando pelo WhatsApp.\n\nCOMPORTAMENTO, ESCRITO PELA ESCOLA:\n${cfg.prompt}\n\n${blocoDoTom(cfg)}\n\nPERGUNTAS E RESPOSTAS DA ESCOLA (a única fonte do que tu pode afirmar):\n${faq}\n\nQUANDO PASSAR PARA UMA PESSOA:\n${cfg.passaQuando}\nQuem assume é ${quem}.${fora}\n\n${REGRAS_FIXAS}\n${blocoDoHorario(ctx)}\n${quemE(ctx)}\n\nEm acao, "responder" quando a resposta está nas perguntas e respostas, e "passar" quando precisa de gente. Em mensagem, o que o contato vai ler. Em resumo, só quando for passar: uma ou duas frases para a pessoa que vai assumir.\n\nA conversa começa agora.`;
 }
 
 /** Os turnos para a IA: começa e termina no contato, como a API pede. */
