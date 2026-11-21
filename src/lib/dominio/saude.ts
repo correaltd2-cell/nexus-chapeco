@@ -7,7 +7,7 @@
    Prova: node --experimental-strip-types testes/saude.ts */
 import { duracao } from './formato.ts';
 
-export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'midia' | 'ia' | 'relogio' | 'agendadas';
+export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'midia' | 'agenda' | 'ia' | 'relogio' | 'agendadas';
 export type Batida = 'webhookEm' | 'entradaEm' | 'saidaEm' | 'relogioEm' | 'agendadasEm';
 
 export interface Falha { motivo: string; em: string; vezes: number }
@@ -66,6 +66,11 @@ const SOBRE_FALHA: Record<OndeFalha, { titulo: string; conserto: string; grave: 
   midia: {
     titulo: 'Uma foto, áudio ou documento do contato não foi baixado',
     conserto: 'A mensagem aparece na conversa sem o arquivo. Peça para o contato mandar de novo. Se repetir, confira o Storage do Firebase e os registros da Vercel em /api/whatsapp/webhook.',
+    grave: false,
+  },
+  agenda: {
+    titulo: 'A agenda falhou numa tarefa do servidor',
+    conserto: 'Pode ser o lembrete da véspera, a resposta do aluno ao lembrete ou os dados de teste. A agenda segue funcionando na tela. Se repetir, veja os registros da Vercel em /api/cron/lembretes e /api/agenda.',
     grave: false,
   },
   ia: {

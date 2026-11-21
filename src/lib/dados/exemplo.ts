@@ -5,6 +5,8 @@ import type {
   Cartao, Conversa, Lista, Mensagem, MensagemAgendada, Perfil, Quadro,
 } from '@/lib/dominio/tipos';
 import { BIBLIOTECA, situacaoDaBiblioteca, type SituacaoDoModelo } from '@/lib/dominio/modelos';
+import { semente } from '@/lib/dominio/agenda-exemplo';
+import type { Aluno } from '@/lib/dominio/tipos';
 
 const base = new Date();
 base.setHours(10, 5, 0, 0);
@@ -27,6 +29,8 @@ const emDias = (n: number) => {
 /* a janela de 24 horas fica aberta em quase todas, para dar para digitar na demonstracao */
 const janela = () => new Date(base.getTime() + 20 * 3600 * 1000).toISOString();
 
+const AGENDA = semente(new Date());
+
 export const PERFIS: Perfil[] = [
   { id: 'u-gui', nome: 'Guilherme', email: 'guilherme@nexus.demo', papel: 'admin',
     setores: ['recepcao', 'financeiro', 'coordenacao', 'kids'], avisaNoWhats: false, ativo: true, criadoEm: diasAtras(90) },
@@ -36,7 +40,26 @@ export const PERFIS: Perfil[] = [
     setores: ['coordenacao'], telefone: '5549990000101', avisaNoWhats: true, ativo: true, criadoEm: diasAtras(90) },
   { id: 'u-karina', nome: 'Karina', email: 'karina@nexus.demo', papel: 'coordenacao',
     setores: ['kids'], telefone: '5549990000102', avisaNoWhats: true, ativo: true, criadoEm: diasAtras(90) },
+  ...AGENDA.professores.map((p): Perfil => ({
+    ...p, papel: 'professor', setores: [], avisaNoWhats: false, ativo: true, daAula: true, criadoEm: diasAtras(60),
+  })),
 ];
+
+/* ---------- agenda: a mesma semente do botão de dados de teste ---------- */
+export const ALUNOS: Aluno[] = AGENDA.alunos;
+export const MODULOS = AGENDA.modulos;
+export const AULAS_CURRICULO = AGENDA.aulas;
+export const RECORRENCIAS = AGENDA.recorrencias;
+export const BLOQUEIOS = AGENDA.bloqueios;
+export const LOGS_AGENDA = AGENDA.logs;
+export const AGENDAMENTOS = AGENDA.agendamentos.map((a) => {
+  const { alunosDaAula, ...resto } = a;
+  void alunosDaAula; /* a subcoleção vai à parte, em ALUNOS_DAS_AULAS */
+  return resto;
+});
+export const ALUNOS_DAS_AULAS = Object.fromEntries(
+  AGENDA.agendamentos.map((a) => [a.id, a.alunosDaAula.map((x) => ({ ...x, id: x.alunoId }))]),
+);
 
 export const CONVERSAS: Conversa[] = [
   { id: 'c-giovana', waId: '5549991542207', nome: 'Giovana Lazzari', alunoId: 'a-giovana',

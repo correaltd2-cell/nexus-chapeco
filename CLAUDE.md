@@ -56,8 +56,9 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
   aluno, e um aluno pode trocar de telefone. Conversa aponta para aluno.
 - **Nota de prova nunca é apagada.** Correção gera versão nova, com quem corrigiu e
   quando. O histórico do aluno é registro.
-- **A grade da semana tem uma fonte só por vez.** Enquanto a planilha do Google for a
-  fonte, o sistema lê e escreve nela; não existe cópia paralela divergindo.
+- **A grade da semana tem uma fonte só por vez.** Desde 21/11/2026 a fonte é a agenda do
+  sistema (`agendamentos`); no dia da virada, o ELLO e a planilha deixam de ser usados
+  para marcar aula. Não existe cópia paralela divergindo.
 - **Todo valor monetário é inteiro em centavos.** Nunca `float`.
 - **Mensagem para aluno fora da janela de 24 horas só sai por template aprovado.**
 
@@ -67,7 +68,7 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 |---|---|
 | 17/11/2026 | ~~**O número é o da recepção que já existe, com coexistência.**~~ Substituída em 18/11, abaixo. A recepção segue atendendo pelo celular e o sistema enxerga tudo. Foi descartado número novo porque conta recém-criada não é elegível para coexistência, e porque número que entra direto na API nunca mais volta para o app. Detalhes e passo a passo em `docs/whatsapp-coexistencia.md`. |
 | 17/11/2026 | **As provas são construídas aqui dentro**, exclusivas da unidade Chapecó. Não dependem do Nexus Hub nem de sistema de terceiro. |
-| 17/11/2026 | **A grade de aulas continua no Google Sheets** enquanto a planilha for a fonte. O sistema lê e escreve nela; não existe cópia paralela. |
+| 17/11/2026 | ~~**A grade de aulas continua no Google Sheets** enquanto a planilha for a fonte.~~ Substituída em 21/11, abaixo. |
 | 17/11/2026 | **Firebase e Vercel**, não Supabase. |
 | 18/11/2026 | **WhatsApp só na Cloud API, sem coexistência, com o número novo +55 49 98896-5170.** Toda conversa passa pelo sistema, sem resposta por fora no celular, e o atendimento automático não disputa com o app do WhatsApp Business. O número 8897-1344 ("Nexus Comercial", ligado à plataforma da Firma Moderna) já estava na API sem coexistência. O código da conexão por coexistência ficou no branch `whatsapp-coexistencia`, fora do ar. O token vem de um usuário de sistema do portfólio da Nexus, nas variáveis da Vercel; o app é o Nexus 1. Passo a passo em `docs/whatsapp-cloud.md`. **Antes de divulgar o número:** aviso de mensagem nova no celular e envio de áudio, foto e documento pela tela de conversas. |
 | 18/11/2026 | **A triagem por palavra abre a tarefa, nunca responde o contato.** (Quem responde é o atendimento automático, decisão abaixo.) Mensagem que chega com assunto claro abre um cartão no quadro do setor. Sinal fraco não abre nada, e só existe uma tarefa aberta por conversa. Quem responde e quem move continua sendo gente. |
@@ -77,8 +78,9 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 | 19/11/2026 | **Redesenho: cara de aplicativo, e a conversa com o jeito e as cores do WhatsApp** (pedido do cliente, com o app da Smiles como referência de estilo). Cantos bem redondos, cartões soltos sobre o fundo, botão e filtro em pílula, laranja forte onde se age; no celular, faixa laranja no alto da lista e barra de abas branca. Na conversa: bolha verde de quem envia e branca de quem chega, com a pontinha; papel de parede bege com **desenho próprio** de escola (nada copiado do WhatsApp, nem logo); visto azul; os botões da mensagem embaixo da bolha; emoji na caixa de escrever e botão redondo verde de enviar. Substitui o "não imita o WhatsApp" de 17/11: o time e os alunos já leem esse arranjo sem pensar. |
 | 19/11/2026 | **Cada setor tem cor e ícone próprios, e o menu lateral é escolha de quem usa** (pedido do cliente: "não diz bem claro se está na Recepção ou na Coordenação" e "o menu ficou minimalista demais"). A etiqueta do setor tem cor cheia (Recepção laranja, Financeiro verde, Coordenação azul, Coordenação Kids roxo) e aparece na linha da lista, no topo da conversa e no painel; no celular a borda do cartão da conversa tem a cor do setor. O menu recolhido mostra ícone com nome curto embaixo, abre e recolhe por botão no próprio menu, e pode ser claro. |
 | 19/11/2026 | **Logo própria em 3D e comemoração ao passar a conversa** (pedido do cliente: "uma coisa meio zoeira, mas rápida, que não atrapalhe a recepção"). A logo da Central de Atendimento é um balão laranja com o N em relevo, que brilha e tem um ponto verde "ao vivo" pulsando. Passar de setor mostra por menos de 2 s um cartão com o avatar de quem recebe ("Transferido para Natan!") e uma frase de zoeira; não pega clique e desliga em Configurações, Aparência. |
-| 21/11/2026 | **Os modelos de mensagem nascem no sistema e vão sozinhos para a Meta** (pedido do cliente: "pode criar pra mim direto"). A biblioteca de 29 modelos (aulas, marcação, reposição, provas, financeiro, contrato, Kids para o responsável, chamar, urgente, retomar, aniversário e o aviso à coordenação) mora em `dominio/modelos.ts`; o relógio de hora em hora cria o que falta e anota a situação em `templates`. Apagado na Meta não volta sozinho. Texto aprovado não se edita: muda o nome. Na conversa só aparece o que a Meta aprovou, e o texto gravado vem do banco, não do navegador. |
+| 21/11/2026 | **Os modelos de mensagem nascem no sistema e vão sozinhos para a Meta** (pedido do cliente: "pode criar pra mim direto"). A biblioteca de 31 modelos (aulas, marcação, reposição, provas, financeiro, contrato, Kids para o responsável, chamar, urgente, retomar, aniversário, o aviso à coordenação e os dois lembretes da agenda) mora em `dominio/modelos.ts`; o relógio de hora em hora cria o que falta e anota a situação em `templates`. Apagado na Meta não volta sozinho. Texto aprovado não se edita: muda o nome. Na conversa só aparece o que a Meta aprovou, e o texto gravado vem do banco, não do navegador. |
 | 21/11/2026 | **Foto, áudio, vídeo e documento nos dois sentidos, e aviso de mensagem nova** (o que faltava antes de divulgar o número). O que chega é baixado da Meta para o Storage, na pasta da conversa; o que sai sobe do navegador para o Storage e o servidor manda. Áudio gravado no Chrome (WebM) é reembalado em OGG no servidor, sem ffmpeg e sem recodificar. O aviso vai para quem é do setor da conversa e só quando ela está com gente: som e notificação com o sistema aberto, e push pelo Firebase Cloud Messaging com ele fechado (no iPhone, só instalado na tela de início). O push precisa da chave de Web Push do Firebase em `NEXT_PUBLIC_FIREBASE_VAPID_KEY`. Passo a passo: `docs/midia-e-avisos.md`. |
+| 21/11/2026 | **A agenda de aulas mora no sistema** (pedido do cliente, com o ELLO como referência do que a escola usa hoje). Agendamento = uma aula num horário, um professor e vários alunos; status é da aula, presença, observação e notas são de cada aluno (subcoleção). Calendário com FullCalendar 7 (mês, semana, dia, 7h30 às 21h30), cor do professor no bloco, bolinha de status, selo do WhatsApp, alerta de presença. Bloqueio é tipo próprio, nunca aula falsa. Professor é a equipe (`perfis`, papel professor ou "dá aula"), não cadastro novo. Conflito avisa e só a administração passa por cima. Lembrete da véspera por modelo com Confirmar e Remarcar, resumo com IA no servidor, relatório com CSV e log de tudo. Professor só lança status e presença das aulas dele, também nas regras do Firestore. Passo a passo: `docs/agenda.md`. |
 | 18/11/2026 | **O telefone do contato não se edita na tela.** Ele é a chave que casa a conversa com o que a Meta manda. Nome, foto e observação se editam; telefone novo é conversa nova. |
 
 ## 3.2 O que já está de pé no atendimento (18/11/2026)
@@ -131,6 +133,15 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
   `public/aviso-sw.js`. O sistema é instalável (`app/manifest.ts`). Passo a passo:
   `docs/midia-e-avisos.md`.
 
+- **Agenda** (21/11/2026): regras puras em `src/lib/dominio/agenda.ts`, provadas em
+  `node --experimental-strip-types testes/agenda.ts` (**rodar antes de mexer em conflito,
+  recorrência ou permissão**); semente fictícia em `dominio/agenda-exemplo.ts` (a mesma
+  da demonstração e do botão de dados de teste); gravação em lote com log em
+  `src/lib/dados/agenda.ts`; telas em `componentes/agenda/`; servidor (lembrete,
+  resposta aos botões, resumo) em `src/lib/agenda-servidor.ts`. A resposta Confirmar ou
+  Remarcar do lembrete é tratada em `recebimento.ts` antes da triagem e do atendimento
+  automático. Passo a passo e a virada: `docs/agenda.md`.
+
 - **Saúde do sistema** (19/11/2026, depois de um dia com o servidor sem gravar e
   ninguém sabendo): o servidor anota em `config/saude` a última vez que cada parte
   andou (chamada da Meta, mensagem de contato, envio aceito, relógio, fila) e a última
@@ -161,9 +172,9 @@ Next.js (App Router) ──► Vercel
               ├── /api/avisos               liga o push do aparelho e manda aviso de teste
               ├── /api/automatico/testar    a IA escreve sem enviar, para testar
               ├── /api/saude                o servidor alcança o banco? (público, uma palavra)
-              ├── /api/sheets/*             lê e escreve a grade no Google Sheets
+              ├── /api/agenda/*             lembrete, resumo com IA e dados de teste da agenda
               ├── /api/provas/*             envio e correção
-              └── /api/cron/*               programadas, relógio do atendimento, modelos, réguas
+              └── /api/cron/*               programadas, relógio do atendimento, modelos, lembretes da agenda
 ```
 
 **Tempo real:** as telas que mudam sozinhas (inbox, quadros, grade) usam `onSnapshot`
@@ -178,7 +189,7 @@ entra onde há segredo ou integração.
 | `gestor` | tudo da operação |
 | `recepcao` | todas as conversas, grade, provas, quadros |
 | `coordenacao` | conversas do setor dele, provas e alunos da trilha dele |
-| `professor` | a grade das aulas dele e as provas que corrige |
+| `professor` | a agenda inteira (lança status e presença só das aulas dele) e as provas que corrige |
 
 O papel vive no **custom claim** do Firebase Auth e também em `perfis/{uid}`, porque as
 regras do Firestore leem o claim e a interface lê o perfil. Quem está `ativo: false`
@@ -238,6 +249,12 @@ telas com o cliente, não as cores: aquelas foram substituídas.
   modelo da LPA, porque `next/font` busca a fonte no build e a rede daqui não alcança
   o Google. A pilha de reserva vive dentro do próprio token, então
   `font-family:var(--fonte-display)` sozinho já basta.
+- **Agenda** (21/11/2026): o bloco tem a cor do professor (escolhida em Agenda,
+  Cadastros) e a bolinha de status nas cores que o cliente pediu (azul agendado, verde
+  confirmado, preto realizado, cinza cancelado, roxo remarcado); bloqueio é faixa cinza
+  listrada. No gráfico de notas, as quatro habilidades usam os quatro primeiros tons da
+  paleta de visualização, conferidos para daltonismo nos dois temas. São exceções à
+  paleta só dentro da agenda e do relatório, como as cores do WhatsApp na conversa.
 - **Tema claro, escuro ou automático.** O automático segue o aparelho; a escolha feita
   em Configurações vale por cima, pela classe `t-escuro` ou `t-claro` no `body`.
 - Interface clara por padrão, porque o time usa isso oito horas por dia.
@@ -273,7 +290,7 @@ Não usar travessão.
 3. WhatsApp oficial com coexistência
 4. Quadros
 5. Provas
-6. Grade e marcação de aulas pelo Google Sheets
+6. Agenda de aulas no sistema (no lugar da planilha, desde 21/11/2026)
 7. Relatórios e configurações
 
 ## 9. Segredos

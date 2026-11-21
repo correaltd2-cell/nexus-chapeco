@@ -35,6 +35,12 @@ const RespostaSchema = z.object({
 });
 export type RespostaDoAssistente = z.infer<typeof RespostaSchema>;
 
+const ResumoSchema = z.object({
+  resumo: z.string(),
+  atencao: z.array(z.string()),
+});
+export type ResumoDaIa = z.infer<typeof ResumoSchema>;
+
 type Turno = { role: 'user' | 'assistant'; content: string };
 
 /* A falha da IA vai para a saúde do sistema com o motivo em português. O aluno não
@@ -95,6 +101,15 @@ export async function respondeComoAssistente(turnos: Turno[]): Promise<RespostaD
   const mensagem = limpa(r.mensagem);
   if (!mensagem) return null;
   return { ...r, mensagem, resumo: r.resumo.trim() };
+}
+
+/** O resumo do progresso de um aluno a partir das últimas aulas (agenda). */
+export async function resumeProgresso(prompt: string): Promise<ResumoDaIa | null> {
+  const r = await pergunta<ResumoDaIa>([{ role: 'user', content: prompt }], betaZodOutputFormat(ResumoSchema));
+  if (!r) return null;
+  const resumo = limpa(r.resumo);
+  if (!resumo) return null;
+  return { resumo, atencao: r.atencao.map(limpa).filter(Boolean).slice(0, 4) };
 }
 
 /** O WhatsApp aceita até 4096 letras; a escola não usa travessão. */

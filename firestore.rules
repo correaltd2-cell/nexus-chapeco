@@ -23,7 +23,8 @@ service cloud.firestore {
         || (uid == request.auth.uid
             && request.resource.data.papel == resource.data.papel
             && request.resource.data.setores == resource.data.setores
-            && request.resource.data.ativo == resource.data.ativo);
+            && request.resource.data.ativo == resource.data.ativo
+            && request.resource.data.get('daAula', false) == resource.data.get('daAula', false));
     }
 
     match /alunos/{id} {
@@ -81,6 +82,61 @@ service cloud.firestore {
 
     match /templates/{id} { allow read: if equipe(); allow write: if gestao(); }
     match /envios/{id}    { allow read: if equipe(); allow write: if gestao(); }
+
+    /* ---------- agenda ----------
+       Admin, gestão, recepção e coordenação cuidam da agenda. O professor lê tudo e,
+       nas aulas DELE, só muda o status e o que é de cada aluno (presença, obs e notas):
+       não cria, não exclui, não remarca e não troca aluno. A mesma regra está em
+       src/lib/dominio/agenda.ts (permissoesDe), que só decide o que a tela mostra. */
+    function cuidaDaAgenda() { return papel() in ['admin', 'gestor', 'recepcao', 'coordenacao']; }
+    function statusDaAula(s) { return s in ['agendado', 'confirmado', 'realizado', 'cancelado', 'remarcado']; }
+    function aulaValida(d) {
+      return d.inicio is string && d.fim is string && d.fim > d.inicio
+        && statusDaAula(d.status) && d.professorId is string && d.alunoIds is list
+        && d.modalidade in ['presencial', 'online'];
+    }
+    function professorDaAula(dados) { return papel() == 'professor' && dados.professorId == request.auth.uid; }
+
+    match /agendamentos/{id} {
+      allow read: if equipe();
+      allow create, delete: if cuidaDaAgenda();
+      allow update: if (cuidaDaAgenda() && aulaValida(request.resource.data))
+        || (professorDaAula(resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'alunos', 'atualizadoPor', 'atualizadoEm'])
+            && statusDaAula(request.resource.data.status)
+            && request.resource.data.alunos.size() == resource.data.alunos.size()
+            && request.resource.data.atualizadoPor == request.auth.uid);
+
+      /* o que é de cada aluno na aula */
+      match /alunos/{alunoId} {
+        allow read: if equipe();
+        allow create, delete: if cuidaDaAgenda();
+        allow update: if cuidaDaAgenda()
+          || (professorDaAula(get(/databases/$(database)/documents/agendamentos/$(id)).data)
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['presenca', 'obs', 'notas']));
+      }
+    }
+
+    match /recorrencias/{id} { allow read: if equipe(); allow write: if cuidaDaAgenda(); }
+    match /modulos/{id}      { allow read: if equipe(); allow write: if cuidaDaAgenda(); }
+    match /aulas/{id}        { allow read: if equipe(); allow write: if cuidaDaAgenda(); }
+    /* bloqueio é tipo próprio (feriado, férias, reunião, indisponível), nunca aula falsa */
+    match /bloqueios/{id} {
+      allow read: if equipe();
+      allow write: if cuidaDaAgenda()
+        && (request.resource == null
+            || (request.resource.data.fim > request.resource.data.inicio
+                && request.resource.data.tipo in ['feriado', 'ferias', 'reuniao', 'indisponivel']));
+    }
+
+    /* o registro de tudo o que mexeu na agenda: cada um grava o próprio, ninguém apaga */
+    match /logs_agenda/{id} {
+      allow read: if cuidaDaAgenda();
+      allow create: if equipe() && request.resource.data.usuarioId == request.auth.uid;
+      allow update, delete: if false;
+    }
 
     /* Configuração é da gestão. Atendimento e conexão do WhatsApp moram aqui. */
     match /config/{id} { allow read: if equipe(); allow write: if gestao(); }

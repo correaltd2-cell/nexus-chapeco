@@ -9,7 +9,7 @@ export const NOME_MODULO: Record<Modulo, string> = {
   conversas: 'Conversas',
   quadros: 'Quadros',
   provas: 'Provas',
-  aulas: 'Aulas',
+  aulas: 'Agenda',
   relatorios: 'Relatórios',
   ajustes: 'Configurações',
 };

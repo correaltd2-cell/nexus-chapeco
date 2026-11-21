@@ -17,6 +17,10 @@ export interface Perfil {
   avisaNoWhats: boolean;
   ativo: boolean;
   criadoEm: string;
+  /* agenda: quem dá aula aparece como professor; a cor pinta os blocos dele */
+  daAula?: boolean;        // papel professor já dá aula; coordenação marca se der
+  cor?: string;            // #RRGGBB
+  teste?: boolean;         // professor fictício da semente da agenda
 }
 
 /* ---------- alunos ---------- */

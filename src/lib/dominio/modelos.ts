@@ -111,6 +111,23 @@ export const BIBLIOTECA: ModeloDaEscola[] = [
     campos: [NOME, { rotulo: 'motivo', exemplo: 'o feriado de Natal' }, { rotulo: 'dia', exemplo: '25/12' }],
   },
 
+  {
+    nome: 'lembrete_aula_agenda', titulo: 'Lembrete da agenda', grupo: 'Aulas', categoria: 'UTILITY',
+    quando: 'Sai sozinho na véspera da aula marcada na agenda. Os botões mudam a aula na agenda.',
+    corpo: 'Oi, {{1}}! Passando para lembrar da sua aula de amanhã, {{2}}, às {{3}} ({{4}}). Podemos contar com você? Toque em um dos botões abaixo.',
+    campos: [NOME, DIA, HORA, { rotulo: 'aula', exemplo: 'A2 - L12' }],
+    respostas: ['Confirmar', 'Remarcar'],
+    interno: true,
+  },
+  {
+    nome: 'lembrete_aula_kids', titulo: 'Lembrete da agenda (Kids)', grupo: 'Kids', categoria: 'UTILITY',
+    quando: 'Sai sozinho para o responsável na véspera da aula Kids marcada na agenda.',
+    corpo: 'Oi, {{1}}! Passando para lembrar da aula de {{2}} amanhã, {{3}}, às {{4}}. Podemos contar com a presença? Toque em um dos botões abaixo.',
+    campos: [RESPONSAVEL, { rotulo: 'nome do aluno', exemplo: 'Pedro' }, DIA, HORA],
+    respostas: ['Confirmar', 'Remarcar'],
+    interno: true,
+  },
+
   /* ---------------- provas ---------------- */
   {
     nome: 'prova_agendada', titulo: 'Prova marcada', grupo: 'Provas', categoria: 'UTILITY',

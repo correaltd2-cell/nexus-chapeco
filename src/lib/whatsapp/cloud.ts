@@ -84,7 +84,9 @@ export const mandaTexto = (para: string, texto: string) =>
 
 /** Modelo aprovado. `sufixoDoLink` preenche o botão de link dinâmico do modelo (o
     {{1}} no fim da URL cadastrada na Meta), quando ele tem um. */
-export function mandaTemplate(para: string, nome: string, idioma: string, variaveis: string[], sufixoDoLink?: string) {
+export function mandaTemplate(
+  para: string, nome: string, idioma: string, variaveis: string[], sufixoDoLink?: string, payloads?: string[],
+) {
   const componentes: Record<string, unknown>[] = [];
   if (variaveis.length) {
     componentes.push({ type: 'body', parameters: variaveis.map((v) => ({ type: 'text', text: v })) });
@@ -92,6 +94,10 @@ export function mandaTemplate(para: string, nome: string, idioma: string, variav
   if (sufixoDoLink) {
     componentes.push({ type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: sufixoDoLink }] });
   }
+  /* o payload de cada botão de resposta volta no webhook quando o contato toca nele */
+  (payloads || []).forEach((payload, i) => {
+    componentes.push({ type: 'button', sub_type: 'quick_reply', index: String(i), parameters: [{ type: 'payload', payload }] });
+  });
   return manda({
     to: para,
     type: 'template',

@@ -11,6 +11,7 @@ import { adminArquivos } from '@/lib/firebase/admin';
 import { caminhoDaMidia, mimeLimpo, previaDaMidia } from '@/lib/dominio/midia';
 import { descreveErro, falhou } from '@/lib/saude';
 import { avisaEquipe } from '@/lib/avisos';
+import { respondeLembrete } from '@/lib/agenda-servidor';
 
 export interface Contexto { bd: Firestore }
 
@@ -195,6 +196,16 @@ export async function recebeDoContato(
       ? { estado: 'aberta', setor: 'recepcao', encerradaEm: null }
       : {}),
   });
+
+  /* toque em Confirmar ou Remarcar do lembrete da agenda: a agenda responde e muda a
+     aula; triagem e atendimento automático ficam de fora desta mensagem */
+  const payload = tipo === 'button' ? (m.button as { payload?: string } | undefined)?.payload : undefined;
+  const daAgenda = origem === 'ao_vivo' ? await respondeLembrete(ctx.bd, ref, payload, waId) : null;
+  if (daAgenda) {
+    if (daAgenda === 'remarcar') await avisaEquipe(ctx.bd, ref.id);
+    if (midia) await guardaMidia(ref.id, msg, midia);
+    return ref;
+  }
 
   if (!naoViraFala(tipo) && texto.trim()) {
     const dados = conversa.data() || {};

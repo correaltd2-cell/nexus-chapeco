@@ -40,9 +40,10 @@ pagamento na conta do WhatsApp, senão nenhum modelo sai (erro 131042).
 - `WHATSAPP_BUSINESS_ACCOUNT_ID` da conta do número novo (+55 49 98896-5170).
 - `CRON_SECRET`, como nos outros relógios.
 
-## A biblioteca (29 modelos)
+## A biblioteca (31 modelos)
 
-Entre colchetes, o que a pessoa preenche na hora de enviar.
+Entre colchetes, o que a pessoa preenche na hora de enviar. Os dois lembretes da agenda
+saem sozinhos na véspera (docs/agenda.md) e não aparecem na escolha da conversa.
 
 ### Aulas
 
@@ -106,6 +107,13 @@ A reposição ficou marcada.
 Feriado, recesso ou escola fechada.
 
 > Oi, [primeiro nome]! Por causa de [motivo], não teremos aula em [dia]. As aulas seguem normalmente depois disso. Qualquer dúvida, é só responder por aqui.
+
+**Lembrete da agenda** (`lembrete_aula_agenda`, Utilidade)  
+Sai sozinho na véspera da aula marcada na agenda. Os botões mudam a aula na agenda.
+
+> Oi, [primeiro nome]! Passando para lembrar da sua aula de amanhã, [dia], às [horário] ([aula]). Podemos contar com você? Toque em um dos botões abaixo.
+>
+> Botões: Confirmar · Remarcar
 
 ### Provas
 
@@ -178,6 +186,13 @@ O contrato está perto do fim.
 > Botões: Quero saber · Agora não
 
 ### Kids
+
+**Lembrete da agenda (Kids)** (`lembrete_aula_kids`, Utilidade)  
+Sai sozinho para o responsável na véspera da aula Kids marcada na agenda.
+
+> Oi, [nome do responsável]! Passando para lembrar da aula de [nome do aluno] amanhã, [dia], às [horário]. Podemos contar com a presença? Toque em um dos botões abaixo.
+>
+> Botões: Confirmar · Remarcar
 
 **Kids: confirmação de aula** (`kids_confirmacao_aula`, Utilidade)  
 Para o responsável, um dia antes da aula.
