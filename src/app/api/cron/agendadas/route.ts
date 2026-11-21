@@ -8,6 +8,8 @@ import { NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminBd } from '@/lib/firebase/admin';
 import { mandaTexto, temConfig } from '@/lib/whatsapp/cloud';
+import { assinaturaDe } from '@/lib/whatsapp/assinatura';
+import { assinaTexto } from '@/lib/dominio/assinatura';
 import { janelaAberta } from '@/lib/dominio/formato';
 import { camposDaFalaDaEscola } from '@/lib/whatsapp/automatico';
 import { bate, descreveErro, falhou } from '@/lib/saude';
@@ -71,7 +73,9 @@ async function esvaziaFila() {
       continue;
     }
 
-    const resposta = await mandaTexto(conversa.waId, a.texto);
+    /* sai assinada por quem programou, como se tivesse enviado na hora */
+    const assinatura = await assinaturaDe(bd, a.autorId);
+    const resposta = await mandaTexto(conversa.waId, assinaTexto(a.texto, assinatura));
     const quando = new Date().toISOString();
 
     await bd.collection('mensagens').add({
@@ -80,6 +84,7 @@ async function esvaziaFila() {
       autor: 'humano',
       autorNome: a.autorNome,
       texto: a.texto,
+      ...(assinatura ? { assinadaComo: assinatura } : {}),
       waMessageId: resposta.waMessageId || null,
       falhouEm: resposta.ok ? null : quando,
       falhaMotivo: resposta.ok ? null : resposta.erro || null,

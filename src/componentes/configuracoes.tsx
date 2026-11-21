@@ -8,7 +8,8 @@ import { useSessao, useTema, type Tema } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
 import { ehGestao, NOME_PAPEL, NOME_SETOR, SETORES } from '@/lib/dominio/acessos';
-import { leAtendimento } from '@/lib/dominio/config';
+import { leAtendimento, type ConfigDoAtendimento } from '@/lib/dominio/config';
+import { ASSINATURA_MAXIMO, nomeDaAssinatura } from '@/lib/dominio/assinatura';
 import { leAutomatico, type ConfigAutomatico } from '@/lib/dominio/automatico';
 import AtendimentoAutomatico from '@/componentes/config-automatico';
 import { SaudeDoSistema } from '@/componentes/saude';
@@ -72,6 +73,7 @@ export default function Configuracoes() {
       </header>
 
       <Atendimento valor={atendimento} podeMexer={gestao} aoSalvar={salvaAtendimento} />
+      {perfil && <SuaAssinatura perfil={perfil} ligada={atendimento.assinarMensagens} />}
       <AtendimentoAutomatico salva={automatico} podeMexer={gestao} chama={chama} perfis={perfis} />
       <ModelosDeMensagem gestao={gestao} chama={chama} />
       <Aparencia tema={tema} setTema={setTema} />
@@ -91,9 +93,9 @@ export default function Configuracoes() {
 
 /* ================= atendimento ================= */
 function Atendimento({ valor, podeMexer, aoSalvar }: {
-  valor: { abreTarefaNaTriagem: boolean; minutosDeAguardo: number };
+  valor: ConfigDoAtendimento;
   podeMexer: boolean;
-  aoSalvar: (c: Partial<{ abreTarefaNaTriagem: boolean; minutosDeAguardo: number }>) => Promise<void>;
+  aoSalvar: (c: Partial<ConfigDoAtendimento>) => Promise<void>;
 }) {
   const [minutos, setMinutos] = useState(String(valor.minutosDeAguardo));
   return (
@@ -111,6 +113,16 @@ function Atendimento({ valor, podeMexer, aoSalvar }: {
             A triagem nunca responde o contato.
           </span>
         </label>
+        <label className="lig">
+          <input type="checkbox" checked={valor.assinarMensagens} disabled={!podeMexer}
+                 onChange={(e) => void aoSalvar({ assinarMensagens: e.target.checked })} />
+          <span>
+            <b>Assinar as mensagens com o nome de quem envia</b>
+            A mensagem sai no WhatsApp com o nome da pessoa em negrito em cima, e o aluno
+            sabe com quem está falando. Vale para texto, legenda de foto e documento e
+            mensagem programada. Modelo aprovado sai sem assinatura, do jeito que a Meta aprovou.
+          </span>
+        </label>
         <div>
           <label htmlFor="cfg-min">Tempo de aguardo fica vermelho depois de</label>
           <div className="ln">
@@ -125,6 +137,41 @@ function Atendimento({ valor, podeMexer, aoSalvar }: {
             )}
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* ================= assinatura de cada um ================= */
+function SuaAssinatura({ perfil, ligada }: { perfil: Perfil; ligada: boolean }) {
+  const [valor, setValor] = useState(perfil.assinatura || '');
+  const nome = nomeDaAssinatura({ nome: perfil.nome, assinatura: valor });
+  const mudou = valor.trim() !== (perfil.assinatura || '').trim();
+  async function salva() {
+    await atualiza('perfis', perfil.id, { assinatura: valor.trim() });
+    avisa('Assinatura salva');
+  }
+  return (
+    <section className="bl">
+      <p className="bt">Sua assinatura</p>
+      <div className="frm">
+        <div>
+          <label htmlFor="cfg-assinatura">Como seu nome aparece nas mensagens</label>
+          <div className="ln">
+            <input id="cfg-assinatura" className="cx" value={valor} maxLength={ASSINATURA_MAXIMO}
+                   placeholder={nomeDaAssinatura({ nome: perfil.nome })} onChange={(e) => setValor(e.target.value)} />
+            {mudou && <button className="btn p" onClick={() => void salva()}>Salvar assinatura</button>}
+          </div>
+          <p className="obs">Em branco, vai o seu primeiro nome. Pode ser algo como &quot;Gui | Recepção&quot;.</p>
+        </div>
+        <div className="assin-previa" aria-label="Como o aluno lê">
+          <div className="w out p">
+            <div className="b"><span className="tx assin-tx">
+              <b>{nome}:</b>{'\n'}Oi! Sua aula de quinta está confirmada.
+            </span></div>
+          </div>
+        </div>
+        {!ligada && <p className="obs alerta">A assinatura está desligada pela administração, em Atendimento, logo acima.</p>}
       </div>
     </section>
   );

@@ -4,6 +4,7 @@
     { "path": "/api/cron/agendadas", "schedule": "*/10 * * * *" },
     { "path": "/api/cron/atendimento", "schedule": "* * * * *" },
     { "path": "/api/cron/modelos", "schedule": "17 * * * *" },
-    { "path": "/api/cron/lembretes", "schedule": "7 21 * * *" }
+    { "path": "/api/cron/lembretes", "schedule": "7 21 * * *" },
+    { "path": "/api/cron/planilha", "schedule": "41 * * * *" }
   ]
 }

@@ -15,6 +15,8 @@ import { horaConhecida, useAgora } from '@/componentes/relogio';
 import { EscolheModelo } from '@/componentes/modelos';
 import AulasNaConversa from '@/componentes/aulas-na-conversa';
 import { useCadastros } from '@/componentes/agenda/dados';
+import { leAtendimento } from '@/lib/dominio/config';
+import { nomeDaAssinatura } from '@/lib/dominio/assinatura';
 import { Cronometro, MidiaNaBolha, PreviaDoAnexo, useGravador } from '@/componentes/midia';
 import { marcaConversaNaTela } from '@/componentes/avisos';
 import { ref as refArquivo, uploadBytes } from 'firebase/storage';
@@ -91,6 +93,11 @@ export default function Inbox() {
   const [atalhoDe, setAtalhoDe] = useState<string | null>(null);
   const campo = useRef<HTMLInputElement>(null);
   const cad = useCadastros();
+  /* a assinatura: o campo mostra com que nome a mensagem vai sair */
+  const [configs, setConfigs] = useState<Record<string, unknown>[]>([]);
+  useEffect(() => assina('config', (d) => setConfigs(d as Record<string, unknown>[])), []);
+  const assinarLigado = leAtendimento(configs.find((c) => c.id === 'atendimento') as Parameters<typeof leAtendimento>[0]).assinarMensagens;
+  const assinadoComo = assinarLigado && perfil ? nomeDaAssinatura(perfil) : '';
   const [anexo, setAnexo] = useState<File | null>(null);
   const seletor = useRef<HTMLInputElement>(null);
   /* o áudio gravado sai sozinho quando a pessoa toca em enviar (quem envia é o
@@ -651,7 +658,8 @@ export default function Inbox() {
                       <Ic n="clipe" />
                     </button>
                     <input ref={campo} type="text" value={rascunho} autoComplete="off" aria-label={anexo ? 'Legenda' : 'Mensagem'}
-                           placeholder={anexo ? 'Legenda (opcional)' : 'Digite uma mensagem'}
+                           title={assinadoComo ? `A mensagem sai assinada como ${assinadoComo}` : undefined}
+                           placeholder={anexo ? 'Legenda (opcional)' : assinadoComo ? `Mensagem, assinada como ${assinadoComo}` : 'Digite uma mensagem'}
                            onChange={(e) => setRascunho(e.target.value)} />
                     <button type="button" className="ib" aria-expanded={escolhendoModelo} title="Enviar modelo"
                             aria-label="Enviar modelo"

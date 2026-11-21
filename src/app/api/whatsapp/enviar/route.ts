@@ -7,6 +7,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminArquivos, adminBd, quemChamou } from '@/lib/firebase/admin';
 import { mandaMidia, mandaTemplate, mandaTexto, sobeMidia, type RespostaEnvio } from '@/lib/whatsapp/cloud';
 import { camposDaFalaDaEscola } from '@/lib/whatsapp/automatico';
+import { assinaturaDe } from '@/lib/whatsapp/assinatura';
+import { assinaTexto } from '@/lib/dominio/assinatura';
 import { leModelo } from '@/lib/whatsapp/modelos';
 import { limpaValor, preenche, quantasVariaveis } from '@/lib/dominio/modelos';
 import { caminhoEhDaConversa, comoEnviar, nomeSeguro, previaDaMidia } from '@/lib/dominio/midia';
@@ -49,6 +51,9 @@ export async function POST(req: Request) {
   }
   if (!modelo && !corpo.midia && !legenda) return recusa('Escreva a mensagem antes de enviar.', 400);
 
+  /* o nome de quem envia vai em negrito em cima do texto e da legenda; modelo não */
+  const assinatura = modelo ? '' : await assinaturaDe(bd, quem.uid);
+  let assinou = false;
   let resposta: RespostaEnvio;
   let texto: string;
   let previa: string;
@@ -79,14 +84,18 @@ export async function POST(req: Request) {
       paraMeta = ogg; mimeMeta = 'audio/ogg'; nomeMeta = 'audio.ogg';
     }
     const subiu = await sobeMidia(paraMeta, mimeMeta, nomeMeta);
+    const legendaAssinada = como.tipo === 'audio' ? '' : assinaTexto(legenda, assinatura);
+    assinou = legendaAssinada !== legenda && Boolean(legendaAssinada);
     resposta = subiu.ok
-      ? await mandaMidia(conversa.waId, como.tipo, subiu.id, { legenda, nome })
+      ? await mandaMidia(conversa.waId, como.tipo, subiu.id, { legenda: legendaAssinada, nome })
       : { ok: false, erro: subiu.erro };
     texto = como.tipo === 'audio' ? '' : legenda;
     previa = previaDaMidia(como.mime, nome, texto);
     anexo = { midiaPath: caminho, midiaMime: como.mime, ...(como.tipo === 'document' ? { midiaNome: nome } : {}) };
   } else {
-    resposta = await mandaTexto(conversa.waId, legenda);
+    const assinado = assinaTexto(legenda, assinatura);
+    assinou = assinado !== legenda;
+    resposta = await mandaTexto(conversa.waId, assinado);
     texto = legenda;
     previa = texto;
   }
@@ -100,6 +109,7 @@ export async function POST(req: Request) {
     texto,
     ...anexo,
     template: modelo?.nome || null,
+    ...(assinou ? { assinadaComo: assinatura } : {}),
     ...(modelo?.respostas.length ? { botoes: modelo.respostas } : {}),
     waMessageId: resposta.waMessageId || null,
     falhouEm: resposta.ok ? null : agora,

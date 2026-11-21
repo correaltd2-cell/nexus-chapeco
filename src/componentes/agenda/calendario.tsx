@@ -36,12 +36,24 @@ interface Props {
   agora: Date;
   aoMudarPeriodo: (de: Date, ate: Date, titulo: string, visao: Visao) => void;
   aoSelecionar: (inicio: Date, fim: Date) => void;
+  /** clique (ou toque) num horário; no mês, num dia */
+  aoClicar: (quando: Date, diaInteiro: boolean) => void;
   aoAbrir: (id: string) => void;
   aoAbrirBloqueio: (id: string) => void;
   aoMover: (id: string, inicio: Date, fim: Date, desfaz: () => void) => void;
 }
 
 interface Dica { a: Agendamento; x: number; y: number }
+
+/* O calendário escuta o toque direto no elemento (antes do React): o nome do bloqueio
+   segura o toque ali mesmo, senão o horário embaixo também abre a aula nova. */
+function seguraToque(el: HTMLElement | null) {
+  if (!el || el.dataset.seguro) return;
+  el.dataset.seguro = '1';
+  for (const tipo of ['pointerdown', 'mousedown', 'touchstart', 'pointerup', 'mouseup', 'touchend']) {
+    el.addEventListener(tipo, (e) => e.stopPropagation());
+  }
+}
 
 export default function Calendario({ calRef, ...p }: Props) {
   const [dica, setDica] = useState<Dica | null>(null);
@@ -91,6 +103,15 @@ export default function Calendario({ calRef, ...p }: Props) {
         dayMaxEvents={4}
         selectable={podeCriar}
         selectMirror
+        /* clique simples é dateClick (funciona com toque no celular, sem segurar o dedo);
+           arrastar alguns pixels escolhe um trecho maior */
+        selectMinDistance={6}
+        selectLongPressDelay={300}
+        navLinks
+        navLinkDayClick="timeGridDay"
+        dayLaneClass="ag-faixa"
+        dayCellClass="ag-dia"
+        dateClick={(i) => { setDica(null); p.aoClicar(i.date, i.allDay); }}
         editable={podeRemarcar}
         eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
         events={eventos}
@@ -124,7 +145,15 @@ export default function Calendario({ calRef, ...p }: Props) {
           const quem = b.professorId ? prof.get(b.professorId)?.nome.split(' ')[0] : '';
           /* "Feriado municipal" já diz o tipo; "Consulta médica" ganha o tipo na frente */
           const motivo = b.motivo && !b.motivo.toLowerCase().startsWith(BLOQUEIOS[b.tipo].toLowerCase()) ? `${BLOQUEIOS[b.tipo]}: ${b.motivo}` : b.motivo || BLOQUEIOS[b.tipo];
-          return <span className="ag-bl-tx">{motivo}{quem && !motivo.includes(quem) ? ` (${quem})` : ''}</span>;
+          /* a faixa deixa o clique passar para o horário; o nome abre o bloqueio, e o
+             calendário não pode ver esse toque, senão abre também a aula nova */
+          return (
+            <span className="ag-bl-tx" role="button" tabIndex={0} title="Abrir o bloqueio" ref={seguraToque}
+                  onClick={(e) => { e.stopPropagation(); setDica(null); p.aoAbrirBloqueio(b.id); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); p.aoAbrirBloqueio(b.id); } }}>
+              {motivo}{quem && !motivo.includes(quem) ? ` (${quem})` : ''}
+            </span>
+          );
         }}
         eventContent={(i) => {
           const a = porId.get(i.event.id);

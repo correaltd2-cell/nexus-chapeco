@@ -14,6 +14,7 @@ export interface Perfil {
   papel: Papel;
   setores: Setor[];        // de quais setores vê as conversas
   telefone?: string;       // para receber o aviso no WhatsApp
+  assinatura?: string;     // como o nome aparece nas mensagens que a pessoa manda
   avisaNoWhats: boolean;
   ativo: boolean;
   criadoEm: string;
@@ -45,8 +46,10 @@ export interface Aluno {
   responsavelTelefone?: string;
   observacao?: string;
   ativo: boolean;
-  /* ligacao com a planilha da grade, quando veio de la */
+  /* ligação com a planilha de alunos do Google, quando veio de lá (dominio/planilha.ts) */
   linhaPlanilha?: number;
+  planilhaChave?: string;  // reencontra o aluno na próxima leitura: código, CPF ou nome e telefone
+  origem?: 'planilha' | 'sistema';
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -109,6 +112,7 @@ export interface Mensagem {
   midiaFalhou?: boolean;   // chegou mídia e o servidor não conseguiu baixar
   botoes?: string[];       // reply buttons que foram enviados
   template?: string;       // nome do template, quando saiu por template
+  assinadaComo?: string;   // o nome que foi em negrito em cima do texto, no WhatsApp
   waMessageId?: string;
   entregueEm?: string;
   lidoEm?: string;

@@ -195,6 +195,12 @@ export default function Agenda() {
         agora={horaConhecida(agora) ? agora : new Date(0)}
         aoMudarPeriodo={aoMudarPeriodo}
         aoSelecionar={(inicio, fim) => setAberta({ tipo: 'nova', inicio: inicio.toISOString(), fim: fim.toISOString() })}
+        aoClicar={(quando, diaInteiro) => {
+          /* no mês, o dia abre o dia; no dia e na semana, o horário abre a aula nova */
+          if (diaInteiro) { api()?.changeView('timeGridDay', quando); return; }
+          if (!perm.criar) { avisa('Quem marca aula é a recepção, a coordenação ou a gestão.'); return; }
+          setAberta({ tipo: 'nova', inicio: quando.toISOString(), fim: new Date(quando.getTime() + 3_600_000).toISOString() });
+        }}
         aoAbrir={(id) => { const a = agendamentos.find((x) => x.id === id); if (a) setAberta({ tipo: 'editar', agendamento: a }); }}
         aoAbrirBloqueio={(id) => { const b = cad.bloqueios.find((x) => x.id === id); if (b) setBloqueio({ bloqueio: b }); }}
         aoMover={aoMover}
