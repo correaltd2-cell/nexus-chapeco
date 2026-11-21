@@ -4,6 +4,7 @@
 import type {
   Cartao, Conversa, Lista, Mensagem, MensagemAgendada, Perfil, Quadro,
 } from '@/lib/dominio/tipos';
+import { BIBLIOTECA, situacaoDaBiblioteca, type SituacaoDoModelo } from '@/lib/dominio/modelos';
 
 const base = new Date();
 base.setHours(10, 5, 0, 0);
@@ -130,6 +131,12 @@ export const AGENDADAS: MensagemAgendada[] = [
     estado: 'agendada', criadaEm: hm(10, 45),
   },
 ];
+
+/* os modelos como se a Meta já tivesse respondido: os de marketing ainda em análise */
+export const TEMPLATES: SituacaoDoModelo[] = BIBLIOTECA.map((m) => ({
+  ...situacaoDaBiblioteca(m, m.categoria === 'MARKETING' ? 'em_analise' : 'aprovado', hm(9, 0)),
+  metaId: `demo-${m.nome}`, pedidoEm: diasAtras(1, 9, 0),
+}));
 
 export const QUADROS: Quadro[] = [
   { id: 'q-rec', nome: 'Recepção', ordem: 1000, arquivado: false, criadoEm: diasAtras(30) },

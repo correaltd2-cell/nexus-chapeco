@@ -77,6 +77,7 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
 | 19/11/2026 | **Redesenho: cara de aplicativo, e a conversa com o jeito e as cores do WhatsApp** (pedido do cliente, com o app da Smiles como referência de estilo). Cantos bem redondos, cartões soltos sobre o fundo, botão e filtro em pílula, laranja forte onde se age; no celular, faixa laranja no alto da lista e barra de abas branca. Na conversa: bolha verde de quem envia e branca de quem chega, com a pontinha; papel de parede bege com **desenho próprio** de escola (nada copiado do WhatsApp, nem logo); visto azul; os botões da mensagem embaixo da bolha; emoji na caixa de escrever e botão redondo verde de enviar. Substitui o "não imita o WhatsApp" de 17/11: o time e os alunos já leem esse arranjo sem pensar. |
 | 19/11/2026 | **Cada setor tem cor e ícone próprios, e o menu lateral é escolha de quem usa** (pedido do cliente: "não diz bem claro se está na Recepção ou na Coordenação" e "o menu ficou minimalista demais"). A etiqueta do setor tem cor cheia (Recepção laranja, Financeiro verde, Coordenação azul, Coordenação Kids roxo) e aparece na linha da lista, no topo da conversa e no painel; no celular a borda do cartão da conversa tem a cor do setor. O menu recolhido mostra ícone com nome curto embaixo, abre e recolhe por botão no próprio menu, e pode ser claro. |
 | 19/11/2026 | **Logo própria em 3D e comemoração ao passar a conversa** (pedido do cliente: "uma coisa meio zoeira, mas rápida, que não atrapalhe a recepção"). A logo da Central de Atendimento é um balão laranja com o N em relevo, que brilha e tem um ponto verde "ao vivo" pulsando. Passar de setor mostra por menos de 2 s um cartão com o avatar de quem recebe ("Transferido para Natan!") e uma frase de zoeira; não pega clique e desliga em Configurações, Aparência. |
+| 21/11/2026 | **Os modelos de mensagem nascem no sistema e vão sozinhos para a Meta** (pedido do cliente: "pode criar pra mim direto"). A biblioteca de 29 modelos (aulas, marcação, reposição, provas, financeiro, contrato, Kids para o responsável, chamar, urgente, retomar, aniversário e o aviso à coordenação) mora em `dominio/modelos.ts`; o relógio de hora em hora cria o que falta e anota a situação em `templates`. Apagado na Meta não volta sozinho. Texto aprovado não se edita: muda o nome. Na conversa só aparece o que a Meta aprovou, e o texto gravado vem do banco, não do navegador. |
 | 18/11/2026 | **O telefone do contato não se edita na tela.** Ele é a chave que casa a conversa com o que a Meta manda. Nome, foto e observação se editam; telefone novo é conversa nova. |
 
 ## 3.2 O que já está de pé no atendimento (18/11/2026)
@@ -112,6 +113,14 @@ Tudo o que for construído aqui deve atacar um dos três, ou não entra.
   área de teste que não envia nada. Histórico importado do celular nunca dispara nada.
   Passo a passo para ligar: `docs/atendimento-automatico.md`.
 
+- **Modelos de mensagem** (21/11/2026): a biblioteca é `src/lib/dominio/modelos.ts`,
+  provada em `node --experimental-strip-types testes/modelos.ts` (**rodar antes de mexer
+  em qualquer texto**: a prova confere as regras da Meta). Quem fala com a Meta é
+  `src/lib/whatsapp/modelos.ts`, chamado por `/api/cron/modelos` de hora em hora e pelo
+  botão "Conferir com a Meta" (`/api/whatsapp/modelos`). Na conversa, o botão de modelo
+  fica ao lado do relógio e vira o principal quando a janela fecha. Passo a passo e os
+  textos: `docs/modelos-de-mensagem.md`.
+
 - **Saúde do sistema** (19/11/2026, depois de um dia com o servidor sem gravar e
   ninguém sabendo): o servidor anota em `config/saude` a última vez que cada parte
   andou (chamada da Meta, mensagem de contato, envio aceito, relógio, fila) e a última
@@ -137,12 +146,13 @@ Next.js (App Router) ──► Vercel
               ├── /api/whatsapp/webhook     recebe da Cloud API
               ├── /api/whatsapp/enviar      manda pela Cloud API
               ├── /api/whatsapp/conexao     confere e configura a conexão
+              ├── /api/whatsapp/modelos     confere os modelos com a Meta e cria o que falta
               ├── /api/conversas/*          encerrar e passar de setor (com aviso)
               ├── /api/automatico/testar    a IA escreve sem enviar, para testar
               ├── /api/saude                o servidor alcança o banco? (público, uma palavra)
               ├── /api/sheets/*             lê e escreve a grade no Google Sheets
               ├── /api/provas/*             envio e correção
-              └── /api/cron/*               programadas, relógio do atendimento, réguas
+              └── /api/cron/*               programadas, relógio do atendimento, modelos, réguas
 ```
 
 **Tempo real:** as telas que mudam sozinhas (inbox, quadros, grade) usam `onSnapshot`

@@ -275,22 +275,7 @@ export interface Marcacao {
 }
 
 /* ---------- WhatsApp ---------- */
-export type EstadoTemplate = 'rascunho' | 'em_analise' | 'aprovado' | 'rejeitado' | 'nao_existe' | 'arquivado';
-export type CategoriaTemplate = 'UTILITY' | 'MARKETING' | 'AUTHENTICATION';
-
-export interface Template {
-  id: string;
-  nome: string;            // minusculo, sem acento
-  categoria: CategoriaTemplate;
-  idioma: string;          // pt_BR
-  corpo: string;           // com {{1}}, {{2}}...
-  exemplos: string[];
-  botoes?: { tipo: 'QUICK_REPLY' | 'URL'; texto: string; url?: string }[];
-  estado: EstadoTemplate;
-  metaId?: string;
-  motivoRecusa?: string;
-  atualizadoEm: string;
-}
+/* Os modelos de mensagem (templates) moram em src/lib/dominio/modelos.ts. */
 
 export type TipoEnvio = 'texto' | 'template';
 export type EstadoEnvio = 'na_fila' | 'enviado' | 'falhou' | 'pulado';

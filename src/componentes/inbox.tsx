@@ -12,6 +12,8 @@ import { SetorTag } from '@/componentes/setor';
 import Logo from '@/componentes/logo';
 import { usePainelRecolhido } from '@/componentes/painel-recolhido';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
+import { EscolheModelo } from '@/componentes/modelos';
+import { preenche, type ModeloParaEnviar } from '@/lib/dominio/modelos';
 import { NOME_CURTO_SETOR, SETORES, veSetor } from '@/lib/dominio/acessos';
 import {
   buscaCasou, detalheDaSituacao, etiquetasEmUso, passaNaEtiqueta, passaNoFiltro, passaNoSetor, type Filtro,
@@ -75,6 +77,7 @@ export default function Inbox() {
   const [recolhido, setRecolhido] = usePainelRecolhido();
   const [agendadas, setAgendadas] = useState<MensagemAgendada[]>([]);
   const [programando, setProgramando] = useState(false);
+  const [escolhendoModelo, setEscolhendoModelo] = useState(false);
   const agora = useAgora();
   const [progTexto, setProgTexto] = useState('');
   const [progQuando, setProgQuando] = useState('');
@@ -135,7 +138,7 @@ export default function Inbox() {
   const janela = aberta ? janelaAberta(aberta) : false;
 
   const abrir = useCallback(async (c: Conversa) => {
-    setAbertaId(c.id); setNaConversa(true); setPainel(false); setRascunho('');
+    setAbertaId(c.id); setNaConversa(true); setPainel(false); setRascunho(''); setEscolhendoModelo(false);
     if (c.naoLidas > 0) {
       try { await atualiza('conversas', c.id, { naoLidas: 0 }); } catch { /* sem permissão, segue */ }
     }
@@ -210,6 +213,38 @@ export default function Inbox() {
       setAviso('Não consegui falar com o servidor. Tente de novo.');
     } finally {
       setEnviando(false);
+    }
+  }
+
+  /* modelo aprovado: o servidor confere na Meta e grava o texto como o contato lê */
+  async function enviaModelo(m: ModeloParaEnviar, valores: string[]) {
+    if (!aberta) return false;
+    setAviso('');
+    if (modoDemo) {
+      const quando = new Date().toISOString();
+      const texto = preenche(m.situacao.corpo, valores);
+      await cria('mensagens', {
+        conversaId: aberta.id, direcao: 'saida', autor: 'humano', autorNome: perfil?.nome || 'Equipe',
+        texto, template: m.situacao.nome, ...(m.situacao.respostas.length ? { botoes: m.situacao.respostas } : {}),
+        entregueEm: quando, criadaEm: quando,
+      });
+      await atualiza('conversas', aberta.id, { ultimaEm: quando, ultimaPreviaTexto: texto, agenteAtivo: false });
+      return true;
+    }
+    if (!usuario) return false;
+    try {
+      const token = await usuario.getIdToken();
+      const r = await fetch('/api/whatsapp/enviar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ conversaId: aberta.id, modelo: m.situacao.id, valores }),
+      });
+      const resposta = (await r.json()) as { ok?: boolean; erro?: string };
+      if (!r.ok || !resposta.ok) { setAviso(resposta.erro || 'Não consegui enviar o modelo agora.'); return false; }
+      return true;
+    } catch {
+      setAviso('Não consegui falar com o servidor. Tente de novo.');
+      return false;
     }
   }
 
@@ -445,6 +480,11 @@ export default function Inbox() {
 
             {aviso && <div className="fx"><p>{aviso}</p></div>}
 
+            {escolhendoModelo && (
+              <EscolheModelo key={aberta.id} nomeDoContato={aberta.nome} janela={janela}
+                             aoFechar={() => setEscolhendoModelo(false)} aoEnviar={enviaModelo} />
+            )}
+
             {programando && (
               <form className="prog" onSubmit={(e) => void programa(e)}>
                 <input type="text" className="cx" value={progTexto} autoComplete="off" autoFocus
@@ -469,7 +509,8 @@ export default function Inbox() {
               </form>
             )}
 
-            {janela ? (
+            {/* com o modelo aberto, ele é a caixa de escrever: nada de dois "Enviar" na tela */}
+            {escolhendoModelo ? null : janela ? (
               <form className="cmp" onSubmit={(e) => { setEmojis(false); void enviar(e); }}>
                 {emojis && (
                   <div className="emo" role="group" aria-label="Emojis">
@@ -486,10 +527,15 @@ export default function Inbox() {
                   </button>
                   <input type="text" value={rascunho} autoComplete="off" aria-label="Mensagem"
                          placeholder="Digite uma mensagem" onChange={(e) => setRascunho(e.target.value)} />
+                  <button type="button" className="ib" aria-expanded={escolhendoModelo} title="Enviar modelo"
+                          aria-label="Enviar modelo"
+                          onClick={() => { setEscolhendoModelo(!escolhendoModelo); setProgramando(false); setEmojis(false); }}>
+                    <Ic n="modelo" />
+                  </button>
                   <button type="button" className={naFila ? 'ib tem' : 'ib'} aria-expanded={programando}
                           title={naFila ? `${naFila} mensagem programada nesta conversa` : 'Programar mensagem'}
                           aria-label="Programar mensagem"
-                          onClick={() => setProgramando(!programando)}>
+                          onClick={() => { setProgramando(!programando); setEscolhendoModelo(false); }}>
                     <Ic n="relogio" />
                   </button>
                 </div>
@@ -500,9 +546,16 @@ export default function Inbox() {
             ) : (
               <div className="pe">
                 <p>Passaram 24 horas da última mensagem do contato. Para retomar, envie um modelo aprovado.</p>
-                <button className="btn" aria-expanded={programando} onClick={() => setProgramando(!programando)}>
-                  <Ic n="relogio" />Programar mensagem
-                </button>
+                <span className="pe-bts">
+                  <button className="btn" aria-expanded={programando}
+                          onClick={() => { setProgramando(!programando); setEscolhendoModelo(false); }}>
+                    <Ic n="relogio" />Programar mensagem
+                  </button>
+                  <button className="btn p" aria-expanded={escolhendoModelo}
+                          onClick={() => { setEscolhendoModelo(!escolhendoModelo); setProgramando(false); }}>
+                    <Ic n="modelo" />Enviar modelo
+                  </button>
+                </span>
               </div>
             )}
           </>

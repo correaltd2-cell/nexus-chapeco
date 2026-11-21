@@ -628,6 +628,52 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
 .prog .obs{flex:1;padding:0}
 .prog .obs.alerta{color:var(--alert)}
 
+/* ----- modelo aprovado: escolher, preencher e ver como o contato lê ----- */
+.mdl{
+  flex:none;background:var(--surface);border-top:1px solid var(--line);
+  display:flex;flex-direction:column;max-height:min(60vh,480px);min-height:0;
+  box-shadow:0 -10px 24px rgba(20,20,20,.07);
+}
+.mdl-h{display:flex;align-items:center;gap:6px;padding:10px max(12px,var(--gutter)) 6px}
+.mdl-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.mdl-t b{font-weight:600;font-size:14px}
+.mdl-t small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mdl-busca{display:flex;align-items:center;gap:8px;margin:0 max(12px,var(--gutter)) 8px;padding:0 14px;border-radius:999px;background:var(--surface-2)}
+.mdl-busca .ic{width:16px;height:16px;color:var(--muted);flex:none}
+.mdl-busca input{flex:1;min-width:0;border:0;background:none;padding:9px 0;outline:0;font-size:14px}
+.mdl-gr{padding:0 max(12px,var(--gutter)) 8px}
+.mdl-gr .chip{padding:5px 11px;font-size:12px}
+.mdl-l{list-style:none;margin:0;padding:0 max(6px,calc(var(--gutter) - 6px)) 8px;overflow-y:auto;min-height:0}
+.mdl-l button{width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-sm);text-align:left}
+.mdl-l button:hover{background:var(--surface-2)}
+.mdl-l .mdl-g{font-size:11px;color:var(--muted);background:var(--surface-2);padding:2px 9px;border-radius:999px;flex:none}
+.mdl-l button:hover .mdl-g{background:var(--surface)}
+.mdl-l .ic{width:15px;height:15px;color:var(--muted-2);flex:none}
+.mdl .vz{padding:4px max(12px,var(--gutter)) 14px}
+.mdl-rod{padding:8px max(12px,var(--gutter)) 10px;border-top:1px solid var(--line)}
+.mdl-corpo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:12px;padding:2px max(12px,var(--gutter)) 8px;overflow-y:auto;min-height:0}
+.mdl-campos{display:flex;flex-direction:column;gap:8px}
+.mdl-campos label{display:block;margin:0}
+.mdl-campos label span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.mdl-previa{
+  background-color:var(--wall);background-image:var(--wall-desenho);background-size:190px;
+  border-radius:var(--r-sm);padding:12px 14px 12px 18px;display:flex;flex-direction:column;
+}
+.mdl-previa .w{max-width:100%;align-self:flex-end}
+.mdl .acoes{display:flex;gap:8px;align-items:center;padding:4px max(12px,var(--gutter)) 12px}
+.mdl .acoes .obs{flex:1;padding:0}
+.pe-bts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* nas Configurações: a situação de cada modelo na Meta */
+.mdl-res{font-weight:600;color:var(--text)}
+.mdl-cfg-g{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2);padding:12px 18px 4px}
+.mdl-ab{display:block;width:100%;text-align:left;padding:0;color:inherit}
+.mdl-det{display:flex;flex-direction:column;gap:6px;margin-top:8px;align-items:flex-start}
+.mdl-det small{margin:0}
+.mdl-txt{display:block;background:var(--surface-2);border-radius:var(--r-sm);padding:9px 11px;font-size:13px;line-height:1.45;white-space:pre-wrap;max-width:560px}
+.mdl-bts{display:flex;flex-wrap:wrap;gap:6px}
+.mdl-bts span{font-size:12px;color:var(--solar-deep);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+
 /* Tela grande: as laterais ganham corpo e a conversa vira coluna de leitura no meio,
    em vez de uma bolha solta num vazio de dois mil pixels. */
 @media (min-width:1500px){
@@ -888,6 +934,8 @@ textarea.cx{display:block;resize:vertical;min-height:76px;line-height:1.45;font-
   .abre{display:grid}
 }
 @media (max-width:759px){
+  .mdl-corpo{grid-template-columns:1fr}
+  .mdl{max-height:72vh}
   .app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
   .rail{display:none}
   /* a barra de baixo, branca como a de um aplicativo, com a aba atual em laranja */

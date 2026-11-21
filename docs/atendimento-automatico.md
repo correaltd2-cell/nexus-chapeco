@@ -51,15 +51,12 @@ contato escreve, sem atendimento aberto
    (listaId, arquivado, ordem).
 5. **Celular da recepção.** No WhatsApp Business, em Ferramentas comerciais, desligar a
    Mensagem de saudação e a Mensagem de ausência. Senão o aluno recebe duas saudações.
-6. **Modelo do aviso aos coordenadores.** No Gerenciador do WhatsApp, Modelos, Criar:
-   - categoria **Utilidade**, nome `aviso_demanda_coordenacao`, idioma **Português (BR)**
-   - corpo: `Oi, {{1}}! Chegou uma conversa para a {{2}} no sistema da Nexus: {{3}}. Responda pelo sistema.`
-     (exemplo: `Karina`, `Coordenação Kids`, `Cláudia Bortoli`)
-   - botão **Visitar site**, URL **dinâmica**:
-     `https://nexus-chapeco.vercel.app/conversas?conversa={{1}}`
-   - espere a aprovação da Meta. Depois, em Configurações, Equipe, toque em
-     "Aviso no WhatsApp" no Natan e na Karina, preencha o celular e marque o aviso. Por
-     último, marque "Mandar o aviso no celular pessoal" no atendimento automático.
+6. **Modelo do aviso aos coordenadores.** O sistema cria sozinho na Meta o
+   `aviso_demanda_coordenacao`, junto com os outros modelos da escola
+   (`docs/modelos-de-mensagem.md`). Espere ele aparecer como aprovado em Configurações,
+   Modelos de mensagem. Depois, em Configurações, Equipe, toque em "Aviso no WhatsApp"
+   no Natan e na Karina, preencha o celular e marque o aviso. Por último, marque "Mandar
+   o aviso no celular pessoal" no atendimento automático.
 7. **Escrever o conteúdo.** Em Configurações, o jeito de falar da Nexus (com mensagens
    reais da recepção) e as perguntas e respostas do financeiro e do contrato. As de
    trancamento e multa vêm vazias de propósito: o sistema não inventa regra da escola.

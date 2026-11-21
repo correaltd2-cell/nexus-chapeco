@@ -7,7 +7,7 @@
    Prova: node --experimental-strip-types testes/saude.ts */
 import { duracao } from './formato.ts';
 
-export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'ia' | 'relogio' | 'agendadas';
+export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'ia' | 'relogio' | 'agendadas';
 export type Batida = 'webhookEm' | 'entradaEm' | 'saidaEm' | 'relogioEm' | 'agendadasEm';
 
 export interface Falha { motivo: string; em: string; vezes: number }
@@ -55,8 +55,13 @@ const SOBRE_FALHA: Record<OndeFalha, { titulo: string; conserto: string; grave: 
   },
   modelo: {
     titulo: 'Um modelo de mensagem não saiu',
-    conserto: 'O nome ou o idioma não batem com um modelo aprovado na Meta. Confira no Gerenciador do WhatsApp e em Configurações, Atendimento automático, Aviso aos coordenadores.',
+    conserto: 'O nome ou o idioma não batem com um modelo aprovado na Meta, ou a Meta pausou o modelo. Confira em Configurações, Modelos de mensagem.',
     grave: true,
+  },
+  modelos: {
+    titulo: 'Não consegui conferir os modelos de mensagem com a Meta',
+    conserto: 'Os modelos já aprovados seguem saindo. O token do WhatsApp precisa da permissão de gerenciar a conta (whatsapp_business_management) e a WHATSAPP_BUSINESS_ACCOUNT_ID tem que ser a conta do número novo. Veja em Configurações, Modelos de mensagem.',
+    grave: false,
   },
   ia: {
     titulo: 'A IA não respondeu',
