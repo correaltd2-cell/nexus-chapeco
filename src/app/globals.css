@@ -1549,3 +1549,12 @@ body.t-escuro .alu{--alu-ok:#4CC587}
 .cfg-dia label{font-size:12px;color:var(--muted);text-transform:capitalize}
 .cfg-dia .cx.atr{border-color:var(--alert)}
 
+/* Figurinha do setor na conversa (21/11/2026): como no WhatsApp, sem balão */
+.w.out .b.fig,.w.in .b.fig{background:transparent;box-shadow:none;padding:2px 0;border-radius:0}
+.w.out.p .b.fig::before,.w.in.p .b.fig::before{display:none}
+.b .mid-fig{display:block;width:150px;height:150px}
+.b.fig .nm{display:none}
+.b.fig .mt{background:var(--balao-hora-fundo,rgba(0,0,0,.35));color:#fff;border-radius:999px;padding:1px 7px;margin-top:2px}
+.cfg-fig{display:flex;gap:14px;align-items:flex-start}
+.cfg-fig img{flex:none;width:72px;height:72px}
+

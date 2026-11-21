@@ -108,6 +108,8 @@ export const MENSAGENS: Mensagem[] = [
   msg('c-claudia', { direcao: 'saida', autor: 'humano', autorNome: 'Recepção', lidoEm: hm(10, 32),
     entregueEm: hm(10, 32), texto: 'Oi, Cláudia! Vou chamar a Karina, que é a coordenadora do Kids. Ela te responde por aqui.', criadaEm: hm(10, 32) }),
   msg('c-claudia', { autor: 'sistema', texto: 'Recepção transferiu para Coordenação Kids', criadaEm: hm(10, 32) }),
+  msg('c-claudia', { direcao: 'saida', autor: 'lumi', autorNome: 'Figurinha do setor', figurinha: true, midiaMime: 'image/webp',
+    midiaLink: '/figurinhas/setor-kids.webp', midiaNome: 'Agora com Coordenação Kids', lidoEm: hm(10, 33), criadaEm: hm(10, 32) }),
   msg('c-claudia', { autor: 'sistema', texto: 'Karina recebeu o aviso no WhatsApp às 10:33. Ainda não abriu o portal.', criadaEm: hm(10, 33) }),
 
   msg('c-bianca', { texto: 'Bom dia, minha parcela de outubro ficou atrasada, queria ver como faço pra acertar', criadaEm: hm(10, 21) }),

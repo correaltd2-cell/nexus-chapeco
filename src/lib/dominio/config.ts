@@ -8,12 +8,15 @@ export interface ConfigDoAtendimento {
   minutosDeAguardo: number;
   /** A mensagem da equipe sai com o nome de quem enviou em negrito, em cima. */
   assinarMensagens: boolean;
+  /** Ao passar a conversa para um setor, o contato recebe a figurinha do setor. */
+  figurinhaAoPassar: boolean;
 }
 
 export const ATENDIMENTO_PADRAO: ConfigDoAtendimento = {
   abreTarefaNaTriagem: true,
   minutosDeAguardo: 30,
   assinarMensagens: true,
+  figurinhaAoPassar: true,
 };
 
 /** Le o documento de configuracao sem quebrar quando ele ainda nao existe. */
@@ -23,5 +26,6 @@ export function leAtendimento(bruto?: Partial<ConfigDoAtendimento> | null): Conf
     abreTarefaNaTriagem: bruto?.abreTarefaNaTriagem !== false,
     minutosDeAguardo: Number.isFinite(minutos) && minutos > 0 ? Math.round(minutos) : ATENDIMENTO_PADRAO.minutosDeAguardo,
     assinarMensagens: bruto?.assinarMensagens !== false,
+    figurinhaAoPassar: bruto?.figurinhaAoPassar !== false,
   };
 }

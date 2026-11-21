@@ -28,6 +28,12 @@ contato escreve, sem atendimento aberto
   pela conversa ligada ou pelo telefone (dele ou do responsável, com ou sem o 9). Os
   botões são os mesmos do lembrete da véspera (docs/agenda.md). Em Configurações, o
   destino do botão pode voltar a ser "vai para a Recepção".
+- **Figurinha do setor** (21/11/2026): quando alguém da equipe passa a conversa para
+  um setor, ou o assistente do financeiro chama uma pessoa, o contato recebe uma
+  figurinha com a cor e o ícone do setor ("Agora quem te atende é o Financeiro"), sem
+  texto. Sai só com a janela de 24 horas aberta; desliga em Configurações, Atendimento.
+  As figurinhas são `public/figurinhas/setor-*.webp` (WebP 512 x 512, até 100 KB),
+  geradas por `node scripts/figurinhas-setor.cjs`; rodar de novo se a cor de um setor mudar.
 - **A Coordenação nunca é botão.** Ela só recebe conversa quando alguém do time passa
   pelo painel do contato. Quem é do setor recebe o aviso no celular pessoal.
 - **Relógio do follow-up**: só corre quando a escola falou por último. Aos 15 minutos sem

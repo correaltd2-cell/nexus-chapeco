@@ -123,6 +123,20 @@ function Atendimento({ valor, podeMexer, aoSalvar }: {
             mensagem programada. Modelo aprovado sai sem assinatura, do jeito que a Meta aprovou.
           </span>
         </label>
+        <label className="lig">
+          <input type="checkbox" checked={valor.figurinhaAoPassar} disabled={!podeMexer}
+                 onChange={(e) => void aoSalvar({ figurinhaAoPassar: e.target.checked })} />
+          <span className="cfg-fig">
+            <span>
+              <b>Mandar a figurinha do setor ao passar a conversa</b>
+              Quando alguém da equipe passa a conversa para um setor, ou o assistente do financeiro
+              chama uma pessoa, o contato recebe uma figurinha com a cor e o ícone do setor:
+              &quot;Agora quem te atende é o Financeiro&quot;. Sem texto, e só com a janela de 24 horas aberta.
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- arquivo fixo de public/, pequeno */}
+            <img src="/figurinhas/setor-financeiro.webp" alt="Figurinha do Financeiro" width={72} height={72} />
+          </span>
+        </label>
         <div>
           <label htmlFor="cfg-min">Tempo de aguardo fica vermelho depois de</label>
           <div className="ln">

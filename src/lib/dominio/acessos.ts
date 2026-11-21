@@ -35,6 +35,15 @@ export const modulosDoPapel = (p: Papel): Modulo[] => PADRAO[p] || PADRAO.recepc
 export const podeAbrir = (p: Papel, m: Modulo) => modulosDoPapel(p).includes(m);
 export const ehGestao = (p: Papel) => p === 'admin' || p === 'gestor';
 
+/** A figurinha que o contato recebe quando a conversa passa para o setor
+    (public/figurinhas, geradas por scripts/figurinhas-setor.cjs). */
+export const FIGURINHA_DO_SETOR: Record<Setor, string> = {
+  recepcao: '/figurinhas/setor-recepcao.webp',
+  financeiro: '/figurinhas/setor-financeiro.webp',
+  coordenacao: '/figurinhas/setor-coordenacao.webp',
+  kids: '/figurinhas/setor-kids.webp',
+};
+
 export const NOME_SETOR: Record<Setor, string> = {
   recepcao: 'Recepção',
   financeiro: 'Financeiro',
