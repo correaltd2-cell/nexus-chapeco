@@ -31,14 +31,22 @@ contato escreve, sem atendimento aberto
 - **A Coordenação nunca é botão.** Ela só recebe conversa quando alguém do time passa
   pelo painel do contato. Quem é do setor recebe o aviso no celular pessoal.
 - **Relógio do follow-up**: só corre quando a escola falou por último. Aos 15 minutos sem
-  resposta, a IA retoma o que ficou pendente; aos 30, se despede e encerra. Se quem
-  espera é o aluno, nada se encerra: o tempo de aguardo fica vermelho para o time.
-- **Conversa resolvida** ("valeu, obrigada!"): a IA confirma lendo a conversa, manda uma
-  despedida curta e encerra.
+  resposta, a IA retoma o que ficou pendente, citando o assunto (no menu, os botões vão de
+  novo); aos 30, avisa com educação que vai encerrar, dizendo do que se tratava, e encerra.
+  Se quem espera é o aluno, nada se encerra: o tempo de aguardo fica vermelho para o time.
+- **Assunto resolvido** (21/11/2026): sai "posso te ajudar em mais alguma coisa?" com os
+  botões **Não, era só isso** e **Sim, outra coisa**. Não encerra na hora, com uma frase
+  rápida; Sim volta para o menu; outro assunto escrito segue para o lugar certo; sem
+  resposta, encerra aos 15 minutos, sem follow-up. Vale quando o contato agradece (a IA
+  lê a conversa 2 minutos depois, se ninguém do time respondeu antes), quando a dúvida do
+  financeiro é respondida (botões Era só isso, valeu, Outra dúvida e Falar com uma pessoa)
+  e quando ele confirma a aula pelo Minhas aulas.
 - **Setor que não respondeu** em 2 horas de atendimento devolve a conversa para a
   Recepção, com recado. Fora do horário não conta: passar para o Financeiro às 21h não
   devolve às 23h.
 - **Encerrar na mão**: o botão "Encerrar atendimento" no topo da conversa (dois toques).
+  Sai um aviso claro de que o atendimento fechou, dizendo do que se tratou ("vou encerrar
+  por aqui o atendimento sobre o boleto") e que é só chamar de novo.
 - **Atendimento encerrado** recomeça pela Recepção, com o fluxo do começo.
 - **Conversa parada** (ninguém encerrou) e o contato volta a escrever 12 horas depois:
   recomeça pelo menu, com recado para o time. Não quando ele está esperando resposta da
@@ -76,6 +84,18 @@ diz:
 Na área de teste, "Como se fosse fora do horário" mostra o que a IA escreveria hoje às
 22h30. As regras são puras em `src/lib/dominio/horario.ts`, provadas em
 `node --experimental-strip-types testes/horario.ts`.
+
+## Se a IA parar
+
+Sem saldo na conta da Anthropic (foi o que aconteceu em 21/11/2026) ou com a chave
+recusada, o atendimento não para: sai o texto de reserva de cada momento. Os textos de
+reserva usam `{primeiro_nome}`, `{volta}` (quando a equipe volta) e `{sobre}` (o assunto
+que o contato escreveu por último, como " sobre o boleto"), para não sair frase sem
+contexto. A gestão vê a faixa vermelha "A IA parou" no topo das telas. Para voltar: pôr
+crédito em console.anthropic.com, em Plans & Billing.
+
+Ligar a chave grava a configuração inteira com os textos daquele dia. Texto que ainda é
+exatamente um padrão antigo segue o padrão novo sozinho; texto que a escola escreveu fica.
 
 ## Se os botões não aparecem
 

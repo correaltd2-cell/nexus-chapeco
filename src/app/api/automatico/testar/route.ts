@@ -7,7 +7,7 @@ import { adminBd, quemChamou } from '@/lib/firebase/admin';
 import { escreveMensagem, iaLigada, respondeComoAssistente } from '@/lib/ia/claude';
 import { contextoDe, linhasDoAtendimento } from '@/lib/whatsapp/automatico';
 import {
-  leAutomatico, promptMensagem, reservaDo, situacaoDoHorario, turnosDoAssistente,
+  leAutomatico, promptMensagem, reservaDo, situacaoDoHorario, sobreOQue, turnosDoAssistente,
   type ConfigAutomatico, type Linha, type Momento,
 } from '@/lib/dominio/automatico';
 import type { Conversa } from '@/lib/dominio/tipos';
@@ -15,7 +15,7 @@ import type { Conversa } from '@/lib/dominio/tipos';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const MOMENTOS: Momento[] = ['saudacao', 'encaminha', 'followup', 'encerramento', 'despedida', 'fora'];
+const MOMENTOS: Momento[] = ['saudacao', 'encaminha', 'followup', 'encerramento', 'despedida', 'fora', 'mais', 'fechamento'];
 
 /** "Como se fosse fora do horário": a mesma conversa, hoje às 22h30 em Chapecó. */
 function hojeDeNoite() {
@@ -60,5 +60,5 @@ export async function POST(req: Request) {
   const ctx = contextoDe(conversa, await linhasDoAtendimento(bd, snap.id), horario);
   const leitura = await escreveMensagem(promptMensagem(cfg, momento, ctx));
   if (!leitura) return erro('A IA não respondeu agora. Tente de novo daqui a pouco.', 200);
-  return NextResponse.json({ ok: true, leitura, reserva: reservaDo(momento, cfg, conversa.nome || '', horario) });
+  return NextResponse.json({ ok: true, leitura, reserva: reservaDo(momento, cfg, conversa.nome || '', horario, sobreOQue(ctx.linhas)) });
 }

@@ -78,7 +78,8 @@ export type QuemEncerrou = 'cliente' | 'silencio' | 'atendente';
 /* inicio: conversa recem-criada; menu: esperando o contato escolher o assunto;
    assistente: com o assistente do financeiro; aulas: viu a próxima aula e pode
    confirmar ou remarcar pelos botões; gente: com uma pessoa do time */
-export type EtapaAtendimento = 'inicio' | 'menu' | 'assistente' | 'aulas' | 'gente';
+/* mais: o assunto se resolveu e o contato recebeu "posso te ajudar em mais alguma coisa?" */
+export type EtapaAtendimento = 'inicio' | 'menu' | 'assistente' | 'aulas' | 'gente' | 'mais';
 
 export interface Conversa {
   id: string;

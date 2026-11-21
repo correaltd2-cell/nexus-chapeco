@@ -48,9 +48,15 @@ export interface ConfigAutomatico {
   encMin: number;
   encInstrucao: string;
   encReserva: string;
-  /** Conversa ja resolvida ("valeu, obrigada!"): despedida curta, ou encerra calado. */
-  resolvida: 'despedida' | 'nada';
-  despedidaReserva: string;
+  /** Follow-up de quem recebeu o menu e não tocou em nada: os botões vão de novo. */
+  fuMenuReserva: string;
+  /** Assunto resolvido: "posso te ajudar em mais alguma coisa?", com os botões Não e Sim. */
+  maisReserva: string;
+  /** Depois do "Não, era só isso" (ou sem resposta a ele): encerra na hora com isto. */
+  fimReserva: string;
+  /** Encerrar na mão: a mensagem que sai, dizendo do que se tratou. */
+  fechaInstrucao: string;
+  fechaReserva: string;
   /** Ao encerrar na mao, manda uma despedida antes. */
   manualDespedida: boolean;
   /** Setor que nao respondeu devolve a conversa para a Recepção depois disto. */
@@ -94,13 +100,16 @@ export const AUTOMATICO_PADRAO: ConfigAutomatico = {
   exemplos: '"Oi, Larissa! Tem sim, tenho reposição na sexta, 20/11, às 18h. Fica bom?"\n"Combinado! Te chamo na terça pra confirmar."\n"Bah, que bom que deu certo! Qualquer coisa é só chamar 😊"',
   nunca: 'Prometer horário, valor ou desconto que não esteja na conversa. Falar de matrícula nova ou tentar vender. Pedir desculpa demais. Usar "prezado(a)".',
   fu1Min: 15,
-  fu1Instrucao: 'Retoma exatamente o que ficou pendente na conversa, pelo nome. Se ficou uma pergunta nossa sem resposta, refaz de um jeito leve, sem cobrar. Uma mensagem, até duas frases.',
-  fu1Reserva: 'Oi, {primeiro_nome}! Conseguiu ver o que a gente conversou? Se precisar, é só me chamar por aqui.',
+  fu1Instrucao: 'Retoma exatamente o que ficou pendente na conversa, pelo nome e citando o assunto em poucas palavras. Se ficou uma pergunta nossa sem resposta, refaz de um jeito leve, sem cobrar. Educado e rápido: uma mensagem, até duas frases curtas.',
+  fu1Reserva: 'Oi, {primeiro_nome}! Conseguiu ver a mensagem{sobre}? Fico no aguardo por aqui 😊',
+  fuMenuReserva: '{primeiro_nome}, ainda está por aí? É só tocar numa das opções aqui embaixo 👇',
   encMin: 30,
-  encInstrucao: 'Avisa com carinho que vai fechar o atendimento por falta de resposta, lembra o que ficou pendente e deixa a porta aberta. Uma mensagem, até duas frases.',
-  encReserva: '{primeiro_nome}, vou encerrar o atendimento por aqui. Quando quiser retomar, é só mandar uma mensagem 😊',
-  resolvida: 'despedida',
-  despedidaReserva: 'Imagina, {primeiro_nome}! Qualquer coisa é só chamar 😊',
+  encInstrucao: 'Avisa com educação que vai encerrar o atendimento por falta de resposta, dizendo em poucas palavras do que se tratava, e que é só mandar mensagem para retomar. Rápido: uma ou duas frases curtas.',
+  encReserva: '{primeiro_nome}, como não tive retorno, vou encerrar por aqui o atendimento{sobre}. Quando quiser retomar, é só mandar uma mensagem 😊',
+  maisReserva: 'Que bom que deu certo, {primeiro_nome}! Posso te ajudar em mais alguma coisa?',
+  fimReserva: 'Combinado, {primeiro_nome}! Vou encerrar o atendimento{sobre} por aqui. Quando precisar, é só chamar 😊',
+  fechaInstrucao: 'Avisa que está encerrando este atendimento, dizendo em poucas palavras do que se tratou (por exemplo: "sobre os teus boletos"), e que é só mandar mensagem se precisar de mais alguma coisa. Educado e curto: uma ou duas frases.',
+  fechaReserva: '{primeiro_nome}, vou encerrar por aqui o atendimento{sobre}. Se precisar de mais alguma coisa, é só mandar uma mensagem 😊',
   manualDespedida: true,
   voltaHoras: 2,
   modo: 'ia',
@@ -132,6 +141,20 @@ export const AUTOMATICO_PADRAO: ConfigAutomatico = {
 
 const texto = (v: unknown, padrao: string, max = 4000) =>
   (typeof v === 'string' && v.trim() ? v.trim() : padrao).slice(0, max);
+
+/* Ligar a chave grava a configuração inteira, com os textos padrão daquele dia. Texto
+   que ainda é exatamente um padrão antigo (ninguém editou) segue o padrão novo; texto
+   que a escola escreveu fica como está. */
+const PADROES_ANTIGOS: Partial<Record<keyof ConfigAutomatico, string[]>> = {
+  fu1Instrucao: ['Retoma exatamente o que ficou pendente na conversa, pelo nome. Se ficou uma pergunta nossa sem resposta, refaz de um jeito leve, sem cobrar. Uma mensagem, até duas frases.'],
+  fu1Reserva: ['Oi, {primeiro_nome}! Conseguiu ver o que a gente conversou? Se precisar, é só me chamar por aqui.'],
+  encInstrucao: ['Avisa com carinho que vai fechar o atendimento por falta de resposta, lembra o que ficou pendente e deixa a porta aberta. Uma mensagem, até duas frases.'],
+  encReserva: ['{primeiro_nome}, vou encerrar o atendimento por aqui. Quando quiser retomar, é só mandar uma mensagem 😊'],
+};
+const atual = (k: keyof ConfigAutomatico, v: unknown, max = 4000) => {
+  const padrao = AUTOMATICO_PADRAO[k] as string;
+  return typeof v === 'string' && PADROES_ANTIGOS[k]?.includes(v.trim()) ? padrao : texto(v, padrao, max);
+};
 const inteiro = (v: unknown, padrao: number, min: number, max: number) => {
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : padrao;
@@ -165,14 +188,17 @@ export function leAutomatico(bruto?: Partial<ConfigAutomatico> | null): ConfigAu
     exemplos: texto(b.exemplos, P.exemplos),
     nunca: texto(b.nunca, P.nunca),
     fu1Min,
-    fu1Instrucao: texto(b.fu1Instrucao, P.fu1Instrucao),
-    fu1Reserva: texto(b.fu1Reserva, P.fu1Reserva, 1000),
+    fu1Instrucao: atual('fu1Instrucao', b.fu1Instrucao),
+    fu1Reserva: atual('fu1Reserva', b.fu1Reserva, 1000),
+    fuMenuReserva: texto(b.fuMenuReserva, P.fuMenuReserva, 1000),
     /* o encerramento vem sempre depois do 1º follow-up */
     encMin: Math.max(fu1Min + 1, inteiro(b.encMin, P.encMin, 2, 24 * 60)),
-    encInstrucao: texto(b.encInstrucao, P.encInstrucao),
-    encReserva: texto(b.encReserva, P.encReserva, 1000),
-    resolvida: b.resolvida === 'nada' ? 'nada' : 'despedida',
-    despedidaReserva: texto(b.despedidaReserva, P.despedidaReserva, 1000),
+    encInstrucao: atual('encInstrucao', b.encInstrucao),
+    encReserva: atual('encReserva', b.encReserva, 1000),
+    maisReserva: texto(b.maisReserva, P.maisReserva, 1000),
+    fimReserva: texto(b.fimReserva, P.fimReserva, 1000),
+    fechaInstrucao: texto(b.fechaInstrucao, P.fechaInstrucao),
+    fechaReserva: texto(b.fechaReserva, P.fechaReserva, 1000),
     manualDespedida: b.manualDespedida !== false,
     voltaHoras: inteiro(b.voltaHoras, P.voltaHoras, 1, 72),
     modo: b.modo === 'botoes' ? 'botoes' : 'ia',
@@ -244,8 +270,58 @@ export function recomecaAtendimento(
 export const idDoBotao = (i: number) => `menu-${i}`;
 export const idDaPergunta = (i: number) => `faq-${i}`;
 export const ID_PESSOA = 'pessoa';
+/** Botão "Ajudou, valeu!" das respostas antigas do assistente: vale como "era só isso". */
 export const ID_AJUDOU = 'ajudou';
-export const BOTOES_AJUDOU = ['Ajudou, valeu!', 'Falar com uma pessoa'];
+
+/* "Posso te ajudar em mais alguma coisa?": Não encerra na hora, Sim volta ao menu. */
+export const ID_MAIS_NAO = 'mais-nao';
+export const ID_MAIS_SIM = 'mais-sim';
+export const BOTOES_MAIS = { titulos: ['Não, era só isso', 'Sim, outra coisa'], ids: [ID_MAIS_NAO, ID_MAIS_SIM] };
+/** Depois da resposta de uma dúvida do financeiro: resolveu, outra dúvida ou gente. */
+export const BOTOES_DEPOIS_DA_DUVIDA = { titulos: ['Era só isso, valeu', 'Outra dúvida', 'Falar com uma pessoa'], ids: [ID_MAIS_NAO, ID_MAIS_SIM, 'pessoa'] };
+
+/** O que o contato respondeu ao "algo mais?": pelo botão ou pelo que escreveu. Texto
+    que não é claramente não nem sim é um assunto novo. */
+export function respostaDoAlgoMais(r: { id?: string; titulo?: string }, texto: string): 'nao' | 'sim' | 'pessoa' | 'outra' {
+  if (r.id === ID_MAIS_NAO || r.id === ID_AJUDOU) return 'nao';
+  if (r.id === ID_MAIS_SIM) return 'sim';
+  if (r.id === 'pessoa') return 'pessoa';
+  const t = normal(texto).replace(/[!.,;]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t || t.length > 40) return 'outra';
+  if (/^(nao|n|nada|nop|nao obrigad[oa]|nao precisa|nao era so isso|era so isso|so isso|e so isso|so|tudo certo|tudo ok|ta tudo certo|ta otimo|ok obrigad[oa]|valeu|vlw|obrigad[oa]|brigad[oa]|muito obrigad[oa])( mesmo)?( obrigad[oa]| valeu)?$/.test(t)) return 'nao';
+  if (/^(sim|s|tenho|quero|sim outra coisa|outra coisa|outra duvida|tenho outra duvida|sim tenho|sim por favor)$/.test(t)) return 'sim';
+  return 'outra';
+}
+
+/* ---------------- o assunto, para a mensagem dizer do que se tratou ---------------- */
+
+const SOBRE: [RegExp, string][] = [
+  [/2.? ?via|segunda via/, 'sobre a 2ª via'],
+  [/boleto/, 'sobre o boleto'],
+  [/mensalidade|parcela/, 'sobre a mensalidade'],
+  [/\bpix\b|pagamento|pagar|paguei|comprovante/, 'sobre o pagamento'],
+  [/cancel/, 'sobre o cancelamento'],
+  [/tranc/, 'sobre o trancamento'],
+  [/contrato|renova/, 'sobre o contrato'],
+  [/reposi|repor/, 'sobre a reposição'],
+  [/remarc|marcar|marcacao|horario|agendar/, 'sobre o horário da aula'],
+  [/\bprova\b|nota/, 'sobre a prova'],
+  [/material|livro|apostila/, 'sobre o material'],
+  [/certificado/, 'sobre o certificado'],
+  [/\baula\b|\baulas\b/, 'sobre as aulas'],
+];
+
+/** " sobre o boleto": o assunto mais recente do contato neste atendimento, para a
+    mensagem de reserva dizer do que se tratou. Sem assunto claro, vazio. */
+export function sobreOQue(linhas: Linha[]): string {
+  for (const l of [...linhas].reverse()) {
+    if (l.de !== 'aluno') continue;
+    const t = normal(l.texto);
+    const achado = SOBRE.find(([r]) => r.test(t));
+    if (achado) return ` ${achado[1]}`;
+  }
+  return '';
+}
 
 const normal = (t: string) =>
   t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -289,20 +365,31 @@ export function pareceDespedida(bruto: string): boolean {
 
 export interface EstadoDoRelogio {
   estado: string;
+  etapa?: string | null;
   relogioDesde?: string | null;
   relogioMotivo?: string | null;
   followUpEm?: string | null;
 }
 
-export type AcaoDoRelogio = 'nada' | 'followup' | 'encerra' | 'avalia_despedida';
+export type AcaoDoRelogio = 'nada' | 'followup' | 'encerra' | 'avalia_despedida' | 'fecha_resolvido';
+
+/** O contato agradeceu ("valeu!"): espera este tanto, para quem está atendendo poder
+    responder antes, e então a IA lê se resolveu e pergunta se precisa de algo mais. */
+export const DESPEDIDA_MIN = 2;
+
+/** O menor tempo que o relógio olha: a busca do cron começa daqui. */
+export const menorEspera = (cfg: ConfigAutomatico) => Math.min(DESPEDIDA_MIN, cfg.fu1Min);
 
 /** O que o cron faz com a conversa agora. Os minutos contam da última fala da escola
-    que espera resposta: o 1º follow-up não zera o relógio. */
+    que espera resposta: o 1º follow-up não zera o relógio. Quem já resolveu e não
+    respondeu ao "algo mais?" é encerrado no tempo do 1º follow-up, sem follow-up. */
 export function acaoDoRelogio(c: EstadoDoRelogio, cfg: ConfigAutomatico, agora: Date): AcaoDoRelogio {
   if (c.estado === 'encerrada' || !c.relogioDesde) return 'nada';
   const min = (agora.getTime() - new Date(c.relogioDesde).getTime()) / 60_000;
-  if (!Number.isFinite(min) || min < cfg.fu1Min) return 'nada';
-  if (c.relogioMotivo === 'despedida') return 'avalia_despedida';
+  if (!Number.isFinite(min)) return 'nada';
+  if (c.relogioMotivo === 'despedida') return min >= DESPEDIDA_MIN ? 'avalia_despedida' : 'nada';
+  if (min < cfg.fu1Min) return 'nada';
+  if (c.etapa === 'mais') return 'fecha_resolvido';
   if (min >= cfg.encMin) return 'encerra';
   return c.followUpEm ? 'nada' : 'followup';
 }
@@ -324,7 +411,7 @@ export function deveVoltarParaRecepcao(
 
 /* ---------------- os textos da IA ---------------- */
 
-export type Momento = 'saudacao' | 'encaminha' | 'followup' | 'encerramento' | 'despedida' | 'fora';
+export type Momento = 'saudacao' | 'encaminha' | 'followup' | 'encerramento' | 'despedida' | 'fora' | 'mais' | 'fechamento';
 
 export interface Linha { de: 'aluno' | 'escola'; quem?: string; texto: string }
 
@@ -335,25 +422,37 @@ export interface ContextoDaConversa {
   linhas: Linha[];
   /** o horário de atendimento agora; sem ele, a IA trata como dentro do horário */
   horario?: SituacaoDoHorario;
+  /** em que etapa está: no menu, o follow-up vai com os botões de novo */
+  etapa?: string;
 }
 
 export const primeiro = (nome: string) => (nome || '').trim().split(/\s+/)[0] || '';
 
-/** Texto de reserva com o nome do contato: é o que sai quando a IA não responde. */
-export const comNome = (modelo: string, nome: string, volta = '') =>
-  modelo.split('{primeiro_nome}').join(primeiro(nome) || 'tudo bem')
+/** Texto de reserva preenchido: é o que sai quando a IA não responde. {primeiro_nome}
+    é o nome do contato (sem nome, a palavra sai com a vírgula dela), {volta} é quando
+    a equipe volta e {sobre} é o assunto (" sobre o boleto", ou nada). */
+export function comNome(modelo: string, nome: string, volta = '', sobre = '') {
+  const p = primeiro(nome);
+  let t = modelo;
+  if (!p) {
+    t = t.replace(/,\s*\{primeiro_nome\}/g, '').replace(/\{primeiro_nome\},?\s*/g, '');
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  return t.split('{primeiro_nome}').join(p)
     .split('{volta}').join(volta || 'no próximo horário de atendimento')
+    .split('{sobre}').join(sobre)
     .replace(/\s+([!?.,])/g, '$1');
+}
 
-export function reservaDo(momento: Momento, cfg: ConfigAutomatico, nome: string, horario?: SituacaoDoHorario) {
+export function reservaDo(momento: Momento, cfg: ConfigAutomatico, nome: string, horario?: SituacaoDoHorario, sobre = '') {
   const fora = horario && !horario.aberto;
   const t = {
     saudacao: fora ? cfg.foraSaudReserva : cfg.saudReserva,
     encaminha: fora ? cfg.foraEncaminhaReserva : cfg.encaminhaReserva,
-    followup: cfg.fu1Reserva, encerramento: cfg.encReserva, despedida: cfg.despedidaReserva,
-    fora: cfg.foraAvisoReserva,
+    followup: cfg.fu1Reserva, encerramento: cfg.encReserva, despedida: cfg.maisReserva,
+    fora: cfg.foraAvisoReserva, mais: cfg.maisReserva, fechamento: cfg.fechaReserva,
   }[momento];
-  return comNome(t, nome, horario?.volta);
+  return comNome(t, nome, horario?.volta, sobre);
 }
 
 const REGRAS_FIXAS = [
@@ -406,15 +505,24 @@ export function promptMensagem(cfg: ConfigAutomatico, momento: Momento, ctx: Con
     return `${cab}\nMOMENTO: o contato escreveu fora do horário numa conversa que já está com a equipe. Escreva um aviso curto: a mensagem chegou, a equipe está fora do horário e volta ${volta}, e responde por aqui. Se ele ainda não disse o que precisa, peça para já deixar escrito. Não responda a pergunta dele.\n\nResponda com situacao "pendente", pendencia vazia e o aviso em mensagem.`;
   }
 
-  const leitura = `\nAntes de escrever, leia de quem é a vez:\n- "pendente": a última fala que espera resposta é da escola, e ficou algo esperando o contato.\n- "resolvida": o contato já agradeceu, confirmou ou se despediu, e não falta nada.\n- "aluno_esperando": o contato está esperando uma resposta ou uma ação da escola.\nSe for "aluno_esperando", deixe a mensagem vazia: não se manda nada para quem está esperando a gente.\nSe for "resolvida", ${cfg.resolvida === 'despedida' ? 'escreva só uma despedida curta, sem perguntar nada.' : 'deixe a mensagem vazia.'}\nEm pendencia, escreva numa frase curta o que ficou pendente.`;
+  const botoesMais = BOTOES_MAIS.titulos.map((b) => `"${b}"`).join(' e ');
+  const fechaAssunto = `escreva uma frase curta fechando o assunto pelo nome dele (por exemplo: "Que bom que deu certo com o boleto, Larissa!") e perguntando se pode ajudar em mais alguma coisa. Vão junto os botões ${botoesMais}; não repita os botões no texto.`;
+  const leitura = `\nAntes de escrever, leia de quem é a vez:\n- "pendente": a última fala que espera resposta é da escola, e ficou algo esperando o contato.\n- "resolvida": o contato já agradeceu, confirmou ou se despediu, e não falta nada.\n- "aluno_esperando": o contato está esperando uma resposta ou uma ação da escola.\nSe for "aluno_esperando", deixe a mensagem vazia: não se manda nada para quem está esperando a gente.\nSe for "resolvida", ${fechaAssunto}\nEm pendencia, escreva numa frase curta o que ficou pendente.`;
 
   if (momento === 'followup') {
-    return `${cab}\nMOMENTO: 1º follow-up. Passaram ${cfg.fu1Min} minutos sem resposta do contato.\nO QUE ESTA MENSAGEM PRECISA FAZER: ${cfg.fu1Instrucao}\n${leitura}`;
+    const noMenu = ctx.etapa === 'menu' ? ' A pessoa recebeu os botões do menu e não tocou em nenhum: os mesmos botões vão de novo junto desta mensagem; não repita os botões no texto.' : '';
+    return `${cab}\nMOMENTO: 1º follow-up. Passaram ${cfg.fu1Min} minutos sem resposta do contato.${noMenu}\nO QUE ESTA MENSAGEM PRECISA FAZER: ${cfg.fu1Instrucao}\n${leitura}`;
   }
   if (momento === 'encerramento') {
     return `${cab}\nMOMENTO: encerramento. Passaram ${cfg.encMin} minutos sem resposta do contato, e depois desta mensagem o atendimento fecha.\nO QUE ESTA MENSAGEM PRECISA FAZER: ${cfg.encInstrucao}\n${leitura}`;
   }
-  return `${cab}\nMOMENTO: o contato mandou o que parece uma despedida e o atendimento vai fechar.\n${leitura}`;
+  if (momento === 'mais') {
+    return `${cab}\nMOMENTO: o assunto deste atendimento acabou de se resolver. ${fechaAssunto}\n\nResponda com situacao "resolvida", pendencia vazia e a frase em mensagem.`;
+  }
+  if (momento === 'fechamento') {
+    return `${cab}\nMOMENTO: a pessoa do time que está atendendo vai encerrar este atendimento agora.\nO QUE ESTA MENSAGEM PRECISA FAZER: ${cfg.fechaInstrucao}\nNão pergunte nada: o atendimento fecha logo depois.\n\nResponda com a situacao que a conversa mostra, pendencia vazia e o aviso de encerramento em mensagem.`;
+  }
+  return `${cab}\nMOMENTO: o contato mandou o que parece um agradecimento ou uma despedida.\n${leitura}`;
 }
 
 /** As instruções do assistente do financeiro e contrato. A conversa vai em seguida,

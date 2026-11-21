@@ -62,7 +62,11 @@ function motivoDaFalha(e: unknown) {
 async function anota(e: unknown) {
   if (e instanceof Anthropic.APIError) console.error('[ia]', e.status, e.message);
   else console.error('[ia]', e);
-  await falhou('ia', motivoDaFalha(e));
+  /* sem saldo ou chave recusada não passa sozinho: vira alerta grave para a gestão
+     (foi assim em 21/11, e ninguém viu que a IA tinha parado) */
+  const daConta = e instanceof Anthropic.APIError
+    && (e.status === 401 || e.status === 403 || (e.status === 400 && /credit|balance/i.test(e.message)));
+  await falhou(daConta ? 'iaConta' : 'ia', motivoDaFalha(e));
 }
 
 /* Mensagens curtas: esforço baixo responde rapido e basta para escrever duas frases.

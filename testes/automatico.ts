@@ -5,7 +5,7 @@
 import {
   AUTOMATICO_PADRAO, acaoDoRelogio, avisaForaDoHorario, comNome, depoisDoMenuConfuso, destinoDoAssunto,
   deveVoltarParaRecepcao, escolhaDoMenu, leAutomatico, pareceDespedida, promptMensagem, recomecaAtendimento,
-  regrasDoAssistente, reservaDo, situacaoDoHorario, turnosDoAssistente,
+  regrasDoAssistente, reservaDo, respostaDoAlgoMais, situacaoDoHorario, sobreOQue, turnosDoAssistente,
   type ConfigAutomatico,
 } from '../src/lib/dominio/automatico.ts';
 import { leAssunto } from '../src/lib/dominio/triagem.ts';
@@ -68,7 +68,11 @@ igual('aos 15 min, follow-up', acaoDoRelogio(c({ relogioDesde: antes(15) }), cfg
 igual('follow-up já mandado, espera', acaoDoRelogio(c({ relogioDesde: antes(20), followUpEm: antes(5) }), cfg, AGORA), 'nada');
 igual('aos 30 min, encerra', acaoDoRelogio(c({ relogioDesde: antes(30), followUpEm: antes(15) }), cfg, AGORA), 'encerra');
 igual('passou dos 30 sem follow-up, encerra direto', acaoDoRelogio(c({ relogioDesde: antes(45) }), cfg, AGORA), 'encerra');
-igual('despedida do contato é avaliada', acaoDoRelogio(c({ relogioDesde: antes(16), relogioMotivo: 'despedida' }), cfg, AGORA), 'avalia_despedida');
+igual('agradeceu: espera 2 min para quem atende responder', acaoDoRelogio(c({ relogioDesde: antes(1), relogioMotivo: 'despedida' }), cfg, AGORA), 'nada');
+igual('agradeceu há 2 min: a IA lê e pergunta se precisa de algo mais', acaoDoRelogio(c({ relogioDesde: antes(2), relogioMotivo: 'despedida' }), cfg, AGORA), 'avalia_despedida');
+igual('no menu, aos 15 min, follow-up', acaoDoRelogio(c({ etapa: 'menu', relogioDesde: antes(15) }), cfg, AGORA), 'followup');
+igual('"algo mais?" sem resposta: antes dos 15 min espera', acaoDoRelogio(c({ etapa: 'mais', relogioDesde: antes(10) }), cfg, AGORA), 'nada');
+igual('"algo mais?" sem resposta aos 15 min: encerra, sem follow-up', acaoDoRelogio(c({ etapa: 'mais', relogioDesde: antes(15) }), cfg, AGORA), 'fecha_resolvido');
 igual('encerrada não faz nada', acaoDoRelogio(c({ estado: 'encerrada', relogioDesde: antes(60) }), cfg, AGORA), 'nada');
 
 /* ---------- volta para a Recepção ---------- */
@@ -119,6 +123,47 @@ igual('parada há 2 h: segue com gente', recomecaAtendimento({ estado: 'aberta',
 igual('contato esperando a gente: não recomeça', recomecaAtendimento({ estado: 'aguardando', etapa: 'gente', ultimaEm: antes(48 * 60) }, cfg, AGORA), false);
 igual('no meio do assistente: não recomeça', recomecaAtendimento({ estado: 'ia', etapa: 'assistente', ultimaEm: antes(48 * 60) }, cfg, AGORA), false);
 igual('com 0 horas, nunca recomeça', recomecaAtendimento({ estado: 'aberta', etapa: 'gente', ultimaEm: antes(48 * 60) }, leAutomatico({ recomecaHoras: 0 }), AGORA), false);
+
+/* ---------- assunto resolvido: "posso te ajudar em mais alguma coisa?" ---------- */
+igual('botão Não', respostaDoAlgoMais({ id: 'mais-nao' }, 'Não, era só isso'), 'nao');
+igual('botão Sim', respostaDoAlgoMais({ id: 'mais-sim' }, 'Sim, outra coisa'), 'sim');
+igual('botão antigo Ajudou vale como não', respostaDoAlgoMais({ id: 'ajudou' }, 'Ajudou, valeu!'), 'nao');
+igual('botão Falar com uma pessoa', respostaDoAlgoMais({ id: 'pessoa' }, 'Falar com uma pessoa'), 'pessoa');
+igual('escreveu não', respostaDoAlgoMais({}, 'Não, obrigado!'), 'nao');
+igual('escreveu só isso mesmo', respostaDoAlgoMais({}, 'só isso mesmo'), 'nao');
+igual('escreveu era só isso', respostaDoAlgoMais({}, 'era só isso'), 'nao');
+igual('escreveu valeu', respostaDoAlgoMais({}, 'valeu!!'), 'nao');
+igual('escreveu sim', respostaDoAlgoMais({}, 'sim'), 'sim');
+igual('escreveu tenho outra dúvida', respostaDoAlgoMais({}, 'tenho outra dúvida'), 'sim');
+igual('"não consigo pagar" não é não: é assunto novo', respostaDoAlgoMais({}, 'não consigo pagar esse mês'), 'outra');
+igual('pergunta nova é assunto novo', respostaDoAlgoMais({}, 'e o material, quando chega?'), 'outra');
+
+/* ---------- o assunto, para dizer do que se tratou ---------- */
+const lin = (...t: string[]) => t.map((texto, i) => ({ de: (i % 2 ? 'escola' : 'aluno') as 'aluno' | 'escola', texto }));
+igual('boletos', sobreOQue(lin('quero ver sobre meus boletos')), ' sobre o boleto');
+igual('o assunto mais recente do contato', sobreOQue(lin('quero ver meus boletos', 'claro!', 'e tem reposição sábado?')), ' sobre a reposição');
+igual('o que a escola escreveu não conta', sobreOQue([{ de: 'escola', texto: 'teu boleto está aqui' }]), '');
+igual('sem assunto claro, nada', sobreOQue(lin('oi', 'oi!', 'tudo bem?')), '');
+igual('encerramento por silêncio, com o assunto', reservaDo('encerramento', cfg, 'Guilherme Correa', undefined, ' sobre o boleto'),
+  'Guilherme, como não tive retorno, vou encerrar por aqui o atendimento sobre o boleto. Quando quiser retomar, é só mandar uma mensagem 😊');
+igual('encerrar na mão, com o assunto', reservaDo('fechamento', cfg, 'Guilherme', undefined, ' sobre o boleto'),
+  'Guilherme, vou encerrar por aqui o atendimento sobre o boleto. Se precisar de mais alguma coisa, é só mandar uma mensagem 😊');
+igual('encerrar na mão, sem assunto', reservaDo('fechamento', cfg, 'Guilherme'),
+  'Guilherme, vou encerrar por aqui o atendimento. Se precisar de mais alguma coisa, é só mandar uma mensagem 😊');
+igual('sem nome, sem "tudo bem" no lugar', reservaDo('fechamento', cfg, ''), 'Vou encerrar por aqui o atendimento. Se precisar de mais alguma coisa, é só mandar uma mensagem 😊');
+igual('sem nome no meio da frase', comNome('Oi, {primeiro_nome}! Tudo bem?', ''), 'Oi! Tudo bem?');
+igual('a pergunta de algo mais', reservaDo('mais', cfg, 'Guilherme'), 'Que bom que deu certo, Guilherme! Posso te ajudar em mais alguma coisa?');
+igual('quem agradeceu recebe a pergunta, não "imagina"', reservaDo('despedida', cfg, 'Guilherme'), 'Que bom que deu certo, Guilherme! Posso te ajudar em mais alguma coisa?');
+const ctxBoleto = { nome: 'Guilherme', ehAluno: true, linhas: lin('quero ver sobre meus boletos', 'te mando já') };
+igual('a IA, ao encerrar na mão, diz do que se tratou', promptMensagem(cfg, 'fechamento', ctxBoleto).includes('dizendo em poucas palavras do que se tratou'), true);
+igual('a IA, ao resolver, pergunta se precisa de algo mais com os botões', promptMensagem(cfg, 'despedida', ctxBoleto).includes('"Não, era só isso" e "Sim, outra coisa"'), true);
+igual('no menu, o follow-up sabe que os botões vão de novo', promptMensagem(cfg, 'followup', { ...ctxBoleto, etapa: 'menu' }).includes('os mesmos botões vão de novo'), true);
+
+/* textos antigos que ninguém editou seguem o padrão novo; o que a escola escreveu fica */
+const salvo = leAutomatico({ ligado: true, encReserva: '{primeiro_nome}, vou encerrar o atendimento por aqui. Quando quiser retomar, é só mandar uma mensagem 😊', fu1Reserva: 'Oi, {primeiro_nome}! Tudo certo por aí?' });
+igual('o encerramento antigo vira o novo', salvo.encReserva, AUTOMATICO_PADRAO.encReserva);
+igual('o follow-up escrito pela escola fica', salvo.fu1Reserva, 'Oi, {primeiro_nome}! Tudo certo por aí?');
+igual('15 e 30 minutos por padrão', [leAutomatico(null).fu1Min, leAutomatico(null).encMin], [15, 30]);
 
 /* ---------- textos ---------- */
 igual('reserva com o nome', comNome('Oi, {primeiro_nome}! Tudo bem?', 'Larissa Menegat'), 'Oi, Larissa! Tudo bem?');

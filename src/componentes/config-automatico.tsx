@@ -21,7 +21,9 @@ type Chama = (caminho: string, corpo?: unknown) => Promise<Record<string, unknow
 const MOMENTOS: { k: Momento; r: string }[] = [
   { k: 'followup', r: '1º follow-up' },
   { k: 'encerramento', r: 'encerramento por falta de resposta' },
-  { k: 'despedida', r: 'despedida de quem já resolveu' },
+  { k: 'despedida', r: 'quem agradeceu: fecha o assunto e pergunta se precisa de algo mais' },
+  { k: 'mais', r: 'pergunta se precisa de mais alguma coisa' },
+  { k: 'fechamento', r: 'aviso de encerramento quando o time encerra na mão' },
   { k: 'saudacao', r: 'saudação com os botões' },
   { k: 'encaminha', r: 'aviso de que vai para a Recepção' },
   { k: 'fora', r: 'aviso de fora do horário (conversa já com a equipe)' },
@@ -286,29 +288,36 @@ function Tempos({ rasc, muda }: { rasc: ConfigAutomatico; muda: Muda }) {
                  valor={rasc.fu1Min} min={1} max={600} aoMudar={(n) => muda('fu1Min', n)} />
         <Texto id="au-fu1i" rotulo="O que o 1º follow-up precisa fazer (instrução para a IA)" linhas={3}
                valor={rasc.fu1Instrucao} aoMudar={(v) => muda('fu1Instrucao', v)} />
-        <Texto id="au-fu1r" rotulo="Texto de reserva do 1º follow-up" valor={rasc.fu1Reserva} aoMudar={(v) => muda('fu1Reserva', v)} />
+        <Texto id="au-fu1r" rotulo="Texto de reserva do 1º follow-up" valor={rasc.fu1Reserva} aoMudar={(v) => muda('fu1Reserva', v)}
+               ajuda="{primeiro_nome} vira o nome do contato; {sobre} vira o assunto da conversa (&quot; sobre o boleto&quot;), ou some quando não dá para saber." />
+        <Texto id="au-fumr" rotulo="Texto de reserva do follow-up de quem não tocou em nenhum botão do menu (os botões vão de novo)" valor={rasc.fuMenuReserva} aoMudar={(v) => muda('fuMenuReserva', v)} />
         <Minutos id="au-encm" antes="Encerra depois de" depois="minutos sem resposta, com o 2º follow-up"
                  valor={rasc.encMin} min={2} max={1440} aoMudar={(n) => muda('encMin', n)} />
         <Texto id="au-enci" rotulo="O que a despedida por falta de resposta precisa fazer (instrução para a IA)" linhas={3}
                valor={rasc.encInstrucao} aoMudar={(v) => muda('encInstrucao', v)} />
         <Texto id="au-encr" rotulo="Texto de reserva do encerramento" valor={rasc.encReserva} aoMudar={(v) => muda('encReserva', v)} />
-        <div>
-          <label htmlFor="au-resol">Quando a conversa já se resolveu (&quot;valeu, obrigada!&quot;)</label>
-          <select id="au-resol" className="cx" value={rasc.resolvida}
-                  onChange={(e) => muda('resolvida', e.target.value === 'nada' ? 'nada' : 'despedida')}>
-            <option value="despedida">manda uma despedida curta e encerra</option>
-            <option value="nada">encerra sem mandar nada</option>
-          </select>
-        </div>
-        <Texto id="au-desp" rotulo="Texto de reserva da despedida" valor={rasc.despedidaReserva} aoMudar={(v) => muda('despedidaReserva', v)} />
+        <p className="obs forte">
+          Quando o assunto se resolve (o contato agradece, toca em Era só isso, confirma a aula),
+          sai &quot;posso te ajudar em mais alguma coisa?&quot; com os botões Não, era só isso e Sim, outra
+          coisa. Não encerra na hora; Sim volta para o menu; sem resposta, encerra no tempo do 1º follow-up.
+        </p>
+        <Texto id="au-mais" rotulo="Texto de reserva da pergunta se precisa de mais alguma coisa" valor={rasc.maisReserva} aoMudar={(v) => muda('maisReserva', v)} />
+        <Texto id="au-fim" rotulo="Texto que sai quando a pessoa diz que era só isso (e o atendimento encerra)" valor={rasc.fimReserva} aoMudar={(v) => muda('fimReserva', v)} />
         <label className="lig">
           <input type="checkbox" checked={rasc.manualDespedida} onChange={(e) => muda('manualDespedida', e.target.checked)} />
           <span>
-            <b>Ao encerrar na mão, mandar uma despedida</b>
+            <b>Ao encerrar na mão, avisar o contato</b>
             Quem está atendendo toca em &quot;Encerrar atendimento&quot; no topo da conversa; antes de
-            encerrar, sai uma despedida curta escrita pela IA.
+            encerrar, sai um aviso claro de que o atendimento fechou, dizendo do que se tratou.
           </span>
         </label>
+        {rasc.manualDespedida && (
+          <>
+            <Texto id="au-fechai" rotulo="O que o aviso de encerramento precisa fazer (instrução para a IA)" linhas={3}
+                   valor={rasc.fechaInstrucao} aoMudar={(v) => muda('fechaInstrucao', v)} />
+            <Texto id="au-fechar" rotulo="Texto de reserva do aviso de encerramento" valor={rasc.fechaReserva} aoMudar={(v) => muda('fechaReserva', v)} />
+          </>
+        )}
         <Minutos id="au-volta" antes="Setor que não respondeu devolve a conversa para a Recepção depois de"
                  depois={rasc.horarioLigado ? 'horas de atendimento (fora do horário não conta)' : 'horas'}
                  valor={rasc.voltaHoras} min={1} max={72} aoMudar={(n) => muda('voltaHoras', n)} />

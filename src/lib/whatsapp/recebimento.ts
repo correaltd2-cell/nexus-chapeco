@@ -5,7 +5,7 @@ import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
 import { comEtiqueta, etiquetaDoAssunto, leAssunto, tarefaDoAssunto } from '@/lib/dominio/triagem';
 import { PASSO, novoId } from '@/lib/dominio/quadros';
 import type { Conversa, Lista, Quadro } from '@/lib/dominio/tipos';
-import { atendeAoVivo, camposDaFalaDaEscola, encerra } from './automatico';
+import { atendeAoVivo, camposDaFalaDaEscola, depoisDeConfirmar } from './automatico';
 import { variantesDoTelefone } from '@/lib/dominio/contato';
 import { baixaMidia } from './cloud';
 import { adminArquivos } from '@/lib/firebase/admin';
@@ -219,9 +219,9 @@ export async function recebeDoContato(
   const daAgenda = origem === 'ao_vivo' ? await respondeLembrete(ctx.bd, ref, payload, waId) : null;
   if (daAgenda) {
     if (daAgenda === 'remarcar') await avisaEquipe(ctx.bd, ref.id);
-    /* confirmou pelo "Minhas aulas": o atendimento acabou bem, fecha sem follow-up */
+    /* confirmou pelo "Minhas aulas": resolveu; pergunta se precisa de mais alguma coisa */
     if (daAgenda === 'confirmar' && conversa.data()?.etapa === 'aulas') {
-      await encerra(ctx.bd, ref, 'cliente', 'Presença confirmada pelo WhatsApp. Atendimento encerrado.');
+      await depoisDeConfirmar(ctx.bd, ref, (conversa.data() || {}) as Partial<Conversa>, quando, janelaDe(quando));
     }
     if (midia) await guardaMidia(ref.id, msg, midia);
     return ref;
