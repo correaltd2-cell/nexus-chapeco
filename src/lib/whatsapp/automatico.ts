@@ -33,13 +33,18 @@ export async function leConfig(bd: Firestore): Promise<ConfigAutomatico> {
   return leAutomatico(d.exists ? (d.data() as Partial<ConfigAutomatico>) : null);
 }
 
-/** A conversa deste atendimento, para a IA ler. Nota interna e aviso do sistema ficam de fora. */
+/** A conversa deste atendimento, para a IA ler. Nota interna e aviso do sistema ficam de fora.
+    Lê do começo do atendimento (ou dos últimos 7 dias, quando ele não tem começo marcado)
+    em ordem crescente, que é o índice que existe (conversaId, criadaEm); limitToLast
+    pediria o índice decrescente, e foi isso que derrubou o "Encerrar atendimento". */
 export async function linhasDoAtendimento(bd: Firestore, conversaId: string, desde?: string): Promise<Linha[]> {
+  const piso = desde || new Date(Date.now() - 7 * 86_400_000).toISOString();
   const s = await bd.collection('mensagens')
-    .where('conversaId', '==', conversaId).orderBy('criadaEm').limitToLast(30).get();
+    .where('conversaId', '==', conversaId).where('criadaEm', '>=', piso).orderBy('criadaEm').get();
   return s.docs
     .map((d) => d.data() as Mensagem)
-    .filter((m) => m.autor !== 'sistema' && (!desde || m.criadaEm >= desde))
+    .filter((m) => m.autor !== 'sistema')
+    .slice(-30)
     .map((m) => ({
       de: m.direcao === 'entrada' ? 'aluno' as const : 'escola' as const,
       quem: m.autor === 'lumi' ? 'atendimento automático' : m.autorNome || 'equipe',
