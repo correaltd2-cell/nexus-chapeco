@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, configurado } from '@/lib/firebase/cliente';
+import { modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import Logo from '@/componentes/logo';
 
@@ -15,7 +16,8 @@ export default function Entrar() {
   const router = useRouter();
 
   /* sem Firebase, o sistema roda em demonstracao e nao tem o que logar */
-  useEffect(() => { if (!configurado) router.replace('/conversas'); }, [router]);
+  /* sem Firebase (demonstração) ou em modo simulação, não há login: vai para as conversas */
+  useEffect(() => { if (modoDemo) router.replace('/conversas'); }, [router]);
 
   async function enviar(e: FormEvent) {
     e.preventDefault();

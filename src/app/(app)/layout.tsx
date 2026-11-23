@@ -10,7 +10,8 @@ import Link from 'next/link';
 import { Ic, SpriteDeIcones } from '@/componentes/icones';
 import { useSessao, useTema } from '@/componentes/sessao';
 import { MODULOS, NOME_MODULO, NOME_PAPEL, ehGestao, modulosDoPapel, type Modulo } from '@/lib/dominio/acessos';
-import { modoDemo } from '@/lib/dados/fonte';
+import { modoDemo, modoSimulacao } from '@/lib/dados/fonte';
+import { saiDaSimulacao } from '@/lib/dados/simulacao';
 import { FaixaDeSaude } from '@/componentes/saude';
 import Festa from '@/componentes/festa';
 import { AvisoDeMensagem } from '@/componentes/avisos';
@@ -140,7 +141,15 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
         </aside>
 
         <main className="views">
-          {modoDemo && (
+          {modoSimulacao ? (
+            <p className="fita-demo fita-sim">
+              <span>
+                <b>Modo simulação.</b> Tudo aqui é fictício: nada vai para o WhatsApp nem para o banco,
+                e o que você mudar some ao recarregar a página.
+              </span>
+              <button type="button" className="btn" onClick={saiDaSimulacao}>Sair da simulação</button>
+            </p>
+          ) : modoDemo && (
             <p className="fita-demo">
               Demonstração, com dados fictícios. Nada aqui é aluno de verdade, e o que você mudar
               some ao recarregar a página.

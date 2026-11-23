@@ -10,6 +10,7 @@ import { Ic } from '@/componentes/icones';
 import { useAgora, horaConhecida } from '@/componentes/relogio';
 import { NOME_SETOR, SETORES } from '@/lib/dominio/acessos';
 import { leAtendimento } from '@/lib/dominio/config';
+import { leAutomatico, situacaoDoHorario, textoDaTransferencia } from '@/lib/dominio/automatico';
 import { detalheDaSituacao, esperandoDesde } from '@/lib/dominio/conversas';
 import { SetorTag } from '@/componentes/setor';
 import { comemoraTransferencia } from '@/componentes/festa';
@@ -130,6 +131,13 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
         aguardandoDesde: new Date().toISOString(),
       });
       await recado(`${nomeDoAutor} passou a conversa para ${NOME_SETOR[setor]}.`);
+      /* na demonstração e na simulação, a mensagem que o contato recebe aparece também,
+         como o servidor mandaria (whatsapp/automatico.ts, transfere) */
+      await cria('mensagens', {
+        conversaId: conversa.id, direcao: 'saida', autor: 'lumi', autorNome: 'Atendimento automático',
+        texto: textoDaTransferencia(leAtendimento(null).textoAoPassar, setor, conversa.nome || '', situacaoDoHorario(leAutomatico(null), new Date())),
+        criadaEm: new Date().toISOString(),
+      });
       comemoraTransferencia(setor);
       return;
     }

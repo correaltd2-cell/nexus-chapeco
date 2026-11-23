@@ -8,12 +8,15 @@ import {
   writeBatch, type QueryConstraint,
 } from 'firebase/firestore';
 import { bd, configurado } from '@/lib/firebase/cliente';
+import { simulacaoNoAparelho } from './simulacao';
 import {
   AGENDADAS, AGENDAMENTOS, ALUNOS, ALUNOS_DAS_AULAS, AULAS_CURRICULO, BLOQUEIOS, CARTOES, CONVERSAS, LISTAS,
   LOGS_AGENDA, MENSAGENS, MODULOS, PERFIS, QUADROS, RECORRENCIAS, TEMPLATES,
 } from './exemplo';
 
-export const modoDemo = !configurado;
+/** O sistema publicado aberto em modo simulação (simulacao.ts): dados fictícios, em memória. */
+export const modoSimulacao = configurado && Boolean(simulacaoNoAparelho());
+export const modoDemo = !configurado || modoSimulacao;
 
 export type Doc = { id: string } & Record<string, unknown>;
 export type Campos = Record<string, unknown>;

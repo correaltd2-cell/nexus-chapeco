@@ -3,7 +3,8 @@
    So entra aqui botao que faz alguma coisa de verdade. O que ainda nao existe fica
    de fora, porque interruptor que nao liga nada ensina o time a nao confiar na tela. */
 import { useEffect, useMemo, useState } from 'react';
-import { assina, atualiza, define, modoDemo } from '@/lib/dados/fonte';
+import { assina, atualiza, define, modoDemo, modoSimulacao } from '@/lib/dados/fonte';
+import { entraNaSimulacao, saiDaSimulacao } from '@/lib/dados/simulacao';
 import { useSessao, useTema, type Tema } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
@@ -72,6 +73,11 @@ export default function Configuracoes() {
         <p>O que a escola muda sozinha, sem precisar de mim.</p>
       </header>
 
+      {perfil && (
+        <ModoSimulacao nome={perfil.nome} gestao={gestao} liberada={atendimento.simulacaoLiberada}
+                       aoMudar={(v) => void salvaAtendimento({ simulacaoLiberada: v })} />
+      )}
+
       <Atendimento valor={atendimento} podeMexer={gestao} aoSalvar={salvaAtendimento} />
       {perfil && <SuaAssinatura perfil={perfil} ligada={atendimento.assinarMensagens} />}
       <AtendimentoAutomatico salva={automatico} podeMexer={gestao} chama={chama} perfis={perfis} />
@@ -88,6 +94,57 @@ export default function Configuracoes() {
         </section>
       )}
     </div>
+  );
+}
+
+/* ================= modo simulação ================= */
+function ModoSimulacao({ nome, gestao, liberada, aoMudar }: {
+  nome: string; gestao: boolean; liberada: boolean; aoMudar: (v: boolean) => void;
+}) {
+  const [erro, setErro] = useState('');
+  if (modoSimulacao) {
+    return (
+      <section className="bl" id="simulacao">
+        <p className="bt">Modo simulação</p>
+        <div className="frm">
+          <p>Você está no modo simulação: tudo o que aparece é fictício, e nada vai para o WhatsApp nem para o banco.</p>
+          <div className="ln"><button type="button" className="btn p" onClick={saiDaSimulacao}>Sair da simulação</button></div>
+        </div>
+      </section>
+    );
+  }
+  /* a demonstração sem banco já é toda fictícia; e sem liberação, só a gestão vê */
+  if (modoDemo || (!liberada && !gestao)) return null;
+  return (
+    <section className="bl" id="simulacao">
+      <p className="bt">Modo simulação</p>
+      <div className="frm">
+        <p className="obs forte">
+          Para mostrar à equipe como o sistema funciona. Abre conversas, quadros, alunos, agenda e relatórios
+          fictícios neste aparelho: dá para transferir de setor, encerrar, mexer na agenda e na planilha à vontade.
+          Nada vai para o WhatsApp nem para o banco, e não sobra nada para apagar depois. Para voltar, toque em
+          Sair da simulação, na faixa do topo.
+        </p>
+        {liberada && (
+          <div className="ln">
+            <button type="button" className="btn p" onClick={() => {
+              if (!entraNaSimulacao(nome)) setErro('Este navegador não deixou guardar a escolha (janela anônima?). Abra numa janela normal e tente de novo.');
+            }}>Entrar no modo simulação</button>
+          </div>
+        )}
+        {erro && <p className="erro">{erro}</p>}
+        {gestao && (
+          <label className="lig">
+            <input type="checkbox" checked={liberada} onChange={(e) => aoMudar(e.target.checked)} />
+            <span>
+              <b>Mostrar o modo simulação para a equipe</b>
+              Desligado, o botão some das Configurações de todo mundo. Quem estiver dentro da simulação
+              sai pela faixa do topo.
+            </span>
+          </label>
+        )}
+      </div>
+    </section>
   );
 }
 

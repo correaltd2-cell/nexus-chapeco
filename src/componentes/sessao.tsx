@@ -3,6 +3,8 @@
 import {
   createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode,
 } from 'react';
+import { modoSimulacao } from '@/lib/dados/fonte';
+import { saiDaSimulacao, simulacaoNoAparelho } from '@/lib/dados/simulacao';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, bd, configurado } from '@/lib/firebase/cliente';
@@ -19,6 +21,13 @@ export const PERFIL_DEMO: Perfil = {
   avisaNoWhats: false, ativo: true, criadoEm: new Date().toISOString(),
 };
 
+/* Na simulação quem usa é o perfil da demonstração (administrador, todos os setores),
+   com o nome de quem entrou, e sem usuário do Firebase: nenhuma chamada ao servidor sai. */
+const PERFIL_SIMULACAO: Perfil | null = modoSimulacao
+  ? { ...PERFIL_DEMO, nome: simulacaoNoAparelho()?.nome || 'Equipe' }
+  : null;
+const nada = () => () => {};
+
 interface Sessao {
   estado: Estado;
   usuario: User | null;
@@ -34,8 +43,11 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<User | null>(null);
   const [perfil, setPerfil] = useState<Perfil | null>(configurado ? null : PERFIL_DEMO);
 
+  /* a simulação só vale no navegador: no servidor, e na primeira pintura, é o normal */
+  const simulando = useSyncExternalStore(nada, () => modoSimulacao, () => false);
+
   useEffect(() => {
-    if (!configurado) return;
+    if (!configurado || modoSimulacao) return;
     return onAuthStateChanged(auth(), (u) => {
       setUsuario(u);
       if (!u) { setPerfil(null); setEstado('fora'); }
@@ -43,7 +55,7 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!configurado || !usuario) return;
+    if (!configurado || modoSimulacao || !usuario) return;
     return onSnapshot(
       doc(bd(), 'perfis', usuario.uid),
       (d) => {
@@ -57,11 +69,15 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
   }, [usuario]);
 
   const sair = async () => {
+    if (modoSimulacao) { saiDaSimulacao(); return; }
     if (!configurado) { avisa('Na demonstração não tem login para sair.'); return; }
     await signOut(auth());
   };
 
-  return <Ctx.Provider value={{ estado, usuario, perfil, sair }}>{children}</Ctx.Provider>;
+  const valor: Sessao = simulando && PERFIL_SIMULACAO
+    ? { estado: 'dentro', usuario: null, perfil: PERFIL_SIMULACAO, sair }
+    : { estado, usuario, perfil, sair };
+  return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }
 
 /* ---------- tema ---------- */

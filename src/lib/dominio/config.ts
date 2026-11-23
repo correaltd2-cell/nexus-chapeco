@@ -12,6 +12,8 @@ export interface ConfigDoAtendimento {
   avisaAoPassar: boolean;
   /** O texto dela: {primeiro_nome} e {setor} ("o Financeiro") são trocados na hora. */
   textoAoPassar: string;
+  /** O botão do modo simulação aparece para a equipe (a gestão sempre vê). */
+  simulacaoLiberada: boolean;
 }
 
 export const ATENDIMENTO_PADRAO: ConfigDoAtendimento = {
@@ -20,6 +22,7 @@ export const ATENDIMENTO_PADRAO: ConfigDoAtendimento = {
   assinarMensagens: true,
   avisaAoPassar: true,
   textoAoPassar: '{primeiro_nome}, tua conversa foi encaminhada para {setor}. Logo alguém te responde por aqui.',
+  simulacaoLiberada: true,
 };
 
 /** Le o documento de configuracao sem quebrar quando ele ainda nao existe. */
@@ -32,5 +35,6 @@ export function leAtendimento(bruto?: Partial<ConfigDoAtendimento> | null): Conf
     avisaAoPassar: bruto?.avisaAoPassar !== false,
     textoAoPassar: typeof bruto?.textoAoPassar === 'string' && bruto.textoAoPassar.trim()
       ? bruto.textoAoPassar.trim().slice(0, 500) : ATENDIMENTO_PADRAO.textoAoPassar,
+    simulacaoLiberada: bruto?.simulacaoLiberada !== false,
   };
 }
