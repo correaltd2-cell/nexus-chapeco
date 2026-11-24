@@ -37,7 +37,8 @@ export interface Aluno {
   nome: string;
   telefone: string;        // E.164 sem mais: 5549991234567
   email?: string;
-  documento?: string;
+  documento?: string;      // CPF, só os números
+  nascimento?: string;     // AAAA-MM-DD
   trilha: Trilha;
   nivel: string;           // Starter, A1, A2, B1, B2, Kids 1...
   licao: number;           // 1 a 20

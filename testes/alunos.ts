@@ -3,7 +3,8 @@
    Os nomes são inventados.
    Rodar:  node --experimental-strip-types testes/alunos.ts  */
 import {
-  camposEditados, dataCompleta, fechaSemana, horasDesde, idDaSemana, novoAluno, valorDaCelula, type AlunoDaGrade, type Edicao,
+  COLUNAS_DA_MARCACAO, COLUNAS_DO_CADASTRO, aulasSemOsAlunos, cadastroDoAluno, camposEditados, cpfLegivel, dataCompleta, fechaSemana,
+  horasDesde, idDaSemana, novoAluno, valorDaCelula, type AlunoDaGrade, type Edicao,
 } from '../src/lib/dominio/alunos.ts';
 import { confere, escritasDaImportacao, lePlanilha } from '../src/lib/dominio/planilha.ts';
 
@@ -28,6 +29,11 @@ const todos = [joana, pedro];
 /* ---- células ---- */
 igual('nome com " - menor" marca menor', campos(camposEditados('nome', 'Joana Teste Souza - menor', joana)), { nome: 'Joana Teste Souza', menor: true });
 igual('nome igual não grava nada', campos(camposEditados('nome', '  Joana   Teste ', joana)), {});
+const rita: AlunoDaGrade = { id: 'a9', nome: 'Rita Inventada', menor: true, ativo: true };
+igual('menor aparece no nome, como na planilha', valorDaCelula('nome', rita), 'Rita Inventada - menor');
+igual('nome do menor sem mexer não grava nada', campos(camposEditados('nome', 'Rita Inventada - menor', rita)), {});
+igual('tirar o " - menor" desmarca', campos(camposEditados('nome', 'Rita Inventada', rita)), { menor: false });
+igual('nome de adulto sem marca', valorDaCelula('nome', joana), 'Joana Teste');
 igual('nome vazio não pode', erro(camposEditados('nome', ' ', joana)), 'O aluno precisa de nome.');
 igual('código de outro aluno não pode', erro(camposEditados('codigo', '102', joana, todos)), 'O código 102 já é de Pedro Exemplo.');
 igual('código novo', campos(camposEditados('codigo', '205.0', joana, todos)), { codigo: '205' });
@@ -64,6 +70,14 @@ igual('mesmo telefone sem o 55 não grava', campos(camposEditados('telefone', '4
 igual('telefone que não é telefone', erro(camposEditados('telefone', '123', joana)).startsWith('Telefone que não entendi'), true);
 igual('telefone do responsável apagado', campos(camposEditados('responsavelTelefone', '', { ...pedro, responsavelTelefone: '5549988881111' })), { responsavelTelefone: null });
 igual('caixa de app', campos(camposEditados('appAtivo', true, joana)), { appAtivo: true });
+igual('e-mail fica em minúsculas', campos(camposEditados('email', ' Joana.Teste@Gmail.com ', joana)), { email: 'joana.teste@gmail.com' });
+igual('e-mail torto', erro(camposEditados('email', 'joana@gmail', joana)).startsWith('E-mail que não entendi'), true);
+igual('nascimento com ano curto do século passado', campos(camposEditados('nascimento', '14/03/90', joana)), { nascimento: '1990-03-14' });
+igual('nascimento com ano curto deste século', campos(camposEditados('nascimento', '02/09/12', joana)), { nascimento: '2012-09-02' });
+igual('nascimento pelo calendário', campos(camposEditados('nascimento', '2010-03-14', joana)), { nascimento: '2010-03-14' });
+igual('CPF guarda só os números', campos(camposEditados('documento', '123.456.789-01', joana)), { documento: '12345678901' });
+igual('CPF curto', erro(camposEditados('documento', '123.456', joana)), 'O CPF tem 11 números, como 123.456.789-01.');
+igual('CPF para ler', [cpfLegivel('12345678901'), valorDaCelula('documento', { ...joana, documento: '12345678901' })], ['123.456.789-01', '123.456.789-01']);
 igual('observação com quebra de linha', campos(camposEditados('observacao', 'volta em março\nchamar  dia 10', joana)), { observacao: 'volta em março\nchamar dia 10' });
 
 igual('valor da célula: situação sem campo usa o ativo', valorDaCelula('situacao', { id: 'x', nome: 'X', ativo: false }), 'inativo');
@@ -75,6 +89,36 @@ igual('data vazia', dataCompleta(undefined), '');
 const novo = campos(novoAluno('Rita Inventada - menor - ON', '2026-11-21T12:00:00.000Z'));
 igual('aluno novo', [novo.nome, novo.menor, novo.modalidade, novo.situacao, novo.ativo, novo.marcouSemana, novo.origem], ['Rita Inventada', true, 'online', 'ativo', true, false, 'sistema']);
 igual('aluno novo sem nome', erro(novoAluno('  ', 'x')), 'Escreva o nome do aluno.');
+
+/* ---- as duas planilhas ---- */
+igual('marcação: observação ao lado do nome e horário no fim', [COLUNAS_DA_MARCACAO.slice(0, 3), COLUNAS_DA_MARCACAO.at(-1)], [['codigo', 'nome', 'observacao'], 'horarioFixoTexto']);
+igual('marcação sem menor, falta livro e telefones', COLUNAS_DA_MARCACAO.filter((k) => ['menor', 'pendenciaLivro', 'telefone', 'responsavelNome', 'responsavelTelefone'].includes(k)), []);
+igual('cadastro com os telefones', ['telefone', 'responsavelNome', 'responsavelTelefone'].every((k) => COLUNAS_DO_CADASTRO.includes(k as never)), true);
+
+/* ---- cadastro pela ficha ---- */
+const ficha = cadastroDoAluno({
+  nome: 'Lia Ficticia', menor: true, codigo: '330', telefone: '(49) 98888-2222', responsavelNome: 'Marta Ficticia',
+  responsavelTelefone: '49 97777-3333', email: 'Marta@Exemplo.com', livroOriginal: 'NEXUS JUNIOR LIVRO 2', horarioFixoTexto: 'sextas às 17h',
+  contratoAssinado: true, contratoFim: '', observacao: '',
+}, todos, '2026-11-24T12:00:00.000Z');
+const f = campos(ficha);
+igual('ficha: o aluno nasce ativo e sem marcar', [f.nome, f.menor, f.situacao, f.ativo, f.marcouSemana, f.origem], ['Lia Ficticia', true, 'ativo', true, false, 'sistema']);
+igual('ficha: cada campo pela regra da célula', [f.codigo, f.telefone, f.responsavelTelefone, f.email, f.nivel, f.trilha, f.horariosFixos, f.contratoAssinado],
+  ['330', '5549988882222', '5549977773333', 'marta@exemplo.com', 'Junior 2', 'kids', [{ dia: 5, hora: '17:00' }], true]);
+igual('ficha: campo vazio não entra', ['contratoFim' in f, 'observacao' in f], [false, false]);
+igual('ficha: código de outro aluno', erro(cadastroDoAluno({ nome: 'Novo Aluno', codigo: '101' }, todos, 'x')), 'Cód.: O código 101 já é de Joana Teste.');
+igual('ficha: telefone torto diz o campo', erro(cadastroDoAluno({ nome: 'Novo Aluno', responsavelTelefone: '12' }, todos, 'x')).startsWith('Tel. responsável: Telefone que não entendi'), true);
+igual('ficha sem nome', erro(cadastroDoAluno({ nome: ' ' }, todos, 'x')), 'Escreva o nome do aluno.');
+
+/* ---- apagar: sai das próximas aulas, as que passaram ficam ---- */
+const aulas = [
+  { id: 'g1', inicio: '2026-11-20T18:00:00-03:00', alunoIds: ['a1', 'a2'], alunos: [{ id: 'a1', nome: 'Joana' }, { id: 'a2', nome: 'Pedro' }] },
+  { id: 'g2', inicio: '2026-11-27T18:00:00-03:00', alunoIds: ['a1', 'a2'], alunos: [{ id: 'a1', nome: 'Joana' }, { id: 'a2', nome: 'Pedro' }] },
+  { id: 'g3', inicio: '2026-11-28T09:00:00-03:00', alunoIds: ['a2'], alunos: [{ id: 'a2', nome: 'Pedro' }] },
+];
+const tirar = aulasSemOsAlunos(['a1'], aulas, '2026-11-24T12:00:00.000Z');
+igual('apagar: só a próxima aula muda', tirar.map((t) => [t.aula.id, t.alunoIds, t.alunos.map((x) => x.id)]), [['g2', ['a2'], ['a2']]]);
+igual('apagar: a aula que fica sem ninguém sai', aulasSemOsAlunos(['a2'], aulas, '2026-11-24T12:00:00.000Z').map((t) => [t.aula.id, t.vazia]), [['g2', false], ['g3', true]]);
 
 /* ---- a semana ---- */
 const turma: AlunoDaGrade[] = [

@@ -280,6 +280,32 @@ export async function exclui(quem: Quem, alvo: Agendamento, escopo: Escopo) {
   return lista.length;
 }
 
+/** O aluno apagado sai das próximas aulas (dominio/alunos.ts, aulasSemOsAlunos): a aula
+    perde o aluno, ou sai da agenda se ficou sem ninguém, sempre com a linha do log. As
+    escritas voltam para entrar no mesmo lote que apaga o aluno. */
+export function opsDeTirarDasAulas(
+  quem: Quem,
+  mudancas: { aula: Agendamento; alunoIds: string[]; alunos: Agendamento['alunos']; vazia: boolean }[],
+): OpGravacao[] {
+  const quando = agora();
+  const ops: OpGravacao[] = [];
+  for (const m of mudancas) {
+    const o = m.aula;
+    for (const id of o.alunoIds || []) {
+      if (!m.alunoIds.includes(id)) ops.push({ tipo: 'apagar', colecao: `agendamentos/${o.id}/alunos`, id });
+    }
+    if (m.vazia) {
+      ops.push({ tipo: 'apagar', colecao: 'agendamentos', id: o.id });
+      ops.push(opLog(quem, o.id, 'excluiu', retrato(o), null));
+    } else {
+      const campos = { alunos: m.alunos, alunoIds: m.alunoIds };
+      ops.push({ tipo: 'atualizar', colecao: 'agendamentos', id: o.id, campos: { ...campos, atualizadoPor: quem.id, atualizadoEm: quando } });
+      ops.push(opLog(quem, o.id, 'editou', retrato(o), retrato({ ...o, ...campos })));
+    }
+  }
+  return ops;
+}
+
 /* ---------------- bloqueios ---------------- */
 
 export async function gravaBloqueio(quem: Quem, b: Omit<Bloqueio, 'id'> & { id?: string }) {

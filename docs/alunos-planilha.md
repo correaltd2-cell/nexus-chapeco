@@ -1,10 +1,18 @@
 # A planilha de alunos
 
-A lista de alunos mora no sistema e se edita como planilha, na tela Alunos (menu Escola),
-com as colunas que a escola já conhece da aba ATIVOS: COD, nome, yes, horário fixo,
-BOOK, modalidade, classificação, App, Nex-IA, falta de livro, fim do contrato e
-observação, mais telefone e responsável. A carga inicial vem do arquivo que a escola já
-tem (Excel ou CSV). A ligação com a planilha do Google ficou pronta e guardada para
+A lista de alunos mora no sistema e se edita como planilha, em duas telas do menu Escola
+(desde 24/11/2026):
+
+- **Alunos** é só a **planilha de marcação**, em tela cheia, com as colunas da aba
+  ATIVOS que a marcação usa: COD, nome (com " - menor" ao lado, como na planilha),
+  observação, yes, situação, BOOK, modalidade, classificação, App, Nex-IA, fim do
+  contrato, contrato assinado e, no fim, o horário fixo.
+- **Cadastros** é onde o aluno entra: a ficha de cadastro e a **planilha do cadastro**,
+  com quem é o aluno e como falar com ele (telefone, e-mail, responsável e o telefone
+  dele, nascimento, CPF). Na mesma tela ficam os cadastros da agenda: professores,
+  módulos e aulas do currículo.
+
+A carga inicial vem do arquivo que a escola já tem (Excel ou CSV), em Cadastros. A ligação com a planilha do Google ficou pronta e guardada para
 depois (decidido em 21/11/2026: "quero deixar planilha pra depois, quero criar uma
 interna dentro do sistema puxando os dados que já tem").
 
@@ -19,7 +27,10 @@ com ou sem o 9 da frente) e, sem telefone, pelo nome do contato quando só um al
 | Ler Excel (.xlsx) e CSV no navegador | `src/lib/dominio/xlsx.ts`, prova em `testes/xlsx.ts` |
 | Colunas pelo nome, telefone, situação, comparação, vínculo das conversas, conferência | `src/lib/dominio/planilha.ts`, prova em `testes/planilha.ts` |
 | O que cada célula grava, aluno novo, a semana da marcação | `src/lib/dominio/alunos.ts`, prova em `testes/alunos.ts` |
-| Tela | `/alunos`: `componentes/alunos.tsx` (página e lista), `alunos-grade.tsx` (a planilha), `alunos-importar.tsx` (arquivo e Google), `alunos-semana.tsx` (marcação da semana) |
+| O que cada célula grava, as colunas de cada planilha, a ficha de cadastro, quem sai das aulas ao apagar | `src/lib/dominio/alunos.ts` (`COLUNAS_DA_MARCACAO`, `COLUNAS_DO_CADASTRO`, `cadastroDoAluno`, `aulasSemOsAlunos`) |
+| Apagar aluno de vez (o plano e o lote) | `src/lib/dados/alunos.ts`, com `opsDeTirarDasAulas` em `src/lib/dados/agenda.ts` |
+| Tela de marcação | `/alunos`: `componentes/alunos.tsx`, `alunos-grade.tsx` (a planilha das duas telas), `alunos-semana.tsx` (marcação da semana), `alunos-comum.tsx` (a lista ao vivo, o CSV e a barra de selecionados com o apagar) |
+| Tela de cadastros | `/cadastros` (alunos), `/cadastros/professores`, `/cadastros/aulas`: `componentes/cadastros.tsx`, `alunos-cadastro.tsx` (ficha e planilha do cadastro), `alunos-importar.tsx` (arquivo e Google), `agenda/cadastros.tsx` (professores, módulos, aulas). `/aulas/cadastros` leva para `/cadastros/professores` |
 | Começar a semana nova e o histórico | `/api/alunos/semana` (GET as 12 últimas, POST começa), coleção `semanas` (só o servidor lê e grava) |
 | Planilha do Google (para depois) | `src/lib/planilha.ts`, `/api/alunos/planilha`, relógio `/api/cron/planilha` |
 
@@ -31,7 +42,7 @@ e `testes/alunos.ts`.
 1. **Baixar a planilha em Excel.** No Google Sheets: Arquivo, Fazer download, Microsoft
    Excel (.xlsx). CSV também serve (o do Excel em português, com ponto e vírgula, e o
    de vírgula). O .xls antigo não: salve como .xlsx.
-2. **Em Alunos, Trazer de um arquivo, Escolher arquivo.** O arquivo é lido no próprio
+2. **Em Cadastros, Trazer de um arquivo, Escolher arquivo.** O arquivo é lido no próprio
    navegador e não vai para lugar nenhum. A aba ATIVOS vem escolhida; outra aba se troca
    na lista.
 3. **Conferir.** A tela mostra o que a planilha diz (ativos, quem marcou, trancados, off,
@@ -47,31 +58,75 @@ não importa (não enxerga as conversas de todos os setores para ligar).
 
 ## A planilha no sistema
 
+As duas planilhas (marcação e cadastro) funcionam igual, cada uma com as suas colunas.
+
+- **Tela cheia, uma rolagem só.** A planilha ocupa o resto da tela e é ela que rola, nos
+  dois sentidos; as barras de rolagem ficam sempre à vista, embaixo e à direita (antes a
+  planilha rolava dentro da página que também rolava, e a barra de baixo só aparecia no
+  fim). Cabeçalho preso em cima; número da linha, código e nome presos à esquerda. No
+  celular só o nome fica preso, e mais estreito.
+- **Largura das colunas, como no Excel:** arraste a borda direita do cabeçalho da coluna;
+  dois cliques na borda voltam ao tamanho de partida; com a borda em foco, as setas para
+  os lados alargam e estreitam. A largura fica guardada no aparelho, separada para a
+  marcação e para o cadastro.
 - **Editar:** clique na célula (ou Enter, ou comece a digitar, como no Excel). Enter grava
   e desce; Tab grava e vai para a do lado; Esc desiste; as setas andam entre as células.
-  Na observação, Shift+Enter quebra a linha. Caixa (Menor, Marcou, App, Nex-IA, Falta
-  livro, Contrato assinado) e lista (Situação, Modalidade, Classificação) gravam na hora.
-  Com a lista em foco, digitar não troca o valor (um "t" trancaria o aluno sem querer).
+  Na observação, Shift+Enter quebra a linha. Caixa (Marcou, App, Nex-IA, Contrato
+  assinado) e lista (Situação, Modalidade, Classificação) gravam na hora. Com a lista em
+  foco, digitar não troca o valor (um "t" trancaria o aluno sem querer).
+- **Menor de idade fica no nome**, como na planilha: aparece "Nome - menor". Para marcar,
+  escreva " - menor" no fim do nome; para desmarcar, apague. A coluna Menor saiu.
 - **O que cada célula grava** (`camposEditados`): o BOOK escrito vira nível, tipo,
   professor e curso (Junior vai para Kids; "ON" deixa online se não havia modalidade);
   o horário escrito vira dia e hora (passe o mouse para ver o que o sistema leu; o que
   ele não entende fica sublinhado); a situação decide quem é ativo, e quem sai de ativo
-  perde a marcação; " - menor" no fim do nome marca menor de idade; telefone e data
-  aceitam qualquer jeito de escrever e recusam o que não entendem.
-- **Na planilha interna, apagar é apagar.** Célula vazia grava vazio (diferente da
-  importação, onde célula vazia não mexe em nada).
+  perde a marcação; telefone e datas aceitam qualquer jeito de escrever e recusam o que
+  não entendem (nascimento com ano de dois números: 90 é 1990, 08 é 2008); e-mail fica
+  em minúsculas; CPF guarda só os 11 números.
+- **Na planilha interna, apagar o texto da célula é apagar.** Célula vazia grava vazio
+  (diferente da importação, onde célula vazia não mexe em nada).
 - **Código repetido não passa:** a tela diz de quem é o código.
-- **Novo aluno:** botão no topo; nasce ativo, sem marcação, e a linha dele ganha o foco no
-  código. Ninguém é apagado: aluno que saiu vira inativo na Situação.
-- O ícone verde ao lado do nome abre a conversa do aluno. A visão Lista continua com o
-  detalhe de cada aluno; o CSV baixa o que o filtro mostra.
+- O ícone verde ao lado do nome abre a conversa do aluno; o CSV baixa o que o filtro
+  mostra, com todos os campos.
 - Grava como o resto do sistema, com as regras do Firestore valendo: escrevem em
   `alunos` administração, gestão, recepção e coordenação.
+- **Falta de livro** saiu da tela (pedido de 24/11/2026). A importação ainda lê a coluna,
+  se ela existir no arquivo, mas nada mostra.
+
+## Cadastrar aluno
+
+Em Cadastros, **Cadastrar aluno** abre a ficha (ao lado da planilha no computador, por
+cima no celular); o botão de mesmo nome na planilha de marcação leva direto para ela.
+Campos: nome, menor de idade, código, nascimento, CPF; telefone, e-mail, responsável e o
+telefone dele (com Menor de idade marcado, o responsável vem primeiro); livro,
+modalidade, fim do contrato, horário fixo, contrato assinado; observação. Cada campo
+passa pela mesma regra da célula (`cadastroDoAluno`), e o erro diz em qual campo foi.
+O aluno nasce **ativo e sem marcar a semana**, e aparece na planilha de marcação na hora.
+A ficha fica aberta e limpa para o próximo, com o cursor no nome.
+
+## Apagar aluno
+
+Pedido de 24/11/2026: "não só deixar inativo, mas deletar o aluno da planilha". Toque no
+**número da linha** para selecionar (Shift seleciona um trecho; a caixa do cabeçalho
+seleciona todos da lista) e em **Apagar aluno**. Antes de apagar, a tela diz o que vai
+acontecer:
+
+- o aluno some da marcação e do cadastro;
+- sai das **próximas aulas** da agenda; a aula que fica sem ninguém (a particular dele)
+  sai da agenda; tudo com a linha no log da agenda;
+- as **aulas que já passaram ficam**, com presença e notas: são o histórico, e guardam o
+  nome dele (as provas enviadas também);
+- as conversas continuam, só sem a ligação com o aluno.
+
+Não dá para desfazer; para só tirar da lista, a Situação (Off ou Inativo) continua
+valendo. Tudo vai num lote só (`src/lib/dados/alunos.ts`). Apagar é da recepção e da
+gestão (as regras do Firestore também deixam a coordenação, que pode escrever em
+`alunos`; a tela não mostra o botão para ela).
 
 ## A semana da marcação
 
 A coluna Marcou é o "yes" da planilha: o aluno ativo já marcou a aula da semana seguinte.
-O bloco "Marcação da próxima semana" mostra quantos marcaram e leva a quem não marcou
+A linha "Próxima semana", em cima da planilha, mostra quantos marcaram e leva a quem não marcou
 (o gargalo 2). **Começar a semana nova** guarda a semana que acabou no histórico (quantos
 marcaram e o nome de quem não marcou) e desmarca a coluna Marcou de todos os ativos, como
 a escola fazia apagando os "yes". Avisa se a última virada foi há menos de 48 horas. É da

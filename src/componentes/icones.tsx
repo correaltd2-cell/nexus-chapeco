@@ -1,6 +1,6 @@
 /* Os desenhos de icone, num sprite so. Vieram da demonstracao aprovada.
    Use <Ic n="chat"/> onde precisar; o sprite entra uma vez na casca. */
-export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "clipe", "doc", "emoji", "envia", "expandir", "filtro", "grade", "grafico", "info", "lista", "lixo", "lua", "mais", "menu", "mic", "modelo", "moeda", "nota", "pausa", "pessoas", "play", "pontos", "quadro", "raio", "recolher", "relogio", "seta", "sol", "tag", "texto", "toca", "troca", "volta", "x"] as const;
+export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "clipe", "doc", "emoji", "envia", "expandir", "ficha", "filtro", "grade", "grafico", "info", "lista", "lixo", "lua", "mais", "menu", "mic", "modelo", "moeda", "nota", "pausa", "pessoas", "play", "pontos", "quadro", "raio", "recolher", "relogio", "seta", "sol", "tag", "texto", "toca", "troca", "volta", "x"] as const;
 export type NomeIcone = (typeof NOMES_ICONE)[number];
 
 export function Ic({ n, c }: { n: NomeIcone | string; c?: string }) {
@@ -33,6 +33,7 @@ export function SpriteDeIcones() {
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.6v.2"/></symbol>
   <symbol id="i-troca" viewBox="0 0 24 24"><path d="M4 8h13m-3.5-3.5L17 8l-3.5 3.5M20 16H7m3.5-3.5L7 16l3.5 3.5"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8 12.3 2.8 2.8L16 9.5"/></symbol>
+  <symbol id="i-ficha" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10.6" r="2.1"/><path d="M5.9 16.2c.6-1.5 1.7-2.3 3.1-2.3s2.5.8 3.1 2.3M14.2 9.6h3.8M14.2 13h2.8"/></symbol>
   <symbol id="i-agenda" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20.5H7z"/><path d="M14 3.5v4h4M10 12.5h5M10 16h5"/></symbol>
   <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5h3.5L9 6h6l1.5 2.5H20v11H4z"/><circle cx="12" cy="13.5" r="3.2"/></symbol>

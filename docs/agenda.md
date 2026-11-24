@@ -16,7 +16,7 @@ observação e notas são de cada aluno.
 | A agenda na conversa (painel e atalho) | `src/componentes/aulas-na-conversa.tsx` |
 | Por quem o número fala (telefone com e sem o 9, responsável) | `src/lib/dominio/contato.ts`, prova em `testes/contato.ts` |
 | Rotas | `/api/agenda/lembrete`, `/api/agenda/resumo`, `/api/agenda/teste`, `/api/cron/lembretes` |
-| Telas | `/aulas` (calendário), `/aulas/relatorio`, `/aulas/log`, `/aulas/cadastros` |
+| Telas | `/aulas` (calendário), `/aulas/relatorio`, `/aulas/log`; os cadastros (professores, módulos, aulas) moram em `/cadastros/professores` e `/cadastros/aulas` desde 24/11/2026 (`/aulas/cadastros` leva para lá) |
 
 Rodar antes de mexer nas regras: `node --experimental-strip-types testes/agenda.ts`.
 
@@ -34,7 +34,7 @@ Rodar antes de mexer nas regras: `node --experimental-strip-types testes/agenda.
   `logs_agenda` (antes e depois de cada ação; ninguém apaga).
 - Professor não é cadastro novo: é a equipe (`perfis`). Quem tem o papel de professor
   dá aula; a gestão marca "dá aula" em quem mais der (coordenação, por exemplo) e
-  escolhe a cor dos blocos em Agenda, Cadastros. Alunos são a coleção `alunos`.
+  escolhe a cor dos blocos em Cadastros, Professores. Alunos são a coleção `alunos`.
 - Datas em ISO, como o resto do sistema. Chapecó não tem horário de verão: as contas de
   dia ("amanhã", "a aula de quinta") usam o fuso fixo de -03:00.
 
@@ -116,7 +116,7 @@ Sem a `ANTHROPIC_API_KEY`, devolve o resumo pelas contas e pelas observações.
 1. Publicar as regras e os índices do Firestore:
    `firebase deploy --only firestore:rules,firestore:indexes`. Sem isso, o banco
    recusa tudo da agenda (coleções novas) e as consultas por aluno pedem índice.
-2. Em Agenda, Cadastros (administração): **Criar o currículo de partida** (módulos e
+2. Em Cadastros, Módulos e aulas (administração): **Criar o currículo de partida** (módulos e
    aulas L01 a L20 de cada nível, que a escola ajusta depois).
 3. Na equipe, cada professor com o papel de professor ou marcado "dá aula", e a cor dele.
    Nos alunos, o telefone (e o do responsável, no Kids): é por ele que a conversa acha o

@@ -2,7 +2,7 @@
    Modulo decide quais TELAS ela abre. Os dois lados leem daqui. */
 import type { Papel, Setor } from './tipos';
 
-export const MODULOS = ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'relatorios', 'ajustes'] as const;
+export const MODULOS = ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'cadastros', 'relatorios', 'ajustes'] as const;
 export type Modulo = (typeof MODULOS)[number];
 
 export const NOME_MODULO: Record<Modulo, string> = {
@@ -11,6 +11,7 @@ export const NOME_MODULO: Record<Modulo, string> = {
   alunos: 'Alunos',
   provas: 'Provas',
   aulas: 'Agenda',
+  cadastros: 'Cadastros',
   relatorios: 'Relatórios',
   ajustes: 'Configurações',
 };
@@ -24,10 +25,10 @@ export const NOME_PAPEL: Record<Papel, string> = {
 };
 
 const PADRAO: Record<Papel, Modulo[]> = {
-  admin: ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'relatorios', 'ajustes'],
-  gestor: ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'relatorios', 'ajustes'],
-  recepcao: ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'relatorios'],
-  coordenacao: ['conversas', 'quadros', 'alunos', 'provas', 'aulas'],
+  admin: ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'cadastros', 'relatorios', 'ajustes'],
+  gestor: ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'cadastros', 'relatorios', 'ajustes'],
+  recepcao: ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'cadastros', 'relatorios'],
+  coordenacao: ['conversas', 'quadros', 'alunos', 'provas', 'aulas', 'cadastros'],
   professor: ['aulas', 'provas'],
 };
 

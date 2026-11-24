@@ -74,22 +74,43 @@ export default function SemanaDaMarcacao({ alunos, aoVerQuemNaoMarcou }: { aluno
 
   if (!ativos.length) return null;
 
+  const parte = ativos.length ? (marcaram / ativos.length) * 100 : 0;
+
+  /* uma linha só, em cima da planilha: a planilha é que precisa da altura da tela */
   return (
-    <section className="bl alu-sem" aria-label="Marcação da próxima semana">
+    <section className="alu-sem" aria-label="Marcação da próxima semana">
       <div className="alu-sem-linha">
-        <div className="alu-sem-conta">
-          <p className="bt">Marcação da próxima semana</p>
-          <p>
-            <b className="num">{marcaram}</b> de <b className="num">{ativos.length}</b> ativos já marcaram.
-            {nao > 0 && <> {' '}<button type="button" className="tx-btn alu-sem-nao" onClick={aoVerQuemNaoMarcou}>{nao} ainda não</button></>}
-          </p>
-          <div className="alu-sem-barra" role="img" aria-label={`${Math.round((marcaram / ativos.length) * 100)}% marcaram`}>
-            <span style={{ width: `${(marcaram / ativos.length) * 100}%` }} />
-          </div>
-        </div>
-        {pode && !confirmando && (
-          <button type="button" className="btn" onClick={() => { setConfirmando(true); setErro(''); }}>Começar a semana nova</button>
-        )}
+        <span className="alu-sem-tit">Próxima semana</span>
+        <span className="alu-sem-barra" role="img" aria-label={`${Math.round(parte)}% marcaram`}><span style={{ width: `${parte}%` }} /></span>
+        <span className="alu-sem-conta"><b className="num">{marcaram}</b> de <b className="num">{ativos.length}</b> ativos marcaram</span>
+        {nao > 0 && <button type="button" className="tx-btn alu-sem-nao" onClick={aoVerQuemNaoMarcou}>{nao} ainda não</button>}
+        <span className="alu-sem-fim">
+          {semanas && semanas.length > 0 && (
+            <details className="alu-sem-hist">
+              <summary>Semanas anteriores</summary>
+              <ul>
+                {semanas.map((s) => (
+                  <li key={s.id}>
+                    <button type="button" className="alu-sem-item" aria-expanded={aberta === s.id} onClick={() => setAberta(aberta === s.id ? null : s.id)}>
+                      <span>Fechada em {dataHoraBR(s.quando)}, por {s.quem}</span>
+                      <span className="num">{s.marcaram} de {s.ativos} marcaram{s.naoMarcaram ? `, ${s.naoMarcaram} não` : ''}</span>
+                    </button>
+                    {aberta === s.id && (
+                      <p className="alu-sem-nomes">
+                        {s.quemNaoMarcou.length
+                          ? <>Não marcaram: {s.quemNaoMarcou.map((q) => (q.codigo ? `${q.nome} (${q.codigo})` : q.nome)).join(', ')}.</>
+                          : 'Todos os ativos marcaram.'}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {pode && !confirmando && (
+            <button type="button" className="btn alu-sem-btn" onClick={() => { setConfirmando(true); setErro(''); }}>Começar a semana nova</button>
+          )}
+        </span>
       </div>
 
       {confirmando && (
@@ -107,29 +128,6 @@ export default function SemanaDaMarcacao({ alunos, aoVerQuemNaoMarcou }: { aluno
             <button type="button" className="btn" disabled={indo} onClick={() => setConfirmando(false)}>Cancelar</button>
           </div>
         </div>
-      )}
-
-      {semanas && semanas.length > 0 && (
-        <details className="alu-sem-hist">
-          <summary>Semanas anteriores</summary>
-          <ul>
-            {semanas.map((s) => (
-              <li key={s.id}>
-                <button type="button" className="alu-sem-item" aria-expanded={aberta === s.id} onClick={() => setAberta(aberta === s.id ? null : s.id)}>
-                  <span>Fechada em {dataHoraBR(s.quando)}, por {s.quem}</span>
-                  <span className="num">{s.marcaram} de {s.ativos} marcaram{s.naoMarcaram ? `, ${s.naoMarcaram} não` : ''}</span>
-                </button>
-                {aberta === s.id && (
-                  <p className="alu-sem-nomes">
-                    {s.quemNaoMarcou.length
-                      ? <>Não marcaram: {s.quemNaoMarcou.map((q) => (q.codigo ? `${q.nome} (${q.codigo})` : q.nome)).join(', ')}.</>
-                      : 'Todos os ativos marcaram.'}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
       )}
     </section>
   );

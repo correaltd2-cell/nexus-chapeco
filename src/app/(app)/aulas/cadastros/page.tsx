@@ -1,3 +1,3 @@
-import CadastrosDaAgenda from '@/componentes/agenda/cadastros';
-export const metadata = { title: 'Cadastros da agenda | Nexus Chapecó' };
-export default function Pagina() { return <CadastrosDaAgenda />; }
+import { redirect } from 'next/navigation';
+/* Os cadastros da agenda moram na tela Cadastros desde 24/11/2026; o endereço antigo leva para lá. */
+export default function Pagina() { redirect('/cadastros/professores'); }

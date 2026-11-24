@@ -20,18 +20,18 @@ import { useCorDoMenu, useLarguraDoMenu } from '@/componentes/preferencias';
 
 const ROTA: Record<Modulo, string> = {
   conversas: '/conversas', quadros: '/quadros', alunos: '/alunos', provas: '/provas',
-  aulas: '/aulas', relatorios: '/relatorios', ajustes: '/ajustes',
+  aulas: '/aulas', cadastros: '/cadastros', relatorios: '/relatorios', ajustes: '/ajustes',
 };
 
 const ICONE: Record<Modulo, string> = {
   conversas: 'chat', quadros: 'quadro', alunos: 'pessoas', provas: 'doc',
-  aulas: 'agenda', relatorios: 'grafico', ajustes: 'ajuste',
+  aulas: 'agenda', cadastros: 'ficha', relatorios: 'grafico', ajustes: 'ajuste',
 };
 
 /* os grupos do menu, na ordem em que a escola pensa */
 const GRUPOS: { titulo: string; modulos: Modulo[] }[] = [
   { titulo: 'Atendimento', modulos: ['conversas', 'quadros'] },
-  { titulo: 'Escola', modulos: ['alunos', 'aulas', 'provas'] },
+  { titulo: 'Escola', modulos: ['alunos', 'aulas', 'provas', 'cadastros'] },
   { titulo: 'Gestão', modulos: ['relatorios', 'ajustes'] },
 ];
 
