@@ -5,8 +5,8 @@ A lista de alunos mora no sistema e se edita como planilha, em duas telas do men
 
 - **Alunos** é só a **planilha de marcação**, em tela cheia, com as colunas da aba
   ATIVOS que a marcação usa: COD, nome (com " - menor" ao lado, como na planilha),
-  yes (Marcou), observação, situação, BOOK, modalidade, classificação, App, Nex-IA, fim do
-  contrato, contrato assinado e, no fim, o horário fixo.
+  yes (Marcou), observação, situação, BOOK, modalidade, App, Nex-IA, fim do contrato,
+  contrato assinado e, no fim, o horário fixo.
 - **Cadastros** é onde o aluno entra: a ficha de cadastro e a **planilha do cadastro**,
   com quem é o aluno e como falar com ele (telefone, e-mail, responsável e o telefone
   dele, nascimento, CPF). Na mesma tela ficam os cadastros da agenda: professores,
@@ -73,9 +73,10 @@ As duas planilhas (marcação e cadastro) funcionam igual, cada uma com as suas 
   e desce; Tab grava e vai para a do lado; Esc desiste; as setas andam entre as células.
   Na observação, Alt+Enter (como no Excel) ou Shift+Enter pula linha dentro da célula, e o
   texto quebra em linhas sozinho para caber na largura (a linha da planilha cresce), em vez
-  de seguir comprido numa linha só. Caixa (Marcou, App, Nex-IA, Contrato
-  assinado) e lista (Situação, Modalidade, Classificação) gravam na hora. Com a lista em
-  foco, digitar não troca o valor (um "t" trancaria o aluno sem querer).
+  de seguir comprido numa linha só. Caixa (Marcou, App, Nex-IA, Contrato assinado) e
+  lista (Situação, Modalidade) gravam na hora. Com a lista em foco, digitar não troca o
+  valor (um "t" trancaria o aluno sem querer). A classificação saiu da tela (24/11/2026),
+  mas continua no aluno, na importação e no CSV.
 - **Menor de idade fica no nome**, como na planilha: aparece "Nome - menor". Para marcar,
   escreva " - menor" no fim do nome; para desmarcar, apague. A coluna Menor saiu.
 - **O que cada célula grava** (`camposEditados`): o BOOK escrito vira nível, tipo,

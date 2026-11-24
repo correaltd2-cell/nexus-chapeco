@@ -86,9 +86,10 @@ export const COLUNA: Record<ColunaDaGrade, DefinicaoDaColuna> = Object.fromEntri
 /** A planilha de marcação (pedido do cliente, 24/11/2026): marcou e observação logo
     depois do nome, o horário fixo no fim, o menor de idade no próprio nome, sem "falta
     livro" e sem os telefones, que moram no cadastro. As duas primeiras ficam presas na
-    rolagem. A observação quebra em linhas, como o "quebrar texto" do Excel. */
+    rolagem. A observação quebra em linhas, como o "quebrar texto" do Excel. A
+    classificação saiu da tela no mesmo dia (o campo continua no aluno e no CSV). */
 export const COLUNAS_DA_MARCACAO: ColunaDaGrade[] = [
-  'codigo', 'nome', 'marcouSemana', 'observacao', 'situacao', 'livroOriginal', 'modalidade', 'saude',
+  'codigo', 'nome', 'marcouSemana', 'observacao', 'situacao', 'livroOriginal', 'modalidade',
   'appAtivo', 'nexiaAtivo', 'contratoFim', 'contratoAssinado', 'horarioFixoTexto',
 ];
 

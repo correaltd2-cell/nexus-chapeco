@@ -92,7 +92,7 @@ igual('aluno novo sem nome', erro(novoAluno('  ', 'x')), 'Escreva o nome do alun
 
 /* ---- as duas planilhas ---- */
 igual('marcação: marcou e observação logo depois do nome, horário no fim', [COLUNAS_DA_MARCACAO.slice(0, 4), COLUNAS_DA_MARCACAO.at(-1)], [['codigo', 'nome', 'marcouSemana', 'observacao'], 'horarioFixoTexto']);
-igual('marcação sem menor, falta livro e telefones', COLUNAS_DA_MARCACAO.filter((k) => ['menor', 'pendenciaLivro', 'telefone', 'responsavelNome', 'responsavelTelefone'].includes(k)), []);
+igual('marcação sem menor, falta livro, classificação e telefones', COLUNAS_DA_MARCACAO.filter((k) => ['menor', 'pendenciaLivro', 'saude', 'telefone', 'responsavelNome', 'responsavelTelefone'].includes(k)), []);
 igual('cadastro com os telefones', ['telefone', 'responsavelNome', 'responsavelTelefone'].every((k) => COLUNAS_DO_CADASTRO.includes(k as never)), true);
 
 /* ---- cadastro pela ficha ---- */
