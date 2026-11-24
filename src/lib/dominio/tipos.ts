@@ -199,8 +199,9 @@ export interface Cartao {
   descricao: string;
   etiquetas: string[];
   membros: string[];       // uids
-  prazo?: string;
+  prazo?: string;          // AAAA-MM-DD, ou AAAA-MM-DDTHH:mm com a hora (horário de Chapecó)
   prazoConcluido: boolean;
+  urgencia?: 'baixa' | 'media' | 'alta' | 'urgente' | null;
   checklist: ItemChecklist[];
   comentarios: Comentario[];
   atividade: Atividade[];
@@ -227,6 +228,11 @@ export interface Quadro {
   ordem: number;
   arquivado: boolean;
   criadoEm: string;
+  /** o plano de fundo: um dos prontos (dominio/quadros.ts, FUNDOS) ou "imagem" */
+  fundo?: string | null;
+  fundoImagem?: string | null;   // o endereço da imagem quando fundo é "imagem"
+  /** as etiquetas deste quadro, criadas por nome; sem elas valem as padrão da escola */
+  etiquetas?: Etiqueta[];
 }
 
 /* ---------- provas ---------- */

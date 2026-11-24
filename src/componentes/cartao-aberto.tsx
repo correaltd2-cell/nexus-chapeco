@@ -1,6 +1,8 @@
 'use client';
-/* O cartao aberto. Tudo que o Trello tem de util: descricao, etiquetas, pessoas,
-   prazo, checklist, comentarios, anexos, mover de lista e arquivar. */
+/* O cartao aberto. Tudo que o Trello tem de util: descricao, etiquetas do quadro (e
+   criar etiqueta por nome aqui mesmo), pessoas, urgencia, prazo com data e hora, capa,
+   checklist, comentarios, anexos, mover de lista, copiar e arquivar. Arquivado mostra a
+   faixa de arquivado, restaura ou exclui de vez. */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { getDownloadURL, ref as refArquivo, uploadBytes } from 'firebase/storage';
 import { arquivos } from '@/lib/firebase/cliente';
@@ -8,10 +10,13 @@ import { APAGAR, atualiza, modoDemo } from '@/lib/dados/fonte';
 import { Ic } from '@/componentes/icones';
 import { avisa } from '@/componentes/aviso';
 import { useSessao } from '@/componentes/sessao';
-import { feitosDoChecklist, novoId } from '@/lib/dominio/quadros';
+import {
+  CAPAS, URGENCIAS, estadoDoPrazo, feitosDoChecklist, juntaPrazo, novoId, partesDoPrazo, textoDoPrazo, type Urgencia,
+} from '@/lib/dominio/quadros';
+import { NovaEtiqueta } from '@/componentes/quadro-paineis';
 import { situacao } from '@/lib/dominio/conversas';
 import { dataBR, iniciais } from '@/lib/dominio/formato';
-import type { Cartao, Conversa, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
+import type { Cartao, Conversa, Etiqueta, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
 
 interface Props {
   cartao: Cartao;
@@ -19,13 +24,19 @@ interface Props {
   listas: Lista[];
   quadros: Quadro[];
   equipe: Perfil[];
-  etiquetas: { nome: string; cor: string }[];
+  etiquetas: Etiqueta[];
+  agora: Date | null;
+  aoCriarEtiqueta: (nome: string, cor: string) => Promise<string | null>;
+  aoCopiar: () => void;
+  aoExcluir: () => void;
   fechar: () => void;
   irParaConversa: (conversaId: string) => void;
 }
 
+const TEXTO_DO_ESTADO = { atrasado: 'Atrasado', breve: 'Vence em breve', concluido: 'Concluído', normal: 'No prazo' } as const;
+
 export default function CartaoAberto({
-  cartao, conversa, listas, quadros, equipe, etiquetas, fechar, irParaConversa,
+  cartao, conversa, listas, quadros, equipe, etiquetas, agora, aoCriarEtiqueta, aoCopiar, aoExcluir, fechar, irParaConversa,
 }: Props) {
   const { perfil } = useSessao();
   const [titulo, setTitulo] = useState(cartao.titulo);
@@ -33,6 +44,8 @@ export default function CartaoAberto({
   const [novoItem, setNovoItem] = useState('');
   const [comentario, setComentario] = useState('');
   const [subindo, setSubindo] = useState(false);
+  const [criandoEtiqueta, setCriandoEtiqueta] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
   const entrada = useRef<HTMLInputElement>(null);
   const entradaArquivo = useRef<HTMLInputElement>(null);
@@ -41,6 +54,26 @@ export default function CartaoAberto({
   const quadro = quadros.find((q) => q.id === cartao.quadroId);
   const feitos = feitosDoChecklist(cartao);
   const pct = cartao.checklist.length ? Math.round((feitos / cartao.checklist.length) * 100) : 0;
+  const prazo = partesDoPrazo(cartao.prazo);
+  const estado = agora ? estadoDoPrazo(cartao, agora) : null;
+  /* etiqueta que o cartão tem e o quadro não (veio da triagem, ou foi apagada do quadro) aparece também */
+  const todasEtiquetas = [...etiquetas, ...cartao.etiquetas.filter((n) => !etiquetas.some((e) => e.nome === n)).map((n) => ({ nome: n, cor: 'cz' }))];
+
+  function mudaPrazo(data: string, hora: string) {
+    const novo = juntaPrazo(data, hora);
+    if (!novo) { void salva({ prazo: APAGAR, prazoConcluido: false }, 'tirou o prazo'); return; }
+    if (novo === cartao.prazo) return;
+    void salva({ prazo: novo, prazoConcluido: false }, `marcou o prazo para ${textoDoPrazo(novo, agora || new Date(novo))}`);
+  }
+
+  async function criaEtiquetaAqui(nome: string, cor: string) {
+    const erro = await aoCriarEtiqueta(nome, cor);
+    if (erro) return erro;
+    const n = nome.replace(/\s+/g, ' ').trim().slice(0, 30);
+    await salva({ etiquetas: [...cartao.etiquetas, n] });
+    setCriandoEtiqueta(false);
+    return null;
+  }
 
   useEffect(() => { caixa.current?.focus(); }, []);
 
@@ -106,7 +139,7 @@ export default function CartaoAberto({
     if (arquivo.size > 20 * 1024 * 1024) { avisa('O arquivo passa de 20 MB. Mande um menor.'); return; }
     setSubindo(true);
     try {
-      const caminho = `cartoes/${cartao.id}/${Date.now()}-${arquivo.name}`;
+      const caminho = `cartoes/${cartao.id}/${novoId()}-${arquivo.name}`;
       await uploadBytes(refArquivo(arquivos(), caminho), arquivo);
       await salva({
         anexos: [...cartao.anexos, {
@@ -136,6 +169,22 @@ export default function CartaoAberto({
     <div className="mod" onMouseDown={(e) => { if (e.target === e.currentTarget) fechar(); }}>
       <div className="mod-c" role="dialog" aria-modal="true" aria-label={`Cartão: ${cartao.titulo}`}
            tabIndex={-1} ref={caixa}>
+        {cartao.capaCor && <div className={`mod-capa cp-${cartao.capaCor}`} aria-hidden="true" />}
+        {cartao.arquivado && (
+          <div className="mod-arq" role="status">
+            <Ic n="doc" /><span>Este cartão está arquivado: não aparece no quadro, só na busca.</span>
+            <button className="btn" onClick={() => void salva({ arquivado: false }, 'restaurou o cartão')}>Restaurar</button>
+            {!excluindo
+              ? <button className="btn perigo-claro" onClick={() => setExcluindo(true)}>Excluir de vez</button>
+              : (
+                <span className="mod-arq-conf">
+                  Excluir de vez? Não dá para desfazer.
+                  <button className="btn perigo" onClick={aoExcluir}>Excluir</button>
+                  <button className="tx-btn" onClick={() => setExcluindo(false)}>Cancelar</button>
+                </span>
+              )}
+          </div>
+        )}
         <header className="mod-h">
           <input value={titulo} maxLength={120} aria-label="Título do cartão"
                  onChange={(e) => setTitulo(e.target.value)}
@@ -169,7 +218,7 @@ export default function CartaoAberto({
 
             <section className="ms">
               <h3>Descrição</h3>
-              <textarea className="cx" rows={3} value={descricao} aria-label="Descrição"
+              <textarea className="cx ms-descricao" rows={7} value={descricao} aria-label="Descrição"
                         placeholder="Escreva os detalhes deste cartão"
                         onChange={(e) => setDescricao(e.target.value)}
                         onBlur={() => { if (descricao !== cartao.descricao) void salva({ descricao }); }} />
@@ -251,13 +300,30 @@ export default function CartaoAberto({
             <section className="ms">
               <h3>Etiquetas</h3>
               <div className="tags">
-                {etiquetas.map((e) => {
+                {todasEtiquetas.map((e) => {
                   const on = cartao.etiquetas.includes(e.nome);
                   return (
                     <button key={e.nome} className={on ? `lbt lb-${e.cor}` : 'lbt'} aria-pressed={on}
                             onClick={() => alternaEtiqueta(e.nome)}>{e.nome}</button>
                   );
                 })}
+              </div>
+              {criandoEtiqueta
+                ? <NovaEtiqueta aoCriar={criaEtiquetaAqui} aoCancelar={() => setCriandoEtiqueta(false)} />
+                : <button className="tx-btn ms-mais" onClick={() => setCriandoEtiqueta(true)}><Ic n="mais" />Criar etiqueta</button>}
+            </section>
+
+            <section className="ms">
+              <h3>Urgência</h3>
+              <div className="ms-urg" role="radiogroup" aria-label="Urgência do cartão">
+                <button role="radio" aria-checked={!cartao.urgencia} className="ur-nada"
+                        onClick={() => { if (cartao.urgencia) void salva({ urgencia: APAGAR }, 'tirou a urgência'); }}>Nenhuma</button>
+                {URGENCIAS.slice().reverse().map((u) => (
+                  <button key={u.k} role="radio" aria-checked={cartao.urgencia === u.k} className={`ur-${u.k}`}
+                          onClick={() => { if (cartao.urgencia !== u.k) void salva({ urgencia: u.k as Urgencia }, `marcou a urgência como ${u.nome.toLowerCase()}`); }}>
+                    {u.nome}
+                  </button>
+                ))}
               </div>
             </section>
 
@@ -272,11 +338,14 @@ export default function CartaoAberto({
             </section>
 
             <section className="ms">
-              <h3>Prazo</h3>
-              <input className="cx" type="date" value={cartao.prazo || ''} aria-label="Prazo do cartão"
-                     onChange={(e) => void salva(
-                       e.target.value ? { prazo: e.target.value } : { prazo: APAGAR, prazoConcluido: false },
-                     )} />
+              <h3>Prazo{estado && <span className={`ms-pz pz-${estado}`}>{TEXTO_DO_ESTADO[estado]}</span>}</h3>
+              <div className="ms-prazo">
+                <input className="cx" type="date" value={prazo.data} aria-label="Dia do prazo"
+                       onChange={(e) => mudaPrazo(e.target.value, prazo.hora)} />
+                <input className="cx" type="time" value={prazo.hora} aria-label="Hora do prazo" disabled={!prazo.data}
+                       onChange={(e) => mudaPrazo(prazo.data, e.target.value)} />
+              </div>
+              {cartao.prazo && agora && <p className={`ms-pz-txt pz-${estado || 'normal'}`}>{estado === 'atrasado' ? 'Atrasado: ' : 'Para '}{textoDoPrazo(cartao.prazo, agora).toLowerCase()}{prazo.hora ? '' : ', até o fim do dia'}</p>}
               {cartao.prazo && (
                 <label className={cartao.prazoConcluido ? 'ci ok' : 'ci'}>
                   <input type="checkbox" checked={cartao.prazoConcluido}
@@ -287,6 +356,18 @@ export default function CartaoAberto({
                   <span style={{ textDecoration: 'none', color: 'inherit' }}>Concluído</span>
                 </label>
               )}
+              {cartao.prazo && <button className="tx-btn" onClick={() => mudaPrazo('', '')}>Tirar o prazo</button>}
+            </section>
+
+            <section className="ms">
+              <h3>Capa</h3>
+              <div className="ms-capas">
+                {CAPAS.map((c) => (
+                  <button key={c.k} className={`ms-capa cp-${c.k}`} aria-pressed={cartao.capaCor === c.k} aria-label={`Capa ${c.nome}`} title={c.nome}
+                          onClick={() => void salva({ capaCor: cartao.capaCor === c.k ? APAGAR : c.k })} />
+                ))}
+              </div>
+              {cartao.capaCor && <button className="tx-btn" onClick={() => void salva({ capaCor: APAGAR })}>Tirar a capa</button>}
             </section>
 
             <section className="ms">
@@ -308,12 +389,16 @@ export default function CartaoAberto({
               </select>
             </section>
 
-            <section className="ms">
-              <button className="arq-b" onClick={() => {
-                void salva({ arquivado: true }, 'arquivou o cartão');
-                fechar();
-                avisa('Cartão arquivado. Ele fica em Itens arquivados.');
-              }}>Arquivar cartão</button>
+            <section className="ms ms-acoes">
+              <h3>Ações</h3>
+              <button className="btn" onClick={aoCopiar}><Ic n="doc" />Copiar cartão</button>
+              {!cartao.arquivado && (
+                <button className="arq-b" onClick={() => {
+                  void salva({ arquivado: true }, 'arquivou o cartão');
+                  fechar();
+                  avisa('Cartão arquivado. Ele some do quadro, mas a busca ainda acha.');
+                }}>Arquivar cartão</button>
+              )}
             </section>
           </div>
         </div>

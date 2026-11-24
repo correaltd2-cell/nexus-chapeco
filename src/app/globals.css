@@ -893,6 +893,127 @@ a.mid-doc:hover{background:rgba(128,128,128,.2)}
 .arq-b{color:var(--alert);padding:7px 9px;border-radius:var(--r-sm);font-weight:500;margin-left:-9px}
 .arq-b:hover{background:var(--alert-wash)}
 
+/* ----- quadros com jeito de Trello (24/11/2026): busca, atrasados, fundo, etiquetas por
+   nome, urgência, prazo com hora, capa e arrastar listas ----- */
+.qd-h{gap:10px 14px}
+.qd-fim{flex-wrap:wrap;justify-content:flex-end}
+.qd-nome{font-family:var(--fonte-display);font-size:22px;font-weight:800;width:220px}
+.qd-busca{display:flex;align-items:center;gap:7px;padding:0 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);width:min(290px,100%)}
+.qd-busca .ic{width:15px;height:15px;color:var(--muted);flex:none}
+.qd-busca input{flex:1;min-width:0;border:0;background:none;outline:0;padding:8px 0;font-size:13.5px}
+.qd-atrasados{display:inline-flex;align-items:center;gap:5px;background:var(--alert-wash);color:var(--alert);border-color:transparent;font-weight:600}
+.qd-atrasados .ic{width:14px;height:14px}
+.qd-atrasados[aria-pressed="true"]{background:var(--alert);color:#fff}
+/* plano de fundo: o quadro inteiro, com o cabeçalho transparente em cima */
+.qd-com-fundo{background-attachment:local}
+.qd-com-fundo .vh{background:transparent}
+.qd-com-fundo .kl:not(.nova):not(.kl-arq){box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.qd-escuro .vh h1{color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.25)}
+.qd-escuro .qd-abas .chip:not([aria-pressed="true"]){background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
+.qd-escuro .qd-abas>.tx-btn{color:#fff}
+.qd-escuro .qd-fim>.btn,.qd-escuro .qd-fim>.ib{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
+.qd-escuro .qd-busca{background:rgba(255,255,255,.2);border-color:transparent}
+.qd-escuro .qd-busca input,.qd-escuro .qd-busca .ic{color:#fff}
+.qd-escuro .qd-busca input::placeholder{color:rgba(255,255,255,.82)}
+.qd-escuro .kl.nova{background:rgba(255,255,255,.16);border-color:transparent}
+.qd-escuro .kl.nova .kl-add{color:#fff}
+.qd-escuro .kl.nova .kl-add:hover{background:rgba(255,255,255,.14)}
+/* arrastar a lista: o cabeçalho pega, e uma barra laranja mostra onde ela cai */
+.kl-h[draggable="true"]{cursor:grab}
+.kl-alvo-antes{box-shadow:-7px 0 0 -2px var(--solar)}
+.kl-alvo-depois{box-shadow:7px 0 0 -2px var(--solar)}
+.kl-arq{background:color-mix(in srgb,var(--coluna) 80%,transparent);border:1.5px dashed var(--line-2)}
+.kl-arq .kl-n{white-space:normal;font-size:12.5px;color:var(--muted)}
+/* o cartão */
+.kc{position:relative;overflow:hidden}
+.kc-com-capa{padding-top:0}
+.kc-capa{display:block;height:32px;margin:0 -12px 9px;border-radius:13px 13px 0 0}
+.cp-lr{background:var(--solar)}.cp-am{background:#F2C94C}.cp-vd{background:#45A874}.cp-ci{background:#36A9A0}
+.cp-az{background:#4A8FDB}.cp-rx{background:#8E6BD8}.cp-cz{background:#A3A39C}.cp-pt{background:#2B2B28}
+.kc-atrasado{background:color-mix(in srgb,var(--alert) 6%,var(--surface));box-shadow:inset 3px 0 0 var(--alert),0 1px 2px rgba(20,20,20,.06)}
+.kc-atrasado:hover{box-shadow:inset 3px 0 0 var(--alert),var(--shadow)}
+.kc-arquivado{border:1.5px dashed var(--line-2)}
+.kc-arq-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.kc-arq-tag .ic{width:12px;height:12px}
+.kc-m .kc-urg,.kc-m .kc-prazo{border-radius:6px;padding:1px 7px;line-height:18px}
+.kc-urg{font-weight:600;font-size:11px}
+.kc-m .kc-urg .ic,.kc-m .kc-prazo .ic{width:12px;height:12px}
+.ur-urgente{background:var(--solar);color:#141414}
+.ur-alta{background:var(--solar-wash);color:var(--solar-deep)}
+.ur-media{background:var(--surface-3);color:var(--text)}
+.ur-baixa{background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1px var(--line-2)}
+.kc-prazo.pz-atrasado{background:var(--alert);color:#fff;font-weight:600}
+.kc-prazo.pz-atrasado b{font-weight:700}
+.kc-prazo.pz-breve{background:var(--lb-am);color:var(--lb-am-t);font-weight:600}
+.kc-prazo.pz-concluido{background:var(--lb-vd);color:var(--lb-vd-t)}
+.kc-m .kc-tudo{color:var(--lb-vd-t)}
+/* painéis do quadro */
+.fp.qd-painel{width:340px}
+.qd-painel-cab{display:flex;align-items:center;justify-content:space-between;margin:-6px -6px 8px 0}
+.qd-painel-cab b{font-weight:600}
+.qd-painel .obs{margin:0 0 10px}
+.qd-painel>.cx{margin-bottom:6px}
+.qd-fundos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.qd-fundo{height:62px;border-radius:12px;display:flex;align-items:flex-end;padding:6px 8px;color:#fff;font-size:11.5px;font-weight:600;text-align:left;text-shadow:0 1px 3px rgba(0,0,0,.45);box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.qd-fundo.claro{color:#2B2B28;text-shadow:none}
+.qd-fundo.padrao{background:var(--canvas);color:var(--text);text-shadow:none;box-shadow:inset 0 0 0 1.5px var(--line-2)}
+.qd-fundo[aria-pressed="true"]{outline:3px solid var(--solar);outline-offset:2px}
+.qd-etqs{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:3px}
+.qd-etq{display:flex;align-items:center;gap:8px;width:100%;padding:4px 6px;border-radius:10px;text-align:left}
+.qd-etq:hover{background:var(--surface-2)}
+.qd-etq .lbp{flex:1;line-height:26px;font-size:12px;border-radius:8px}
+.qd-etq small{color:var(--muted-2);font-size:11px;min-width:14px;text-align:right}
+.qd-etq .ic{width:14px;height:14px;color:var(--muted)}
+.qd-etq-ed,.qd-etq-nova{display:flex;flex-direction:column;gap:8px;padding:9px;border-radius:12px;background:var(--surface-2);margin:4px 0}
+.qd-etq-ed .ln,.qd-etq-nova .ln{margin:0;flex-wrap:wrap}
+.qd-cores{display:flex;flex-wrap:wrap;gap:6px}
+.qd-cor{width:28px;height:28px;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.qd-cor[aria-checked="true"]{outline:2.5px solid var(--text);outline-offset:2px}
+.qd-etq-previa{align-self:flex-start}
+.fp .arq .arq-abre{flex:1;min-width:0;text-align:left;font-size:13px;overflow-wrap:anywhere}
+.fp .arq .arq-abre small{display:block;color:var(--muted-2);font-size:11.5px}
+.fp .arq .arq-abre:hover{text-decoration:underline}
+/* rolar o quadro arrastando o fundo */
+.qd-tela{cursor:grab}
+.qd-tela>.kl{cursor:auto}
+.qd-tela.rolando{cursor:grabbing;user-select:none}
+.qd-tela.rolando *{user-select:none}
+/* o cartão aberto */
+.mod-c{overflow:hidden}
+/* a descrição é um campo grande, que cresce com o texto (pedido do cliente) */
+textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-height:1.55;field-sizing:content}
+.mod-capa{height:64px}
+.mod-arq{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 24px;background:var(--surface-3);font-size:13px}
+.mod-arq>.ic{width:16px;height:16px;flex:none}
+.mod-arq>span:first-of-type{flex:1 1 220px}
+.mod-arq-conf{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--alert);font-weight:600}
+.ms-mais{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:4px 0}
+.ms-mais .ic{width:14px;height:14px}
+.ms .qd-etq-nova{margin-top:8px}
+.ms-urg{display:flex;flex-wrap:wrap;gap:6px}
+.ms-urg button{padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:600}
+.ms-urg button:not([aria-checked="true"]){background:var(--surface);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line)}
+.ms-urg button:not([aria-checked="true"]):hover{color:var(--text)}
+.ms-urg .ur-nada[aria-checked="true"]{background:var(--surface-3);color:var(--text)}
+.ms-prazo{display:grid;grid-template-columns:minmax(0,1fr) 98px;gap:6px}
+.ms-pz{letter-spacing:0;text-transform:none;font-size:11px;padding:1px 7px;border-radius:6px;font-weight:600}
+.ms-pz.pz-atrasado{background:var(--alert);color:#fff}
+.ms-pz.pz-breve{background:var(--lb-am);color:var(--lb-am-t)}
+.ms-pz.pz-concluido{background:var(--lb-vd);color:var(--lb-vd-t)}
+.ms-pz.pz-normal{background:var(--surface-3);color:var(--muted)}
+.ms-pz-txt{font-size:12.5px;color:var(--muted);margin:6px 0 2px}
+.ms-pz-txt.pz-atrasado{color:var(--alert);font-weight:600}
+.ms-capas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:4px}
+.ms-capa{height:28px;border-radius:8px}
+.ms-capa[aria-pressed="true"]{outline:2.5px solid var(--text);outline-offset:2px}
+.ms-acoes{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.ms-acoes .btn .ic{width:15px;height:15px}
+@media (max-width:759px){
+  .qd-fim{width:100%;justify-content:flex-start}
+  .qd-busca{flex:1 1 100%;width:auto}
+  .fp.qd-painel{width:auto;left:12px;right:12px}
+}
+
 /* ================= tela que ainda não existe ================= */
 .constr{flex:1;overflow-y:auto;display:grid;place-items:center;align-content:center;padding:28px 18px}
 .constr-c{width:min(540px,100%);background:var(--surface);border-radius:24px;padding:28px 28px 26px;box-shadow:var(--shadow)}

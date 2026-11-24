@@ -164,7 +164,11 @@ export const TEMPLATES: SituacaoDoModelo[] = BIBLIOTECA.map((m) => ({
 }));
 
 export const QUADROS: Quadro[] = [
-  { id: 'q-rec', nome: 'Recepção', ordem: 1000, arquivado: false, criadoEm: diasAtras(30) },
+  { id: 'q-rec', nome: 'Recepção', ordem: 1000, arquivado: false, criadoEm: diasAtras(30), fundo: 'oceano',
+    etiquetas: [
+      { nome: 'Matrícula', cor: 'vd' }, { nome: 'Marcação', cor: 'az' }, { nome: 'Reposição', cor: 'lr' }, { nome: 'Financeiro', cor: 'am' },
+      { nome: 'Responsável', cor: 'cz' }, { nome: 'Ligar hoje', cor: 'rx' },
+    ] },
   { id: 'q-canc', nome: 'Cancelamentos', ordem: 2000, arquivado: false, criadoEm: diasAtras(30) },
   { id: 'q-coo', nome: 'Coordenação', ordem: 3000, arquivado: false, criadoEm: diasAtras(30) },
 ];
@@ -192,20 +196,21 @@ const cart = (dados: Partial<Cartao> & { id: string; quadroId: string; listaId: 
 export const CARTOES: Cartao[] = [
   cart({ id: 'k1', quadroId: 'q-rec', listaId: 'l-fazer', ordem: 1000,
     titulo: 'Confirmar a reposição de sexta com a Larissa', conversaId: 'c-larissa',
-    etiquetas: ['Reposição'], membros: ['u-rec'], prazo: emDias(0),
+    etiquetas: ['Reposição', 'Ligar hoje'], membros: ['u-rec'], prazo: `${emDias(0)}T18:00`, urgencia: 'urgente',
     checklist: [
       { id: 'i1', texto: 'Ver vaga na turma de sexta às 18h00', feito: true },
       { id: 'i2', texto: 'Confirmar com a aluna', feito: false },
     ] }),
   cart({ id: 'k2', quadroId: 'q-rec', listaId: 'l-fazer', ordem: 2000,
-    titulo: 'Enviar os horários de janeiro para as turmas do A2', membros: ['u-rec'], prazo: emDias(4),
+    titulo: 'Enviar os horários de janeiro para as turmas do A2', membros: ['u-rec'], prazo: `${emDias(4)}T10:00`, urgencia: 'media', capaCor: 'az',
     descricao: 'Mandar por modelo aprovado para quem não fala com a gente há mais de 24 horas.' }),
   cart({ id: 'k3', quadroId: 'q-rec', listaId: 'l-fazer', ordem: 3000,
     titulo: 'Atualizar o telefone do responsável do Pedro', conversaId: 'c-claudia', etiquetas: ['Responsável'] }),
   cart({ id: 'k4', quadroId: 'q-rec', listaId: 'l-andamento', ordem: 1000,
-    titulo: 'Remarcar a aula de quinta do Renan', conversaId: 'c-renan', membros: ['u-rec'], prazo: emDias(0) }),
+    titulo: 'Remarcar a aula de quinta do Renan', conversaId: 'c-renan', membros: ['u-rec'], prazo: `${emDias(-1)}T16:30`, urgencia: 'alta',
+    etiquetas: ['Marcação'] }),
   cart({ id: 'k5', quadroId: 'q-rec', listaId: 'l-andamento', ordem: 2000,
-    titulo: 'Lista de presença da semana', membros: ['u-rec'], prazo: emDias(-3),
+    titulo: 'Lista de presença da semana', membros: ['u-rec'], prazo: emDias(-3), urgencia: 'baixa',
     checklist: [
       { id: 'i3', texto: 'Starter', feito: true }, { id: 'i4', texto: 'A1', feito: true },
       { id: 'i5', texto: 'A2', feito: false }, { id: 'i6', texto: 'B1', feito: false },
@@ -218,6 +223,12 @@ export const CARTOES: Cartao[] = [
       texto: 'Vaga reservada no B1 das 8h00. Falta só ele confirmar.', criadoEm: hm(10, 6) }] }),
   cart({ id: 'k7', quadroId: 'q-rec', listaId: 'l-feito', ordem: 1000,
     titulo: 'Lembretes das aulas de segunda', membros: ['u-rec'], prazo: emDias(-1), prazoConcluido: true }),
+  /* arquivados: não aparecem no quadro, só na busca */
+  cart({ id: 'k15', quadroId: 'q-rec', listaId: 'l-feito', ordem: 2000, arquivado: true,
+    titulo: 'Boleto de outubro da Bianca', etiquetas: ['Financeiro'], membros: ['u-rec'], prazo: emDias(-20), prazoConcluido: true,
+    descricao: 'Segunda via mandada pela conversa. Pago em 22/10.' }),
+  cart({ id: 'k16', quadroId: 'q-rec', listaId: 'l-feito', ordem: 3000, arquivado: true,
+    titulo: 'Matrícula da Sabrina: documentos conferidos', etiquetas: ['Matrícula'], membros: ['u-rec'] }),
 
   cart({ id: 'k8', quadroId: 'q-canc', listaId: 'l-pediu', ordem: 1000,
     titulo: 'Eduardo Lunardi: mudou de horário no trabalho', conversaId: 'c-eduardo',

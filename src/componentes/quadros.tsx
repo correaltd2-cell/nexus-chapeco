@@ -1,28 +1,38 @@
 'use client';
 /* Os quadros. Mesmo arranjo do Trello, porque é o que o time ja sabe usar:
-   quadro, listas, cartoes que se arrastam, etiqueta, pessoa, prazo, checklist,
-   comentario, anexo, filtro e arquivo. O que ele nao tem é a ligacao com a conversa
-   do aluno, que é o motivo de existir aqui dentro. */
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
+   quadro, listas e cartoes que se arrastam, etiqueta criada por nome, pessoa, urgencia,
+   prazo com data e hora (com destaque de atrasado), capa, checklist, comentario, anexo,
+   filtro, plano de fundo e arquivo. O arquivado some do quadro, mas a busca acha (pedido
+   do cliente, 24/11/2026). O que o Trello nao tem é a ligacao com a conversa do aluno,
+   que é o motivo de existir aqui dentro. Regras: dominio/quadros.ts. */
+import {
+  useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type FormEvent, type PointerEvent as EventoDePonteiro,
+} from 'react';
 import { useRouter } from 'next/navigation';
-import { assina, atualiza, cria, lote } from '@/lib/dados/fonte';
+import { assina, atualiza, cria, grava, lote } from '@/lib/dados/fonte';
 import { Ic } from '@/componentes/icones';
 import { avisa } from '@/componentes/aviso';
 import { useSessao } from '@/componentes/sessao';
+import { horaConhecida, useAgora } from '@/componentes/relogio';
 import CartaoAberto from '@/componentes/cartao-aberto';
+import { PainelDeEtiquetas, PainelDoFundo } from '@/componentes/quadro-paineis';
 import {
-  ETIQUETAS_PADRAO, LISTAS_PADRAO, PASSO, cartoesDaLista, feitosDoChecklist, filtrosVazios,
-  listasVisiveis, novoId, ordemEntre, passaNosFiltros, precisaRenumerar, quantosFiltros,
-  renumera, vencido,
+  LISTAS_PADRAO, NOME_DA_URGENCIA, PASSO, URGENCIAS, arquivadosNaBusca, cartoesDaLista, copiaDoCartao, corNoQuadro,
+  criaEtiqueta, estadoDoPrazo, etiquetasDoQuadro, feitosDoChecklist, filtrosVazios, fundoDoQuadro, listasVisiveis, novoId,
+  ordemEntre, passaNosFiltros, precisaRenumerar, quantosFiltros, renumera, reordenaListas, textoDoPrazo,
+  type EstadoDoPrazo,
 } from '@/lib/dominio/quadros';
-import { dataBR, iniciais } from '@/lib/dominio/formato';
-import type { Cartao, Conversa, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
+import { iniciais } from '@/lib/dominio/formato';
+import type { Cartao, Conversa, Etiqueta, Lista, Perfil, Quadro } from '@/lib/dominio/tipos';
 
-const agora = () => new Date().toISOString();
+const agoraIso = () => new Date().toISOString();
+const TEXTO_DO_ESTADO: Record<EstadoDoPrazo, string> = { atrasado: 'Atrasado', breve: 'Vence em breve', concluido: 'Concluído', normal: 'Prazo' };
 
 export default function Quadros() {
   const { perfil } = useSessao();
   const router = useRouter();
+  const relogio = useAgora();
+  const agora = horaConhecida(relogio) ? relogio : null;
   const [quadros, setQuadros] = useState<Quadro[]>([]);
   const [listas, setListas] = useState<Lista[]>([]);
   const [cartoes, setCartoes] = useState<Cartao[]>([]);
@@ -38,7 +48,11 @@ export default function Quadros() {
   const [addLista, setAddLista] = useState(false);
   const [novoQuadro, setNovoQuadro] = useState<string | null>(null);
   const [renomeando, setRenomeando] = useState<string | null>(null);
+  const [renomeiaQuadro, setRenomeiaQuadro] = useState(false);
+  const [buscaArquivo, setBuscaArquivo] = useState('');
+  const [alvoLista, setAlvoLista] = useState<{ id: string; antes: boolean } | null>(null);
   const arrastando = useRef<string | null>(null);
+  const arrastandoLista = useRef<string | null>(null);
   const tela = useRef<HTMLDivElement>(null);
 
   useEffect(() => assina('quadros', (docs) => {
@@ -55,17 +69,24 @@ export default function Quadros() {
   useEffect(() => assina('conversas', (docs) => setConversas(docs as unknown as Conversa[])), []);
 
   const quadro = quadros.find((q) => q.id === atualId) || null;
+  const etiquetas = etiquetasDoQuadro(quadro);
+  const fundo = fundoDoQuadro(quadro);
   const minhasListas = useMemo(
     () => listasVisiveis(listas.filter((l) => l.quadroId === atualId)),
     [listas, atualId],
   );
   const aberto = cartoes.find((c) => c.id === abertoId) || null;
   const nFiltros = quantosFiltros(filtros);
+  const nomeDe = useCallback((uid: string) => equipe.find((p) => p.id === uid)?.nome, [equipe]);
+  const doQuadro = cartoes.filter((c) => c.quadroId === atualId && !c.arquivado);
+  const atrasados = agora ? doQuadro.filter((c) => estadoDoPrazo(c, agora) === 'atrasado').length : 0;
+  const arquivadosAchados = quadro ? arquivadosNaBusca(cartoes, quadro.id, filtros.busca, nomeDe) : [];
+  const etiquetasDoAberto = etiquetasDoQuadro(quadros.find((q) => q.id === aberto?.quadroId));
 
   /* ---------- escrever ---------- */
   async function criaQuadro(nome: string) {
     const id = await cria('quadros', {
-      nome, ordem: (quadros.length + 1) * PASSO, arquivado: false, criadoEm: agora(),
+      nome, ordem: (quadros.length + 1) * PASSO, arquivado: false, criadoEm: agoraIso(),
     });
     for (let i = 0; i < LISTAS_PADRAO.length; i++) {
       await cria('listas', { quadroId: id, nome: LISTAS_PADRAO[i], ordem: (i + 1) * PASSO, arquivada: false });
@@ -81,9 +102,34 @@ export default function Quadros() {
       quadroId: atualId, listaId, ordem: ultimo ? ultimo.ordem + PASSO : PASSO,
       titulo, descricao: '', etiquetas: [], membros: perfil ? [perfil.id] : [],
       prazoConcluido: false, checklist: [], comentarios: [],
-      atividade: [{ id: novoId(), autorNome: perfil?.nome || 'Equipe', texto: 'criou o cartão', criadoEm: agora() }],
-      anexos: [], arquivado: false, criadoEm: agora(), atualizadoEm: agora(),
+      atividade: [{ id: novoId(), autorNome: perfil?.nome || 'Equipe', texto: 'criou o cartão', criadoEm: agoraIso() }],
+      anexos: [], arquivado: false, criadoEm: agoraIso(), atualizadoEm: agoraIso(),
     });
+  }
+
+  /** Etiqueta nova criada de dentro do cartão: entra no quadro dele. */
+  async function criaEtiquetaNoQuadro(quadroId: string, nome: string, cor: string): Promise<string | null> {
+    const q = quadros.find((x) => x.id === quadroId);
+    const r = criaEtiqueta(etiquetasDoQuadro(q), nome, cor);
+    if ('erro' in r) return r.erro;
+    try { await atualiza('quadros', quadroId, { etiquetas: r.lista }); } catch { return 'Não consegui salvar. Confira a internet e tente de novo.'; }
+    return null;
+  }
+
+  async function copiaCartao(c: Cartao) {
+    const naLista = cartoesDaLista(cartoes, c.listaId);
+    const i = naLista.findIndex((x) => x.id === c.id);
+    const depois = naLista[i + 1];
+    const ordem = depois ? (c.ordem + depois.ordem) / 2 : c.ordem + PASSO;
+    const id = await cria('cartoes', copiaDoCartao(c, ordem, perfil?.nome || 'Equipe', agoraIso()) as unknown as Record<string, unknown>);
+    avisa('Cartão copiado');
+    setAbertoId(id);
+  }
+
+  async function excluiCartao(c: Cartao) {
+    await grava([{ tipo: 'apagar', colecao: 'cartoes', id: c.id }]);
+    setAbertoId(null);
+    avisa('Cartão excluído');
   }
 
   async function moveCartao(cartaoId: string, listaId: string, antesDoId: string | null) {
@@ -106,7 +152,7 @@ export default function Quadros() {
       })));
     } else {
       await atualiza('cartoes', cartaoId, {
-        listaId, quadroId: destino.quadroId, ordem: ordemEntre(antes, depois), atualizadoEm: agora(),
+        listaId, quadroId: destino.quadroId, ordem: ordemEntre(antes, depois), atualizadoEm: agoraIso(),
       });
     }
     if (cartao.listaId !== listaId) {
@@ -114,14 +160,14 @@ export default function Quadros() {
       await atualiza('cartoes', cartaoId, {
         atividade: [...cartao.atividade, {
           id: novoId(), autorNome: perfil?.nome || 'Equipe',
-          texto: `moveu de ${origem?.nome || '?'} para ${destino.nome}`, criadoEm: agora(),
+          texto: `moveu de ${origem?.nome || '?'} para ${destino.nome}`, criadoEm: agoraIso(),
         }],
       });
       avisa(`Cartão movido para ${destino.nome}`);
     }
   }
 
-  /* ---------- arrastar ---------- */
+  /* ---------- arrastar cartões ---------- */
   /* o espaco cinza que mostra onde o cartao vai cair. Nasce na primeira vez que
      alguem arrasta, nunca durante a renderizacao. */
   const marcador = useRef<HTMLDivElement | null>(null);
@@ -143,6 +189,15 @@ export default function Quadros() {
   }, []);
 
   function aoArrastarSobre(e: DragEvent<HTMLElement>, listaId: string) {
+    /* arrastando uma lista: marca de que lado da lista ela vai cair */
+    if (arrastandoLista.current) {
+      e.preventDefault();
+      if (arrastandoLista.current === listaId) { if (alvoLista) setAlvoLista(null); return; }
+      const r = e.currentTarget.getBoundingClientRect();
+      const antes = e.clientX < r.left + r.width / 2;
+      if (alvoLista?.id !== listaId || alvoLista.antes !== antes) setAlvoLista({ id: listaId, antes });
+      return;
+    }
     if (!arrastando.current) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -158,10 +213,21 @@ export default function Quadros() {
     if (marca.parentNode !== caixa || marca.nextElementSibling !== antes) {
       caixa.insertBefore(marca, antes);
     }
-    void listaId;
   }
 
-  async function aoSoltar(e: DragEvent<HTMLElement>, listaId: string) {
+  async function aoSoltar(e: DragEvent<HTMLElement>, listaId: string, i: number) {
+    if (arrastandoLista.current) {
+      e.preventDefault();
+      const id = arrastandoLista.current;
+      const alvo = alvoLista;
+      arrastandoLista.current = null;
+      setAlvoLista(null);
+      if (!alvo || id === listaId) return;
+      const antesDoId = alvo.antes ? listaId : minhasListas[i + 1]?.id ?? null;
+      const mudancas = reordenaListas(minhasListas, id, antesDoId === id ? null : antesDoId);
+      if (mudancas.length) await lote(mudancas.map((m) => ({ colecao: 'listas', id: m.id, campos: { ordem: m.ordem } })));
+      return;
+    }
     if (!arrastando.current) return;
     e.preventDefault();
     const id = arrastando.current;
@@ -172,6 +238,91 @@ export default function Quadros() {
     const antesDoId = proximo?.dataset.id || null;
     limpaArrasto();
     await moveCartao(id, listaId, antesDoId);
+  }
+
+  /* ---------- rolar o quadro arrastando o fundo, como no Trello ---------- */
+  /* clicar no fundo do quadro (fora das listas) e arrastar rola para os lados; no
+     celular o dedo já rola sozinho, então só vale para mouse e caneta */
+  function rolaArrastando(e: EventoDePonteiro<HTMLDivElement>) {
+    if (e.button !== 0 || e.pointerType === 'touch' || e.target !== e.currentTarget) return;
+    const el = e.currentTarget;
+    const x0 = e.clientX;
+    const s0 = el.scrollLeft;
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('rolando');
+    const move = (ev: PointerEvent) => { el.scrollLeft = s0 - (ev.clientX - x0); };
+    const solta = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', solta);
+      el.removeEventListener('pointercancel', solta);
+      el.classList.remove('rolando');
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', solta);
+    el.addEventListener('pointercancel', solta);
+  }
+
+  /* ---------- o cartão na lista ---------- */
+  function cartaoNaLista(c: Cartao, arquivado = false) {
+    const feitos = feitosDoChecklist(c);
+    const estado = agora ? estadoDoPrazo(c, agora) : null;
+    const lista = arquivado ? listas.find((l) => l.id === c.listaId) : null;
+    return (
+      <button key={c.id} className={`kc${estado === 'atrasado' ? ' kc-atrasado' : ''}${arquivado ? ' kc-arquivado' : ''}${c.capaCor ? ' kc-com-capa' : ''}`}
+              data-id={c.id} draggable={!arquivado}
+              onDragStart={arquivado ? undefined : (e) => {
+                arrastando.current = c.id;
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', c.titulo); } catch { /* firefox exige */ }
+                requestAnimationFrame(() => {
+                  document.querySelector(`.kc[data-id="${c.id}"]`)?.classList.add('arr');
+                });
+              }}
+              onDragEnd={arquivado ? undefined : limpaArrasto}
+              onClick={() => setAbertoId(c.id)}>
+        {c.capaCor && <span className={`kc-capa cp-${c.capaCor}`} aria-hidden="true" />}
+        {arquivado && <span className="kc-arq-tag"><Ic n="doc" />Arquivado{lista ? ` · ${lista.nome}` : ''}</span>}
+        {c.etiquetas.length > 0 && (
+          <span className="kc-lb">
+            {c.etiquetas.map((e) => <span key={e} className={`lbp lb-${corNoQuadro(e, etiquetas)}`}>{e}</span>)}
+          </span>
+        )}
+        <span className="kc-t">{c.titulo}</span>
+        <span className="kc-m">
+          {c.urgencia && (
+            <span className={`kc-urg ur-${c.urgencia}`} title={`Urgência: ${NOME_DA_URGENCIA[c.urgencia]}`}>
+              {(c.urgencia === 'urgente' || c.urgencia === 'alta') && <Ic n="raio" />}{NOME_DA_URGENCIA[c.urgencia]}
+            </span>
+          )}
+          {c.prazo && (
+            <span className={`kc-prazo pz-${estado || 'normal'}`} title={estado ? TEXTO_DO_ESTADO[estado] : 'Prazo'}>
+              <Ic n={estado === 'concluido' ? 'check' : 'relogio'} />
+              {estado === 'atrasado' && <b>Atrasado</b>}
+              <span className="num">{agora ? textoDoPrazo(c.prazo, agora) : ''}</span>
+            </span>
+          )}
+          {c.descricao && <span title="Tem descrição"><Ic n="texto" /></span>}
+          {c.checklist.length > 0 && (
+            <span className={`num${feitos === c.checklist.length ? ' kc-tudo' : ''}`} title="Checklist"><Ic n="lista" />{feitos}/{c.checklist.length}</span>
+          )}
+          {c.comentarios.length > 0 && (
+            <span className="num" title="Comentários"><Ic n="balao" />{c.comentarios.length}</span>
+          )}
+          {c.anexos.length > 0 && (
+            <span className="num" title="Anexos"><Ic n="clipe" />{c.anexos.length}</span>
+          )}
+          {c.conversaId && <span title="Ligado a uma conversa"><Ic n="chat" /></span>}
+          {c.membros.length > 0 && (
+            <span className="mbs">
+              {c.membros.map((m) => {
+                const p = equipe.find((x) => x.id === m);
+                return p ? <i key={m} className="mb" title={p.nome}>{iniciais(p.nome)}</i> : null;
+              })}
+            </span>
+          )}
+        </span>
+      </button>
+    );
   }
 
   /* ---------- tela ---------- */
@@ -187,10 +338,22 @@ export default function Quadros() {
     );
   }
 
+  const estiloDoFundo: CSSProperties | undefined = fundo ? { background: fundo.css } : undefined;
+  const arquivadosDoQuadro = quadro ? cartoes.filter((c) => c.quadroId === quadro.id && c.arquivado) : [];
+  const termoArq = buscaArquivo.trim().toLowerCase();
+
   return (
-    <div className="qd">
-      <header className="vh">
-        <h1>Quadros</h1>
+    <div className={`qd${fundo ? ' qd-com-fundo' : ''}${fundo?.escuro ? ' qd-escuro' : ''}`} style={estiloDoFundo}>
+      <header className="vh qd-h">
+        {renomeiaQuadro && quadro ? (
+          <input className="cx qd-nome" autoFocus defaultValue={quadro.nome} maxLength={30} aria-label="Nome do quadro"
+                 onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setRenomeiaQuadro(false); }}
+                 onBlur={(e) => {
+                   const n = e.target.value.trim();
+                   if (n && n !== quadro.nome) void atualiza('quadros', quadro.id, { nome: n });
+                   setRenomeiaQuadro(false);
+                 }} />
+        ) : <h1>Quadros</h1>}
         <div className="chips qd-abas" role="group" aria-label="Escolher quadro">
           {quadros.map((q) => (
             <button key={q.id} className="chip" aria-pressed={q.id === atualId}
@@ -211,7 +374,18 @@ export default function Quadros() {
             </form>
           )}
         </div>
-        <div className="fim">
+        <div className="fim qd-fim">
+          <label className="qd-busca">
+            <Ic n="busca" />
+            <input type="search" value={filtros.busca} placeholder="Procurar cartões, até os arquivados" aria-label="Procurar cartões"
+                   onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })} />
+          </label>
+          {atrasados > 0 && (
+            <button className="chip qd-atrasados" aria-pressed={filtros.soVencidos}
+                    onClick={() => setFiltros({ ...filtros, soVencidos: !filtros.soVencidos })}>
+              <Ic n="relogio" /><span className="num">{atrasados}</span> {atrasados === 1 ? 'atrasado' : 'atrasados'}
+            </button>
+          )}
           <button className="btn" aria-expanded={pop === 'filtro'}
                   onClick={() => setPop(pop === 'filtro' ? null : 'filtro')}>
             <Ic n="filtro" />Filtrar{nFiltros > 0 && <span className="q num">{nFiltros}</span>}
@@ -223,14 +397,34 @@ export default function Quadros() {
         </div>
       </header>
 
-      <div className="qd-tela" ref={tela}>
+      <div className="qd-tela" ref={tela} onPointerDown={rolaArrastando}>
+        {/* na busca, os arquivados que batem vêm primeiro, para aparecer sem rolar */}
+        {arquivadosAchados.length > 0 && (
+          <section className="kl kl-arq" aria-label="Arquivados que batem com a busca">
+            <header className="kl-h">
+              <span className="kl-n">Arquivados que batem com a busca</span>
+              <span className="q num">{arquivadosAchados.length}</span>
+            </header>
+            <div className="kl-cs">{arquivadosAchados.map((c) => cartaoNaLista(c, true))}</div>
+            <p className="kvz">Abra o cartão para restaurar.</p>
+          </section>
+        )}
+
         {minhasListas.map((l, i) => {
           const todos = cartoesDaLista(cartoes, l.id);
-          const mostrar = todos.filter((c) => passaNosFiltros(c, filtros));
+          const mostrar = todos.filter((c) => passaNosFiltros(c, filtros, nomeDe, agora || undefined));
+          const alvo = alvoLista?.id === l.id ? (alvoLista.antes ? ' kl-alvo-antes' : ' kl-alvo-depois') : '';
           return (
-            <section key={l.id} className="kl" aria-label={`Lista ${l.nome}`}
-                     onDragOver={(e) => aoArrastarSobre(e, l.id)} onDrop={(e) => void aoSoltar(e, l.id)}>
-              <header className="kl-h">
+            <section key={l.id} className={`kl${alvo}`} aria-label={`Lista ${l.nome}`}
+                     onDragOver={(e) => aoArrastarSobre(e, l.id)} onDrop={(e) => void aoSoltar(e, l.id, i)}>
+              <header className="kl-h" draggable={renomeando !== l.id} title="Arraste para mudar a lista de lugar"
+                      onDragStart={(e) => {
+                        if (arrastando.current) return;
+                        arrastandoLista.current = l.id;
+                        e.dataTransfer.effectAllowed = 'move';
+                        try { e.dataTransfer.setData('text/plain', l.nome); } catch { /* firefox exige */ }
+                      }}
+                      onDragEnd={() => { arrastandoLista.current = null; setAlvoLista(null); }}>
                 {renomeando === l.id ? (
                   <input className="cx" autoFocus defaultValue={l.nome} maxLength={40} aria-label="Nome da lista"
                          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
@@ -266,6 +460,11 @@ export default function Quadros() {
                       { colecao: 'listas', id: outra.id, campos: { ordem: l.ordem } },
                     ]); setPop(null);
                   }}>Mover para a direita</button>
+                  <button disabled={!todos.length} onClick={() => {
+                    void lote(todos.map((c) => ({ colecao: 'cartoes', id: c.id, campos: { arquivado: true, atualizadoEm: agoraIso() } })));
+                    setPop(null);
+                    avisa(`${todos.length} ${todos.length === 1 ? 'cartão arquivado' : 'cartões arquivados'}. A busca ainda acha.`);
+                  }}>Arquivar todos os cartões<small>somem da lista, a busca ainda acha</small></button>
                   <button onClick={() => {
                     void atualiza('listas', l.id, { arquivada: true });
                     setPop(null);
@@ -275,59 +474,7 @@ export default function Quadros() {
               )}
 
               <div className="kl-cs">
-                {mostrar.map((c) => {
-                  const feitos = feitosDoChecklist(c);
-                  return (
-                    <button key={c.id} className="kc" data-id={c.id} draggable
-                            onDragStart={(e) => {
-                              arrastando.current = c.id;
-                              e.dataTransfer.effectAllowed = 'move';
-                              try { e.dataTransfer.setData('text/plain', c.titulo); } catch { /* firefox exige */ }
-                              requestAnimationFrame(() => {
-                                document.querySelector(`.kc[data-id="${c.id}"]`)?.classList.add('arr');
-                              });
-                            }}
-                            onDragEnd={limpaArrasto}
-                            onClick={() => setAbertoId(c.id)}>
-                      {c.etiquetas.length > 0 && (
-                        <span className="kc-lb">
-                          {c.etiquetas.map((e) => {
-                            const cor = ETIQUETAS_PADRAO.find((x) => x.nome === e)?.cor || 'az';
-                            return <span key={e} className={`lbp lb-${cor}`}>{e}</span>;
-                          })}
-                        </span>
-                      )}
-                      <span className="kc-t">{c.titulo}</span>
-                      <span className="kc-m">
-                        {c.prazo && (
-                          <span className={c.prazoConcluido ? 'num ok' : vencido(c) ? 'num atr' : 'num'}
-                                title={c.prazoConcluido ? 'Concluído' : vencido(c) ? 'Prazo vencido' : 'Prazo'}>
-                            <Ic n={c.prazoConcluido ? 'check' : 'relogio'} />{dataBR(c.prazo)}
-                          </span>
-                        )}
-                        {c.descricao && <span title="Tem descrição"><Ic n="texto" /></span>}
-                        {c.checklist.length > 0 && (
-                          <span className="num" title="Checklist"><Ic n="lista" />{feitos}/{c.checklist.length}</span>
-                        )}
-                        {c.comentarios.length > 0 && (
-                          <span className="num" title="Comentários"><Ic n="balao" />{c.comentarios.length}</span>
-                        )}
-                        {c.anexos.length > 0 && (
-                          <span className="num" title="Anexos"><Ic n="doc" />{c.anexos.length}</span>
-                        )}
-                        {c.conversaId && <span title="Ligado a uma conversa"><Ic n="chat" /></span>}
-                        {c.membros.length > 0 && (
-                          <span className="mbs">
-                            {c.membros.map((m) => {
-                              const p = equipe.find((x) => x.id === m);
-                              return p ? <i key={m} className="mb" title={p.nome}>{iniciais(p.nome)}</i> : null;
-                            })}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
+                {mostrar.map((c) => cartaoNaLista(c))}
                 {!mostrar.length && todos.length > 0 && <p className="kvz">Nenhum cartão passa no filtro.</p>}
               </div>
 
@@ -393,18 +540,25 @@ export default function Quadros() {
 
       {pop === 'filtro' && (
         <div className="fp" role="dialog" aria-label="Filtrar cartões">
-          <input className="cx" type="search" placeholder="Buscar cartão pelo título ou descrição"
-                 autoComplete="off" aria-label="Buscar cartão" value={filtros.busca}
-                 onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })} />
-          <h3>Etiquetas</h3>
+          <h3 style={{ marginTop: 0 }}>Etiquetas</h3>
           <div className="tags">
-            {ETIQUETAS_PADRAO.map((e) => (
-              <button key={e.nome} className="tag" aria-pressed={filtros.etiquetas.includes(e.nome)}
+            {etiquetas.map((e) => (
+              <button key={e.nome} className={filtros.etiquetas.includes(e.nome) ? `lbt lb-${e.cor}` : 'lbt'} aria-pressed={filtros.etiquetas.includes(e.nome)}
                       onClick={() => setFiltros({
                         ...filtros,
                         etiquetas: filtros.etiquetas.includes(e.nome)
                           ? filtros.etiquetas.filter((x) => x !== e.nome) : [...filtros.etiquetas, e.nome],
                       })}>{e.nome}</button>
+            ))}
+          </div>
+          <h3>Urgência</h3>
+          <div className="tags">
+            {URGENCIAS.map((u) => (
+              <button key={u.k} className="tag" aria-pressed={filtros.urgencias.includes(u.k)}
+                      onClick={() => setFiltros({
+                        ...filtros,
+                        urgencias: filtros.urgencias.includes(u.k) ? filtros.urgencias.filter((x) => x !== u.k) : [...filtros.urgencias, u.k],
+                      })}>{u.nome}</button>
             ))}
           </div>
           <h3>Pessoas</h3>
@@ -424,11 +578,11 @@ export default function Quadros() {
           <div className="tags">
             <button className="tag" aria-pressed={filtros.soVencidos}
                     onClick={() => setFiltros({ ...filtros, soVencidos: !filtros.soVencidos })}>
-              Só com prazo vencido
+              Só os atrasados
             </button>
           </div>
           <div className="rodape-f">
-            <button className="tx-btn" disabled={!nFiltros} onClick={() => setFiltros(filtrosVazios())}>
+            <button className="tx-btn" disabled={!nFiltros} onClick={() => setFiltros({ ...filtrosVazios(), busca: filtros.busca })}>
               Limpar filtros
             </button>
             <button className="tx-btn" onClick={() => setPop(null)}>Fechar</button>
@@ -438,14 +592,22 @@ export default function Quadros() {
 
       {pop === 'menu' && (
         <div className="pop topo">
-          <button onClick={() => setPop('arquivados')}>Itens arquivados</button>
+          <button onClick={() => setPop('fundo')}>Mudar o plano de fundo</button>
+          <button onClick={() => setPop('etiquetas')}>Etiquetas do quadro</button>
+          <button onClick={() => { setPop('arquivados'); setBuscaArquivo(''); }}>Itens arquivados</button>
+          <button onClick={() => { setRenomeiaQuadro(true); setPop(null); }}>Renomear o quadro</button>
         </div>
       )}
 
+      {pop === 'fundo' && quadro && <PainelDoFundo quadro={quadro} aoFechar={() => setPop(null)} />}
+      {pop === 'etiquetas' && quadro && <PainelDeEtiquetas quadro={quadro} cartoes={cartoes} aoFechar={() => setPop(null)} />}
+
       {pop === 'arquivados' && quadro && (
-        <div className="fp" role="dialog" aria-label="Itens arquivados">
-          <h3 style={{ marginTop: 0 }}>Arquivados em {quadro.nome}</h3>
-          {listas.filter((l) => l.quadroId === quadro.id && l.arquivada).map((l) => (
+        <div className="fp qd-painel" role="dialog" aria-label="Itens arquivados">
+          <div className="qd-painel-cab"><b>Arquivados em {quadro.nome}</b><button className="ib" aria-label="Fechar" onClick={() => setPop(null)}><Ic n="x" /></button></div>
+          <input className="cx" type="search" placeholder="Procurar nos arquivados" value={buscaArquivo} aria-label="Procurar nos arquivados"
+                 onChange={(e) => setBuscaArquivo(e.target.value)} />
+          {listas.filter((l) => l.quadroId === quadro.id && l.arquivada && (!termoArq || l.nome.toLowerCase().includes(termoArq))).map((l) => (
             <div key={l.id} className="arq">
               <span>{l.nome}<small>lista</small></span>
               <button className="tx-btn" onClick={() => void atualiza('listas', l.id, { arquivada: false })}>
@@ -453,18 +615,16 @@ export default function Quadros() {
               </button>
             </div>
           ))}
-          {cartoes.filter((c) => c.quadroId === quadro.id && c.arquivado).map((c) => (
+          {arquivadosDoQuadro.filter((c) => !termoArq || c.titulo.toLowerCase().includes(termoArq)).map((c) => (
             <div key={c.id} className="arq">
-              <span>{c.titulo}<small>cartão</small></span>
-              <button className="tx-btn" onClick={() => void atualiza('cartoes', c.id, { arquivado: false })}>
+              <button className="arq-abre" onClick={() => setAbertoId(c.id)}>{c.titulo}<small>cartão · {listas.find((l) => l.id === c.listaId)?.nome || 'lista arquivada'}</small></button>
+              <button className="tx-btn" onClick={() => void atualiza('cartoes', c.id, { arquivado: false, atualizadoEm: agoraIso() })}>
                 Restaurar
               </button>
             </div>
           ))}
-          {!listas.some((l) => l.quadroId === quadro.id && l.arquivada)
-            && !cartoes.some((c) => c.quadroId === quadro.id && c.arquivado)
+          {!listas.some((l) => l.quadroId === quadro.id && l.arquivada) && !arquivadosDoQuadro.length
             && <p className="obs">Nada arquivado neste quadro.</p>}
-          <div className="rodape-f"><span /><button className="tx-btn" onClick={() => setPop(null)}>Fechar</button></div>
         </div>
       )}
 
@@ -472,7 +632,10 @@ export default function Quadros() {
         <CartaoAberto key={aberto.id} cartao={aberto}
                       conversa={conversas.find((c) => c.id === aberto.conversaId)}
                       listas={listas} quadros={quadros} equipe={equipe}
-                      etiquetas={ETIQUETAS_PADRAO} fechar={() => setAbertoId(null)}
+                      etiquetas={etiquetasDoAberto as Etiqueta[]} agora={agora}
+                      aoCriarEtiqueta={(nome, cor) => criaEtiquetaNoQuadro(aberto.quadroId, nome, cor)}
+                      aoCopiar={() => void copiaCartao(aberto)} aoExcluir={() => void excluiCartao(aberto)}
+                      fechar={() => setAbertoId(null)}
                       irParaConversa={(id) => router.push(`/conversas?conversa=${id}`)} />
       )}
     </div>
