@@ -108,7 +108,7 @@ export default function ModalDaAula({ abertura, cad, aoFechar, aoSalvar }: {
   const opProfessores: Opcao[] = cad.professores.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor }));
   const opAlunos: Opcao[] = cad.alunos
     .filter((a) => a.ativo && !alunos.some((x) => x.alunoId === a.id))
-    .map((a) => ({ id: a.id, nome: a.nome, detalhe: [a.nivel, a.responsavelNome ? `resp. ${a.responsavelNome}` : ''].filter(Boolean).join(' · ') }));
+    .map((a) => ({ id: a.id, nome: a.nome, codigo: a.codigo, detalhe: [a.nivel, a.responsavelNome ? `resp. ${a.responsavelNome}` : ''].filter(Boolean).join(' · ') }));
   const recorrente = Boolean(original?.recorrenciaId);
   const travado = !perm.editarDados;
   const regra: RegraDeRepeticao | null = !original && repete !== 'nao'
@@ -336,7 +336,7 @@ export default function ModalDaAula({ abertura, cad, aoFechar, aoSalvar }: {
             <div className="ag-al-h">
               <h3>Alunos <span className="num">{alunos.length}</span></h3>
               {perm.trocarAlunos && (
-                <Busca rotulo="Adicionar aluno" opcoes={opAlunos} valor="" limpaDepois placeholder="Adicionar aluno (digite o nome)" aoEscolher={poeAluno} />
+                <Busca rotulo="Adicionar aluno" opcoes={opAlunos} valor="" limpaDepois placeholder="Adicionar aluno (digite o nome ou o código)" aoEscolher={poeAluno} />
               )}
             </div>
             {original && alunosAntes === null && <p className="vz">Carregando os alunos...</p>}

@@ -3,7 +3,10 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Ic } from '@/componentes/icones';
 
-export interface Opcao { id: string; nome: string; cor?: string; grupo?: string; detalhe?: string }
+export interface Opcao { id: string; nome: string; cor?: string; grupo?: string; detalhe?: string; codigo?: string }
+
+/* procura pelo nome e, no aluno, pelo código */
+const acha = (o: Opcao, termo: string) => sem(`${o.codigo || ''} ${o.nome}`).includes(sem(termo));
 
 const sem = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -27,7 +30,7 @@ export function Multi({ rotulo, opcoes, valor, aoMudar, comBusca = true }: {
   const [aberto, setAberto] = useState(false);
   const [termo, setTermo] = useState('');
   const caixa = useFora(aberto, () => setAberto(false));
-  const visiveis = useMemo(() => (termo ? opcoes.filter((o) => sem(o.nome).includes(sem(termo))) : opcoes).slice(0, 200), [opcoes, termo]);
+  const visiveis = useMemo(() => (termo ? opcoes.filter((o) => acha(o, termo)) : opcoes).slice(0, 200), [opcoes, termo]);
   const marcadas = opcoes.filter((o) => valor.includes(o.id));
   const texto = !marcadas.length ? rotulo : marcadas.length === 1 ? marcadas[0].nome : `${rotulo}: ${marcadas.length}`;
   const troca = (id: string) => aoMudar(valor.includes(id) ? valor.filter((v) => v !== id) : [...valor, id]);
@@ -55,6 +58,7 @@ export function Multi({ rotulo, opcoes, valor, aoMudar, comBusca = true }: {
                   <label>
                     <input type="checkbox" checked={valor.includes(o.id)} onChange={() => troca(o.id)} />
                     {o.cor && <i className="ag-esc-cor" style={{ background: o.cor }} aria-hidden="true" />}
+                    {o.codigo && <b className="num ag-esc-cod">{o.codigo}</b>}
                     <span>{o.nome}{o.detalhe && <small>{o.detalhe}</small>}</span>
                   </label>
                 </li>
@@ -79,7 +83,7 @@ export function Busca({ opcoes, valor, aoEscolher, placeholder, desabilitado, ro
   const [indice, setIndice] = useState(0);
   const caixa = useFora(termo !== null, () => setTermo(null));
   const idLista = useId();
-  const lista = useMemo(() => (termo === null ? [] : opcoes.filter((o) => sem(o.nome).includes(sem(termo))).slice(0, 8)), [opcoes, termo]);
+  const lista = useMemo(() => (termo === null ? [] : opcoes.filter((o) => acha(o, termo)).slice(0, 8)), [opcoes, termo]);
   function escolhe(o: Opcao) {
     aoEscolher(o.id);
     setTermo(null);
@@ -104,7 +108,8 @@ export function Busca({ opcoes, valor, aoEscolher, placeholder, desabilitado, ro
             <li key={o.id} role="option" aria-selected={i === indice}>
               <button type="button" onMouseDown={(e) => { e.preventDefault(); escolhe(o); }}>
                 {o.cor && <i className="ag-esc-cor" style={{ background: o.cor }} aria-hidden="true" />}
-                <span>{o.nome}{o.detalhe && <small>{o.detalhe}</small>}</span>
+                {o.codigo && <b className="num ag-esc-cod">{o.codigo}</b>}
+                    <span>{o.nome}{o.detalhe && <small>{o.detalhe}</small>}</span>
               </button>
             </li>
           ))}

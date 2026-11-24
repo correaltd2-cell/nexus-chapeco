@@ -139,7 +139,7 @@ export default function RelatorioDaAgenda() {
           ))}
         </div>
         <Multi rotulo="Aluno" valor={alunoIds} aoMudar={setAlunoIds}
-               opcoes={cad.alunos.filter((a) => daSituacao(a.id)).map((a) => ({ id: a.id, nome: a.nome, detalhe: a.ativo ? a.nivel : 'inativo' }))} />
+               opcoes={cad.alunos.filter((a) => daSituacao(a.id)).map((a) => ({ id: a.id, nome: a.nome, codigo: a.codigo, detalhe: a.ativo ? a.nivel : 'inativo' }))} />
         <Multi rotulo="Módulo" valor={moduloIds} aoMudar={(v) => { setModuloIds(v); setAulaIds([]); }} opcoes={cad.modulos.map((m) => ({ id: m.id, nome: m.nome }))} comBusca={false} />
         <Multi rotulo="Aula" valor={aulaIds} aoMudar={setAulaIds}
                opcoes={cad.aulas.filter((a) => !moduloIds.length || moduloIds.includes(a.moduloId)).map((a) => ({ id: a.id, nome: a.nome, grupo: nomeModulo(a.moduloId) }))} />

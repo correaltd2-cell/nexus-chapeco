@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { assina, assinaFiltro } from '@/lib/dados/fonte';
 import { corDoProfessor, type Agendamento, type AulaDoCurriculo, type Bloqueio, type Modulo, type Professor } from '@/lib/dominio/agenda';
 import type { Aluno, Perfil } from '@/lib/dominio/tipos';
+import { porCodigo } from '@/lib/dominio/alunos';
 
 export interface Cadastros {
   professores: Professor[];
@@ -27,7 +28,8 @@ export function useCadastros(): Cadastros {
   const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
 
   useEffect(() => assina('perfis', (d) => setPerfis(d as unknown as Perfil[])), []);
-  useEffect(() => assina('alunos', (d) => setAlunos((d as unknown as Aluno[]).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')))), []);
+  /* alunos em ordem de código, como na planilha de marcação (24/11/2026) */
+  useEffect(() => assina('alunos', (d) => setAlunos((d as unknown as Aluno[]).sort(porCodigo))), []);
   useEffect(() => assina('modulos', (d) => setModulos((d as unknown as Modulo[]).sort((a, b) => a.ordem - b.ordem))), []);
   useEffect(() => assina('aulas', (d) => setAulas((d as unknown as AulaDoCurriculo[]).sort((a, b) => a.ordem - b.ordem))), []);
   useEffect(() => assina('bloqueios', (d) => setBloqueios(d as unknown as Bloqueio[])), []);

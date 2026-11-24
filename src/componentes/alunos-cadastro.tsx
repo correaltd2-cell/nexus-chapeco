@@ -17,7 +17,7 @@ import { Ic } from '@/componentes/icones';
 import GradeDeAlunos from '@/componentes/alunos-grade';
 import { PlanilhaDoGoogle, TrazerDeArquivo } from '@/componentes/alunos-importar';
 import { BarraDeSelecao, baixaCsv, situacaoDe, useAlunosDaEscola } from '@/componentes/alunos-comum';
-import { COLUNAS_DO_CADASTRO, NOME_DA_MODALIDADE, cadastroDoAluno, type AlunoDaGrade, type FichaDoAluno } from '@/lib/dominio/alunos';
+import { COLUNAS_DO_CADASTRO, NOME_DA_MODALIDADE, cadastroDoAluno, proximoCodigo, type AlunoDaGrade, type FichaDoAluno } from '@/lib/dominio/alunos';
 import { normal, type AlunoDoSistema } from '@/lib/dominio/planilha';
 
 type Filtro = 'todos' | 'ativos' | 'sem_telefone' | 'menores';
@@ -183,7 +183,7 @@ export default function CadastroDeAlunos({ abrirFicha }: { abrirFicha: boolean }
                   <span><b>Menor de idade</b>Aparece como &quot;- menor&quot; ao lado do nome, e quem fala no WhatsApp é o responsável.</span>
                 </label>
                 <div className="alu-ficha-par">
-                  {campo('codigo', 'Código', { dica: 'COD da planilha' })}
+                  {campo('codigo', 'Código', { dica: `Automático: ${proximoCodigo(alunos)}`, modo: 'numeric' })}
                   {campo('nascimento', 'Nascimento', { tipo: 'date' })}
                 </div>
                 {campo('documento', 'CPF', { dica: '123.456.789-01', modo: 'numeric' })}

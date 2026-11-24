@@ -3,7 +3,7 @@
    Os nomes são inventados.
    Rodar:  node --experimental-strip-types testes/alunos.ts  */
 import {
-  COLUNAS_DA_MARCACAO, COLUNAS_DO_CADASTRO, aulasSemOsAlunos, cadastroDoAluno, camposEditados, cpfLegivel, dataCompleta, fechaSemana,
+  COLUNAS_DA_MARCACAO, COLUNAS_DO_CADASTRO, aulasSemOsAlunos, porCodigo, proximoCodigo, cadastroDoAluno, camposEditados, cpfLegivel, dataCompleta, fechaSemana,
   horasDesde, idDaSemana, novoAluno, valorDaCelula, type AlunoDaGrade, type Edicao,
 } from '../src/lib/dominio/alunos.ts';
 import { confere, escritasDaImportacao, lePlanilha } from '../src/lib/dominio/planilha.ts';
@@ -109,6 +109,18 @@ igual('ficha: campo vazio não entra', ['contratoFim' in f, 'observacao' in f], 
 igual('ficha: código de outro aluno', erro(cadastroDoAluno({ nome: 'Novo Aluno', codigo: '101' }, todos, 'x')), 'Cód.: O código 101 já é de Joana Teste.');
 igual('ficha: telefone torto diz o campo', erro(cadastroDoAluno({ nome: 'Novo Aluno', responsavelTelefone: '12' }, todos, 'x')).startsWith('Tel. responsável: Telefone que não entendi'), true);
 igual('ficha sem nome', erro(cadastroDoAluno({ nome: ' ' }, todos, 'x')), 'Escreva o nome do aluno.');
+igual('ficha sem código ganha o próximo da sequência', campos(cadastroDoAluno({ nome: 'Novo Aluno', codigo: '' }, todos, 'x')).codigo, '103');
+igual('ficha com código escrito fica com ele', campos(cadastroDoAluno({ nome: 'Novo Aluno', codigo: '500' }, todos, 'x')).codigo, '500');
+
+/* ---- a ordem e a sequência dos códigos ---- */
+const mistura = [
+  { nome: 'Zeca', codigo: '224' }, { nome: 'Bia', codigo: '' }, { nome: 'Ana', codigo: '98' },
+  { nome: 'Caio', codigo: '1001' }, { nome: 'Alice' }, { nome: 'Duda', codigo: '224' },
+];
+igual('ordem pelo código como número; sem código no fim, por nome', [...mistura].sort(porCodigo).map((a) => a.nome), ['Ana', 'Duda', 'Zeca', 'Caio', 'Alice', 'Bia']);
+igual('próximo código: o maior mais um', proximoCodigo([{ codigo: '98' }, { codigo: '1001' }, { codigo: '224' }]), '1002');
+igual('próximo código: teste e código que não é número não contam', proximoCodigo([{ codigo: '9999', teste: true }, { codigo: 'A12' }, { codigo: ' 40 ' }, {}]), '41');
+igual('próximo código sem ninguém', proximoCodigo([]), '1');
 
 /* ---- apagar: sai das próximas aulas, as que passaram ficam ---- */
 const aulas = [
@@ -130,7 +142,7 @@ const turma: AlunoDaGrade[] = [
 ];
 const { registro, limpar } = fechaSemana(turma, '2026-11-21T18:30:00.000Z', 'Recepção');
 igual('contas da semana', [registro.ativos, registro.marcaram, registro.naoMarcaram], [3, 1, 2]);
-igual('quem não marcou, em ordem', registro.quemNaoMarcou, [{ id: 'a4', nome: 'Ana Inventada', codigo: '' }, { id: 'a3', nome: 'Bruno Ficticio', codigo: '103' }]);
+igual('quem não marcou, em ordem de código', registro.quemNaoMarcou, [{ id: 'a3', nome: 'Bruno Ficticio', codigo: '103' }, { id: 'a4', nome: 'Ana Inventada', codigo: '' }]);
 igual('limpa quem marcou e quem estava sem nada, não o trancado nem o teste', limpar, ['a1', 'a4']);
 igual('id da semana', idDaSemana('2026-11-21T18:30:00.000Z'), '202611211830');
 igual('horas desde a última virada', horasDesde('2026-11-21T18:30:00.000Z', '2026-11-22T06:30:00.000Z'), 12);

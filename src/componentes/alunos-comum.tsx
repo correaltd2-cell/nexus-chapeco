@@ -9,7 +9,7 @@ import { useSessao } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
 import { NOME_DA_SITUACAO, horarioEmTexto, type SituacaoAluno } from '@/lib/dominio/planilha';
-import { cpfLegivel, dataCompleta } from '@/lib/dominio/alunos';
+import { cpfLegivel, dataCompleta, porCodigo } from '@/lib/dominio/alunos';
 import { alunosDoContato } from '@/lib/dominio/contato';
 import { csv } from '@/lib/dominio/agenda';
 import { telefoneLegivel } from '@/lib/dominio/formato';
@@ -23,7 +23,7 @@ const EDITA = ['admin', 'gestor', 'recepcao', 'coordenacao'];
 export const situacaoDe = (a: Pick<Aluno, 'situacao' | 'ativo'>): SituacaoAluno => a.situacao ?? (a.ativo ? 'ativo' : 'inativo');
 export const horarioDe = (a: Pick<Aluno, 'horariosFixos' | 'horarioFixoTexto'>) => (a.horariosFixos?.length ? horarioEmTexto(a.horariosFixos) : a.horarioFixoTexto || '');
 
-/** Os alunos ao vivo, em ordem de nome, com a conversa de cada um (a ligada a ele, ou a
+/** Os alunos ao vivo, em ordem de código (sem código no fim, por nome), com a conversa de cada um (a ligada a ele, ou a
     que o telefone acha). Quem não vê todas as conversas não carrega conversa nenhuma. */
 export function useAlunosDaEscola() {
   const { perfil } = useSessao();
@@ -32,7 +32,7 @@ export function useAlunosDaEscola() {
   const veConversas = Boolean(perfil && VE_TODAS.includes(perfil.papel));
   const podeEditar = Boolean(perfil && EDITA.includes(perfil.papel));
 
-  useEffect(() => assina('alunos', (d) => setAlunos((d as unknown as AlunoComOrigem[]).filter((a) => !a.teste).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')))), []);
+  useEffect(() => assina('alunos', (d) => setAlunos((d as unknown as AlunoComOrigem[]).filter((a) => !a.teste).sort(porCodigo))), []);
   useEffect(() => (veConversas ? assina('conversas', (d) => setConversas(d as unknown as Conversa[])) : undefined), [veConversas]);
 
   const lista = useMemo(() => alunos ?? [], [alunos]);

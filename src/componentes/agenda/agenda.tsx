@@ -164,7 +164,7 @@ export default function Agenda() {
         <Multi rotulo="Professor" valor={professorIds} aoMudar={setProfessorIds}
                opcoes={cad.professores.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor }))} comBusca={cad.professores.length > 6} />
         <Multi rotulo="Aluno" valor={alunoIds} aoMudar={setAlunoIds}
-               opcoes={cad.alunos.map((a) => ({ id: a.id, nome: a.nome, detalhe: a.ativo ? a.nivel : 'inativo' }))} />
+               opcoes={cad.alunos.map((a) => ({ id: a.id, nome: a.nome, codigo: a.codigo, detalhe: a.ativo ? a.nivel : 'inativo' }))} />
         <Multi rotulo="Módulo" valor={moduloIds} aoMudar={(v) => { setModuloIds(v); setAulaIds([]); }}
                opcoes={cad.modulos.map((m) => ({ id: m.id, nome: m.nome }))} comBusca={false} />
         <Multi rotulo="Aula" valor={aulaIds} aoMudar={setAulaIds} opcoes={opAulas} />

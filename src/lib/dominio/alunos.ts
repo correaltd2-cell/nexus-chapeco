@@ -109,6 +109,23 @@ export function dataCompleta(iso: string | undefined | null): string {
 
 export const situacaoDoAluno = (a: Pick<AlunoDaGrade, 'situacao' | 'ativo'>): SituacaoAluno => a.situacao ?? (a.ativo ? 'ativo' : 'inativo');
 
+/** A ordem dos alunos em toda lista (pedido do cliente, 24/11/2026): pelo código, como
+    número (98 vem antes de 224); quem não tem código vai para o fim, em ordem de nome. */
+export function porCodigo(a: { codigo?: string | null; nome: string }, b: { codigo?: string | null; nome: string }): number {
+  const x = (a.codigo || '').trim();
+  const y = (b.codigo || '').trim();
+  if (x && !y) return -1;
+  if (!x && y) return 1;
+  return (x && y ? x.localeCompare(y, 'pt-BR', { numeric: true }) : 0) || a.nome.localeCompare(b.nome, 'pt-BR');
+}
+
+/** O código do próximo aluno: o maior código em número mais um (os de teste e os que não
+    são número não contam). Sem nenhum, começa no 1. */
+export function proximoCodigo(todos: Pick<AlunoDaGrade, 'codigo' | 'teste'>[]): string {
+  const numeros = todos.filter((a) => !a.teste && /^\d+$/.test((a.codigo || '').trim())).map((a) => Number((a.codigo || '').trim()));
+  return String((numeros.length ? Math.max(...numeros) : 0) + 1);
+}
+
 const igual = (x: unknown, y: unknown) => JSON.stringify(x ?? null) === JSON.stringify(y ?? null);
 const texto = (v: string | boolean) => String(v).replace(/\s+/g, ' ').trim();
 
@@ -272,11 +289,13 @@ export type FichaDoAluno = Partial<Record<ColunaDaGrade, string | boolean>>;
 /**
  * O aluno cadastrado pela ficha da tela Cadastros: nasce ativo, sem marcar a semana, e
  * cada campo passa pela mesma regra da célula da planilha (código repetido não passa,
- * telefone e datas se leem igual). Erro diz em qual campo foi.
+ * telefone e datas se leem igual). Erro diz em qual campo foi. Sem código escrito, ele
+ * ganha o próximo da sequência na hora de gravar (pedido do cliente, 24/11/2026).
  */
 export function cadastroDoAluno(ficha: FichaDoAluno, todos: AlunoDaGrade[], agora: string): Edicao {
   const base = novoAluno(String(ficha.nome ?? ''), agora);
   if ('erro' in base) return base;
+  if (!String(ficha.codigo ?? '').trim()) ficha = { ...ficha, codigo: proximoCodigo(todos) };
   const campos: Record<string, unknown> = { ...base.campos };
   if (ficha.menor === true) campos.menor = true;
   let aluno = { id: '', ...campos } as unknown as AlunoDaGrade;
@@ -333,7 +352,7 @@ export function fechaSemana(alunos: AlunoDaGrade[], quando: string, quem: string
   const marcaram = ativos.filter((a) => a.marcouSemana === true);
   const nao = ativos.filter((a) => a.marcouSemana !== true)
     .map((a) => ({ id: a.id, nome: a.nome, codigo: a.codigo || '' }))
-    .sort((x, y) => x.nome.localeCompare(y.nome, 'pt-BR'));
+    .sort(porCodigo);
   return {
     registro: { quando, quem, ativos: ativos.length, marcaram: marcaram.length, naoMarcaram: nao.length, quemNaoMarcou: nao },
     limpar: ativos.filter((a) => a.marcouSemana !== false).map((a) => a.id),

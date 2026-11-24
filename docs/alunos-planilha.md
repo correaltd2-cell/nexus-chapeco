@@ -86,6 +86,10 @@ As duas planilhas (marcação e cadastro) funcionam igual, cada uma com as suas 
 - **Na planilha interna, apagar o texto da célula é apagar.** Célula vazia grava vazio
   (diferente da importação, onde célula vazia não mexe em nada).
 - **Código repetido não passa:** a tela diz de quem é o código.
+- **Ordem pelo código** (24/11/2026), como número (98 antes de 224); quem não tem código
+  vai para o fim, por nome. Vale nas duas planilhas, na lista de quem não marcou a semana
+  e na agenda (filtro e escolha do aluno na aula, que mostram o código e acham por ele).
+  A ordem é a mesma de `porCodigo`, em `dominio/alunos.ts`.
 - O ícone verde ao lado do nome abre a conversa do aluno; o CSV baixa o que o filtro
   mostra, com todos os campos.
 - Grava como o resto do sistema, com as regras do Firestore valendo: escrevem em
@@ -102,6 +106,10 @@ telefone dele (com Menor de idade marcado, o responsável vem primeiro); livro,
 modalidade, fim do contrato, horário fixo, contrato assinado; observação. Cada campo
 passa pela mesma regra da célula (`cadastroDoAluno`), e o erro diz em qual campo foi.
 O aluno nasce **ativo e sem marcar a semana**, e aparece na planilha de marcação na hora.
+**O código segue a sequência sozinho:** com o campo vazio (ele mostra "Automático: 246"),
+o aluno ganha o maior código em número mais um na hora de gravar (`proximoCodigo`; os de
+teste e os códigos que não são número não contam). Escrever um código usa o escrito, e
+código repetido não passa.
 A ficha fica aberta e limpa para o próximo, com o cursor no nome.
 
 ## Apagar aluno

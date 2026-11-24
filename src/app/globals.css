@@ -1124,6 +1124,7 @@ a.mid-doc:hover{background:rgba(128,128,128,.2)}
 .ag-esc-p label,.ag-esc-p.lista button{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:9px;cursor:pointer;font-size:13.5px;width:100%;text-align:left}
 .ag-esc-p label:hover,.ag-esc-p.lista button:hover,.ag-esc-p.lista li[aria-selected="true"] button{background:var(--surface-2)}
 .ag-esc-p label input{accent-color:var(--solar);width:16px;height:16px;margin:0;flex:none}
+.ag-esc-cod{flex:none;min-width:34px;font-size:11.5px;font-weight:500;color:var(--muted)}
 .ag-esc-p small{display:block;color:var(--muted);font-size:11.5px}
 .ag-esc-g{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2);padding:8px 8px 2px}
 .ag-esc-vz{padding:10px 8px;color:var(--muted);font-size:13px}
