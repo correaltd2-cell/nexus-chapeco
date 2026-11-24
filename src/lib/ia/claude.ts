@@ -1,5 +1,6 @@
 /* A IA do atendimento, no servidor. Escreve o follow-up, a despedida e a saudação no
-   jeito de falar da escola, e responde como assistente do financeiro e contrato.
+   jeito de falar da escola, responde como assistente do financeiro e contrato, e lê o
+   contrato do aluno para o cadastro (dominio/contrato.ts faz as contas depois).
 
    O formato da resposta é garantido pela API (saída estruturada), entao o sistema
    nunca manda para o aluno um JSON quebrado ou um texto com instrução vazando. Quando
@@ -9,7 +10,9 @@ import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
+import type { BetaContentBlockParam } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import { falhou } from '@/lib/saude';
+import type { LidoDoContrato } from '@/lib/dominio/contrato';
 
 const MODELO = 'claude-opus-5-5';
 
@@ -41,7 +44,25 @@ const ResumoSchema = z.object({
 });
 export type ResumoDaIa = z.infer<typeof ResumoSchema>;
 
-type Turno = { role: 'user' | 'assistant'; content: string };
+const ContratoSchema = z.object({
+  ehContrato: z.boolean(),
+  nome: z.string(),
+  cpf: z.string(),
+  nascimento: z.string(),
+  telefone: z.string(),
+  email: z.string(),
+  endereco: z.string(),
+  responsavelNome: z.string(),
+  responsavelTelefone: z.string(),
+  modalidade: z.enum(['presencial', 'online', 'hibrido', '']),
+  moduloInicial: z.string(),
+  duracaoMeses: z.number().int(),
+  dataContrato: z.string(),
+  assinado: z.boolean(),
+  observacao: z.string(),
+});
+
+type Turno = { role: 'user' | 'assistant'; content: string | BetaContentBlockParam[] };
 
 /* A falha da IA vai para a saúde do sistema com o motivo em português. O aluno não
    percebe (sai o texto de reserva), mas a gestão precisa saber se é chave ou saldo. */
@@ -72,7 +93,7 @@ async function anota(e: unknown) {
 /* Mensagens curtas: esforço baixo responde rapido e basta para escrever duas frases.
    Se o modelo recusar por politica, a API tenta de novo num modelo de reserva na
    mesma chamada (fallbacks: 'default'); se ainda assim recusar, cai no texto fixo. */
-async function pergunta<T>(turnos: Turno[], formato: ReturnType<typeof betaZodOutputFormat<z.ZodType<T>>>): Promise<T | null> {
+async function pergunta<T>(turnos: Turno[], formato: ReturnType<typeof betaZodOutputFormat<z.ZodType<T>>>, espera?: number): Promise<T | null> {
   if (!iaLigada()) return null;
   try {
     const r = await claude().beta.messages.parse({
@@ -82,7 +103,7 @@ async function pergunta<T>(turnos: Turno[], formato: ReturnType<typeof betaZodOu
       fallbacks: 'default',
       output_config: { effort: 'low', format: formato },
       messages: turnos,
-    });
+    }, espera ? { timeout: espera } : undefined);
     if (r.stop_reason === 'refusal' || r.stop_reason === 'max_tokens') return null;
     return (r.parsed_output as T | null) ?? null;
   } catch (e) {
@@ -114,6 +135,28 @@ export async function resumeProgresso(prompt: string): Promise<ResumoDaIa | null
   const resumo = limpa(r.resumo);
   if (!resumo) return null;
   return { resumo, atencao: r.atencao.map(limpa).filter(Boolean).slice(0, 4) };
+}
+
+const LEITURA_DO_CONTRATO = `Você lê o contrato de prestação de serviços educacionais de um aluno da Nexus English Center (Chapecó) para preencher o cadastro dele no sistema da escola. O contrato vem anexo (PDF, foto ou o texto do Word).
+
+Devolva só o que está escrito no contrato. Não invente, não complete e não corrija nada. Campo que o contrato não preencheu (em branco, com traço ou ainda com o marcador do modelo, como {{CPF_ALUNO}}) volta vazio, e número que não aparece volta 0.
+
+- ehContrato: true se o arquivo é um contrato de curso de idiomas com um aluno; false se for outra coisa.
+- nome: o nome completo do aluno, como está escrito. Se o contrato for assinado por um responsável em nome de um aluno menor e trouxer os dois nomes, aqui vai o do aluno.
+- cpf, nascimento, telefone, email, endereco: os do aluno (o CONTRATANTE, quando ele é o próprio aluno). Endereço inteiro numa linha, com bairro, cidade e CEP se houver.
+- responsavelNome e responsavelTelefone: só se o contrato nomear um responsável pelo aluno (pai, mãe, responsável legal). Se o responsável for o CONTRATANTE, o CPF, o telefone e o e-mail do contratante vão nos campos do aluno mesmo assim, e o telefone dele também em responsavelTelefone.
+- nascimento e dataContrato no formato AAAA-MM-DD. dataContrato é a data em que o contrato foi feito (normalmente junto da cidade, no fim).
+- modalidade: a que estiver marcada (presencial ou online; hibrido se as duas); vazio se nenhuma.
+- moduloInicial: o módulo em que o aluno começa (Starter, A1, A2, B1, B1 PLUS ou o que estiver escrito).
+- duracaoMeses: o período contratado, em meses.
+- assinado: true se dá para ver a assinatura do contratante (ou assinatura eletrônica) no arquivo.
+- observacao: só algo fora do comum que a recepção precise saber para o cadastro, numa frase curta; vazio na maioria das vezes. Nunca valores, parcelas ou forma de pagamento.`;
+
+/** Lê o contrato do aluno (PDF, imagem ou texto do Word) para o cadastro. */
+export async function leContrato(anexo: BetaContentBlockParam): Promise<LidoDoContrato | null> {
+  return pergunta<LidoDoContrato>([
+    { role: 'user', content: [anexo, { type: 'text', text: LEITURA_DO_CONTRATO }] },
+  ], betaZodOutputFormat(ContratoSchema), 80_000);
 }
 
 /** O WhatsApp aceita até 4096 letras; a escola não usa travessão. */

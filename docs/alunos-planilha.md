@@ -28,6 +28,7 @@ com ou sem o 9 da frente) e, sem telefone, pelo nome do contato quando só um al
 | Colunas pelo nome, telefone, situação, comparação, vínculo das conversas, conferência | `src/lib/dominio/planilha.ts`, prova em `testes/planilha.ts` |
 | O que cada célula grava, aluno novo, a semana da marcação | `src/lib/dominio/alunos.ts`, prova em `testes/alunos.ts` |
 | O que cada célula grava, as colunas de cada planilha, a ficha de cadastro, quem sai das aulas ao apagar | `src/lib/dominio/alunos.ts` (`COLUNAS_DA_MARCACAO`, `COLUNAS_DO_CADASTRO`, `cadastroDoAluno`, `aulasSemOsAlunos`) |
+| Cadastrar pelo contrato: o que a IA leu vira a ficha (fim do contrato, menor), o Word como texto | `src/lib/dominio/contrato.ts` e `docx.ts`, prova em `testes/contrato.ts`; a leitura em `/api/alunos/contrato` e `leContrato` (`src/lib/ia/claude.ts`) |
 | Apagar aluno de vez (o plano e o lote) | `src/lib/dados/alunos.ts`, com `opsDeTirarDasAulas` em `src/lib/dados/agenda.ts` |
 | Tela de marcação | `/alunos`: `componentes/alunos.tsx`, `alunos-grade.tsx` (a planilha das duas telas), `alunos-semana.tsx` (marcação da semana), `alunos-comum.tsx` (a lista ao vivo, o CSV e a barra de selecionados com o apagar) |
 | Tela de cadastros | `/cadastros` (alunos), `/cadastros/professores`, `/cadastros/aulas`: `componentes/cadastros.tsx`, `alunos-cadastro.tsx` (ficha e planilha do cadastro), `alunos-importar.tsx` (arquivo e Google), `agenda/cadastros.tsx` (professores, módulos, aulas). `/aulas/cadastros` leva para `/cadastros/professores` |
@@ -114,6 +115,33 @@ o aluno ganha o maior código em número mais um na hora de gravar (`proximoCodi
 teste e os códigos que não são número não contam). Escrever um código usa o escrito, e
 código repetido não passa.
 A ficha fica aberta e limpa para o próximo, com o cursor no nome.
+
+## Cadastrar pelo contrato
+
+Pedido de 24/11/2026: "quero poder só subir o contrato e fazer o cadastro sozinho". Em
+Cadastros, **Cadastrar pelo contrato** (ou a caixa no alto da ficha, onde também dá para
+arrastar o arquivo) aceita o contrato em **PDF, Word (.docx) ou foto** (JPG, PNG):
+
+1. O arquivo sobe para a pasta do aluno no Storage (`alunos/{id}/contrato-AAAAMMDDhhmm.ext`).
+   Foto grande é reduzida no aparelho antes (até 2200px, em JPEG).
+2. `/api/alunos/contrato` baixa o arquivo e entrega para a IA (`leContrato`, em
+   `src/lib/ia/claude.ts`, com saída estruturada): PDF e foto como estão, Word como texto
+   (`dominio/docx.ts`). A IA devolve só o que está escrito; o que ficou em branco ou
+   com o marcador do modelo (`{{CPF_ALUNO}}`) volta vazio. Valores e parcelas não entram.
+3. `fichaDoContrato` (`dominio/contrato.ts`, prova em `testes/contrato.ts`) faz as contas
+   por regra, não pela IA: **fim do contrato = data do contrato + duração** (sem data,
+   conta de hoje), **menor de idade pela data de nascimento**, módulo inicial vira o
+   livro, telefone e CPF passam pela mesma leitura da planilha. O código fica vazio e
+   segue a sequência.
+4. A ficha aparece preenchida, com o que faltou ("Não achei no contrato: telefone") e os
+   avisos (menor sem responsável, telefone torto). **A recepção confere e toca em
+   Cadastrar aluno**: nada é gravado antes disso.
+5. O aluno nasce com o id da pasta, e o contrato fica guardado nele (`contratoArquivo`):
+   a coluna **Contrato** da planilha do cadastro abre o arquivo.
+
+Precisa da IA ligada (`ANTHROPIC_API_KEY` na Vercel); sem ela, a tela diz e a ficha se
+preenche à mão. Falha da IA vai para a saúde do sistema como as outras. Na demonstração
+e na simulação nada sai do aparelho: a ficha vem com um contrato de exemplo fictício.
 
 ## Apagar aluno
 

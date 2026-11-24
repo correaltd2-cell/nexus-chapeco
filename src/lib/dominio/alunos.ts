@@ -41,6 +41,9 @@ export interface AlunoDaGrade {
   email?: string;
   nascimento?: string;      // AAAA-MM-DD
   documento?: string;       // CPF só com os números
+  endereco?: string;
+  /** o contrato que entrou pelo cadastro (Storage), dominio/contrato.ts */
+  contratoArquivo?: { caminho: string; nome: string; enviadoEm: string } | null;
   observacao?: string;
   teste?: boolean;
 }
@@ -48,9 +51,9 @@ export interface AlunoDaGrade {
 export type ColunaDaGrade =
   | 'codigo' | 'nome' | 'menor' | 'marcouSemana' | 'situacao' | 'horarioFixoTexto' | 'livroOriginal' | 'modalidade' | 'saude'
   | 'appAtivo' | 'nexiaAtivo' | 'pendenciaLivro' | 'contratoFim' | 'contratoAssinado' | 'telefone' | 'responsavelNome'
-  | 'responsavelTelefone' | 'email' | 'nascimento' | 'documento' | 'observacao';
+  | 'responsavelTelefone' | 'email' | 'nascimento' | 'documento' | 'endereco' | 'contratoArquivo' | 'observacao';
 
-export type TipoDaColuna = 'texto' | 'longo' | 'sim' | 'situacao' | 'modalidade' | 'saude' | 'data' | 'telefone' | 'email' | 'documento';
+export type TipoDaColuna = 'texto' | 'longo' | 'sim' | 'situacao' | 'modalidade' | 'saude' | 'data' | 'telefone' | 'email' | 'documento' | 'arquivo';
 
 export interface DefinicaoDaColuna { k: ColunaDaGrade; rotulo: string; tipo: TipoDaColuna; largura: number; dica?: string }
 
@@ -76,6 +79,8 @@ const DEFINICOES: DefinicaoDaColuna[] = [
   { k: 'email', rotulo: 'E-mail', tipo: 'email', largura: 210 },
   { k: 'nascimento', rotulo: 'Nascimento', tipo: 'data', largura: 112 },
   { k: 'documento', rotulo: 'CPF', tipo: 'documento', largura: 130 },
+  { k: 'endereco', rotulo: 'Endereço', tipo: 'texto', largura: 260 },
+  { k: 'contratoArquivo', rotulo: 'Contrato', tipo: 'arquivo', largura: 96, dica: 'o arquivo do contrato que entrou pelo cadastro' },
   { k: 'responsavelNome', rotulo: 'Responsável', tipo: 'texto', largura: 170 },
   { k: 'responsavelTelefone', rotulo: 'Tel. responsável', tipo: 'telefone', largura: 150 },
   { k: 'observacao', rotulo: 'Observação', tipo: 'longo', largura: 240, dica: 'OBSERVAÇÕES: o texto quebra em linhas; Alt+Enter pula linha' },
@@ -96,7 +101,7 @@ export const COLUNAS_DA_MARCACAO: ColunaDaGrade[] = [
 /** O cadastro: quem é o aluno e como falar com ele. */
 export const COLUNAS_DO_CADASTRO: ColunaDaGrade[] = [
   'codigo', 'nome', 'situacao', 'telefone', 'email', 'responsavelNome', 'responsavelTelefone', 'nascimento', 'documento',
-  'livroOriginal', 'modalidade', 'contratoFim', 'contratoAssinado', 'horarioFixoTexto', 'observacao',
+  'endereco', 'livroOriginal', 'modalidade', 'contratoFim', 'contratoAssinado', 'contratoArquivo', 'horarioFixoTexto', 'observacao',
 ];
 
 export const NOME_DA_MODALIDADE: Record<ModalidadeDoAluno, string> = { presencial: 'Presencial', online: 'Online', hibrido: 'Híbrido' };
@@ -233,8 +238,11 @@ export function camposEditados(coluna: ColunaDaGrade, valor: string | boolean, a
       break;
     }
     case 'responsavelNome':
-      c.responsavelNome = t || null;
+    case 'endereco':
+      c[coluna] = t || null;
       break;
+    case 'contratoArquivo':
+      return { erro: 'O contrato entra pela ficha de cadastro.' };
     case 'observacao':
       c.observacao = typeof valor === 'string' ? valor.replace(/[ \t]+/g, ' ').trim() || null : null;
       break;
@@ -267,6 +275,7 @@ export function valorDaCelula(coluna: ColunaDaGrade, a: AlunoDaGrade): string {
   if (coluna === 'situacao') return situacaoDoAluno(a);
   if (coluna === 'nome') return `${a.nome}${a.menor ? ' - menor' : ''}`;
   if (coluna === 'documento') return cpfLegivel(a.documento);
+  if (coluna === 'contratoArquivo') return a.contratoArquivo?.nome || '';
   if (v === null || v === undefined) return '';
   return String(v);
 }

@@ -39,6 +39,8 @@ export interface Aluno {
   email?: string;
   documento?: string;      // CPF, só os números
   nascimento?: string;     // AAAA-MM-DD
+  endereco?: string;
+  contratoArquivo?: { caminho: string; nome: string; enviadoEm: string } | null;  // o contrato que entrou pelo cadastro
   trilha: Trilha;
   nivel: string;           // Starter, A1, A2, B1, B2, Kids 1...
   licao: number;           // 1 a 20

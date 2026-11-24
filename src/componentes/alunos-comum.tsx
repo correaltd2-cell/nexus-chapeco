@@ -56,12 +56,13 @@ export function baixaCsv(alunos: AlunoComOrigem[], conversaDe: Map<string, strin
   const sim = (v?: boolean | null) => (v === true ? 'sim' : v === false ? 'não' : '');
   const texto = csv(['Código', 'Aluno', 'Menor', 'Situação', 'Marcou a próxima semana', 'Observação', 'Livro', 'Tipo', 'Modalidade', 'Curso',
     'Classificação', 'App', 'Nex-IA', 'Fim do contrato', 'Contrato assinado', 'Horário fixo', 'Telefone', 'E-mail', 'Nascimento', 'CPF',
-    'Responsável', 'Telefone do responsável', 'Conversa no sistema'],
+    'Endereço', 'Responsável', 'Telefone do responsável', 'Contrato guardado', 'Conversa no sistema'],
   alunos.map((a) => [a.codigo || '', a.nome, sim(a.menor), NOME_DA_SITUACAO[situacaoDe(a)], situacaoDe(a) === 'ativo' ? sim(a.marcouSemana) : '',
     a.observacao || '', a.livroOriginal || a.nivel, a.tipoCurso ? NOME_DO_TIPO[a.tipoCurso] : '', a.modalidade || '', a.trilha === 'kids' ? 'Kids' : 'Adultos',
     a.saude ? NOME_DA_SAUDE[a.saude] : '', sim(a.appAtivo), sim(a.nexiaAtivo), a.contratoFim ? dataCompleta(a.contratoFim) : '', sim(a.contratoAssinado),
     horarioDe(a), a.telefone ? telefoneLegivel(a.telefone) : '', a.email || '', a.nascimento ? dataCompleta(a.nascimento) : '', a.documento ? cpfLegivel(a.documento) : '',
-    a.responsavelNome || '', a.responsavelTelefone ? telefoneLegivel(a.responsavelTelefone) : '', conversaDe.has(a.id) ? 'sim' : 'não']));
+    a.endereco || '', a.responsavelNome || '', a.responsavelTelefone ? telefoneLegivel(a.responsavelTelefone) : '',
+    a.contratoArquivo?.caminho ? 'sim' : 'não', conversaDe.has(a.id) ? 'sim' : 'não']));
   const url = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');
   link.href = url;

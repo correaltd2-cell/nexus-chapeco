@@ -26,3 +26,21 @@ export async function reduzFoto(arquivo: File): Promise<string> {
   const tela = await desenha(arquivo);
   return tela.toDataURL('image/jpeg', 0.72);
 }
+
+/** A foto do contrato vai para a IA ler: no máximo 2200px no lado maior, em JPEG, para
+    ficar leve (a foto do celular passa fácil de 5 MB, que é o limite da leitura). Foto
+    pequena vai como está. O que o navegador não abre (às vezes o HEIC do iPhone) falha
+    com o erro "foto", e a tela pede outro formato. */
+export async function reduzParaLer(arquivo: File, lado = 2200): Promise<File> {
+  let bitmap: ImageBitmap;
+  try { bitmap = await createImageBitmap(arquivo); } catch { throw new Error('foto'); }
+  const escala = Math.min(1, lado / Math.max(bitmap.width, bitmap.height));
+  if (escala === 1 && arquivo.size < 1_500_000 && /^image\/(jpeg|png|webp)$/.test(arquivo.type)) { bitmap.close?.(); return arquivo; }
+  const tela = document.createElement('canvas');
+  tela.width = Math.round(bitmap.width * escala); tela.height = Math.round(bitmap.height * escala);
+  tela.getContext('2d')?.drawImage(bitmap, 0, 0, tela.width, tela.height);
+  bitmap.close?.();
+  const blob = await new Promise<Blob | null>((ok) => tela.toBlob(ok, 'image/jpeg', 0.85));
+  if (!blob) throw new Error('foto');
+  return new File([blob], arquivo.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+}

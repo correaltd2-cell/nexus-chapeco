@@ -13,7 +13,9 @@
    células a cada movimento) e só vai para o estado ao soltar. */
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent as EventoDePonteiro } from 'react';
 import Link from 'next/link';
+import { getDownloadURL, ref as refArquivo } from 'firebase/storage';
 import { atualiza } from '@/lib/dados/fonte';
+import { arquivos } from '@/lib/firebase/cliente';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
@@ -168,6 +170,14 @@ export default function GradeDeAlunos({
   }
   const todosMarcados = alunos.length > 0 && alunos.every((a) => sel.has(a.id));
 
+  async function abreContrato(caminho: string) {
+    try {
+      window.open(await getDownloadURL(refArquivo(arquivos(), caminho)), '_blank', 'noopener');
+    } catch {
+      avisa('Não consegui abrir o contrato. Confira a internet e tente de novo.');
+    }
+  }
+
   /* ---------- edição ---------- */
 
   const foca = (r: number, c: number) => requestAnimationFrame(() => {
@@ -283,6 +293,18 @@ export default function GradeDeAlunos({
     const rotuloAria = `${rotulo} de ${a.nome}`;
 
     if (editando && editando.id === a.id && editando.k === k) return editor(tipo, rotulo, a.nome);
+
+    /* o contrato que entrou pelo cadastro: abre numa aba nova (não se edita aqui) */
+    if (tipo === 'arquivo') {
+      const arq = a.contratoArquivo;
+      if (!arq?.caminho) return <span className="alu-g-nada" tabIndex={-1} {...marca} title="Sem contrato guardado">—</span>;
+      return (
+        <button type="button" className="alu-g-cel alu-g-abrir" {...marca} title={arq.nome} aria-label={`Abrir o contrato de ${a.nome}`}
+                onClick={() => void abreContrato(arq.caminho)}>
+          <Ic n="doc" />Abrir
+        </button>
+      );
+    }
 
     if (tipo === 'sim') {
       if (k === 'marcouSemana' && s !== 'ativo') return <span className="alu-g-nada" tabIndex={-1} {...marca} title="Só aluno ativo marca a semana">—</span>;
