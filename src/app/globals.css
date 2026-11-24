@@ -62,32 +62,34 @@
   color-scheme:light;
 }
 
-/* Tema escuro. O claro vira escuro e o rail continua sendo o mais preto de todos.
+/* Tema escuro. O claro vira escuro e o rail continua sendo o mais escuro de todos.
    A interface é grafite, não preto: o time passa o dia nela, e o preto cansava
-   (clareado em 18/11/2026, com o contraste do texto conferido fundo por fundo).
+   (clareado em 18/11/2026 e de novo em 24/11/2026, a pedido do cliente: "o mesmo modo
+   dark sem ser muito dark"; o mesmo cinza, só mais claro, com o contraste do texto
+   conferido fundo por fundo).
    Duas portas para o mesmo lugar: o aparelho no automático, e a escolha feita em
    Configurações, que vale por cima nos dois sentidos. */
 @media (prefers-color-scheme: dark){
   body:not(.t-claro){
-  --ink:#141414; --ink-2:#1C1C1C; --ink-3:#2A2A2A; --ink-line:#303030;
-  --canvas:#2B2B28; --surface:#393935; --surface-2:#343431; --surface-3:#45453F;
-  --line:#4B4B45; --line-2:#5C5C55;
-  --text:#F2F2EF; --muted:#B8B8B0; --muted-2:#AEADA4;
+  --ink:#222220; --ink-2:#2A2A28; --ink-3:#363633; --ink-line:#3A3A37;
+  --canvas:#3A3A37; --surface:#484844; --surface-2:#42423F; --surface-3:#54544F;
+  --line:#5C5C56; --line-2:#6E6E67;
+  --text:#F4F4F1; --muted:#C9C9C1; --muted-2:#BDBDB4;
   --solar-wash:#54320F; --solar-line:#8A5A1E; --solar-deep:#FFB266;
   --alert:#F59A8A; --alert-wash:#4E2620;
   --lb-vd:#2D4D36; --lb-vd-t:#A6DCB5;  --lb-am:#4A3C17; --lb-am-t:#EDD47E;
   --lb-vm:#4E2620; --lb-vm-t:#F7AE9F;  --lb-rx:#3A3354; --lb-rx-t:#CCC0F2;
   --lb-az:#30404B; --lb-az-t:#B3CADB;
-  --lb-ci:#284842; --lb-ci-t:#9DD6CF;  --lb-cz:#4A4A44; --lb-cz-t:#C4C4BA;
-  --coluna:#262624;
-  --wall:#1F1F1C;
-  --wall-desenho:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260' fill='none' stroke='%2330302C' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M18 42c9-6 20-6 28 0v26c-8-6-19-6-28 0zM46 42c8-6 19-6 28 0v26c-9-6-20-6-28 0%22/%3E%3Cpath d=%22M112 70l28-28 9 9-28 28-11 2zM134 48l9 9%22/%3E%3Cpath d=%22M206 30l4 9 10 1-8 6 3 10-9-5-9 5 3-10-8-6 10-1z%22/%3E%3Cpath d=%22M24 118h40a8 8 0 0 1 8 8v14a8 8 0 0 1-8 8H42l-10 9v-9h-8a8 8 0 0 1-8-8v-14a8 8 0 0 1 8-8zM36 126v14M44 126v14M36 133h8M53 130v10M53 126v.5%22/%3E%3Cpath d=%22M104 128l28-11 28 11-28 11zM116 133v10c9 6 23 6 32 0v-10M160 128v13%22/%3E%3Cpath d=%22M214 124c-5-4-14-2-14 8 0 9 6 17 11 17 2 0 3-1 5-1s3 1 5 1c5 0 11-8 11-17 0-10-9-12-14-8zM216 124c0-4 2-7 5-8M216 120c3-3 7-3 9-1%22/%3E%3Cpath d=%22M18 208l44-18-14 40-9-13zM39 217l23-27%22/%3E%3Cpath d=%22M132 186a14 14 0 0 1 8 25v6h-16v-6a14 14 0 0 1 8-25zM126 222h12M128 227h8%22/%3E%3Cpath d=%22M226 214a16 16 0 1 1-32 0 16 16 0 0 1 32 0zM194 214h32M210 198c-6 5-6 27 0 32M210 198c6 5 6 27 0 32%22/%3E%3Cpath d=%22M86 92v-16l12-3v16M86 92a4 3 0 1 1-8 0 4 3 0 0 1 8 0zM98 89a4 3 0 1 1-8 0 4 3 0 0 1 8 0z%22/%3E%3Cpath d=%22M170 92c-5 0-5-9 0-9s5 9 0 9zM176 78v14M176 88c0-5 9-5 9 0s-9 5-9 0zM196 84c-2-2-8-2-8 3s6 5 8 3%22/%3E%3Cpath d=%22M88 160h.5M240 96h.5M8 170h.5M160 250h.5M96 236h.5M250 170h.5M60 12h.5M170 160h.5%22/%3E%3C/svg%3E");
-  --balao-in:#3A3A36; --balao-out:#005C4B; --balao-txt:#F2F2EF; --balao-meta:#C3C3BB;
+  --lb-ci:#284842; --lb-ci-t:#9DD6CF;  --lb-cz:#575751; --lb-cz-t:#D2D2C9;
+  --coluna:#333331;
+  --wall:#2E2E2B;
+  --wall-desenho:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260' fill='none' stroke='%233B3B37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M18 42c9-6 20-6 28 0v26c-8-6-19-6-28 0zM46 42c8-6 19-6 28 0v26c-9-6-20-6-28 0%22/%3E%3Cpath d=%22M112 70l28-28 9 9-28 28-11 2zM134 48l9 9%22/%3E%3Cpath d=%22M206 30l4 9 10 1-8 6 3 10-9-5-9 5 3-10-8-6 10-1z%22/%3E%3Cpath d=%22M24 118h40a8 8 0 0 1 8 8v14a8 8 0 0 1-8 8H42l-10 9v-9h-8a8 8 0 0 1-8-8v-14a8 8 0 0 1 8-8zM36 126v14M44 126v14M36 133h8M53 130v10M53 126v.5%22/%3E%3Cpath d=%22M104 128l28-11 28 11-28 11zM116 133v10c9 6 23 6 32 0v-10M160 128v13%22/%3E%3Cpath d=%22M214 124c-5-4-14-2-14 8 0 9 6 17 11 17 2 0 3-1 5-1s3 1 5 1c5 0 11-8 11-17 0-10-9-12-14-8zM216 124c0-4 2-7 5-8M216 120c3-3 7-3 9-1%22/%3E%3Cpath d=%22M18 208l44-18-14 40-9-13zM39 217l23-27%22/%3E%3Cpath d=%22M132 186a14 14 0 0 1 8 25v6h-16v-6a14 14 0 0 1 8-25zM126 222h12M128 227h8%22/%3E%3Cpath d=%22M226 214a16 16 0 1 1-32 0 16 16 0 0 1 32 0zM194 214h32M210 198c-6 5-6 27 0 32M210 198c6 5 6 27 0 32%22/%3E%3Cpath d=%22M86 92v-16l12-3v16M86 92a4 3 0 1 1-8 0 4 3 0 0 1 8 0zM98 89a4 3 0 1 1-8 0 4 3 0 0 1 8 0z%22/%3E%3Cpath d=%22M170 92c-5 0-5-9 0-9s5 9 0 9zM176 78v14M176 88c0-5 9-5 9 0s-9 5-9 0zM196 84c-2-2-8-2-8 3s6 5 8 3%22/%3E%3Cpath d=%22M88 160h.5M240 96h.5M8 170h.5M160 250h.5M96 236h.5M250 170h.5M60 12h.5M170 160h.5%22/%3E%3C/svg%3E");
+  --balao-in:#4A4A46; --balao-out:#005C4B; --balao-txt:#F4F4F1; --balao-meta:#C9C9C1;
   --balao-sombra:0 1px .5px rgba(0,0,0,.35);
   --balao-nome:#FFB266; --balao-botao:#53BDEB;
-  --visto:#53BDEB; --tique:#AEADA4;
-  --wa-barra:#393935; --wa-campo:#45453F; --wa-verde:#00A884; --wa-sel:#45453F;
-  --wa-chip:#393935; --wa-chip-txt:#C3C3BB; --wa-aviso:#3D3720; --wa-aviso-txt:#E9D9A8;
+  --visto:#53BDEB; --tique:#BDBDB4;
+  --wa-barra:#484844; --wa-campo:#54544F; --wa-verde:#00A884; --wa-sel:#54544F;
+  --wa-chip:#484844; --wa-chip-txt:#C9C9C1; --wa-aviso:#3D3720; --wa-aviso-txt:#E9D9A8;
   --nota:#483C1B;
   --shadow:0 1px 2px rgba(0,0,0,.34), 0 8px 24px -12px rgba(0,0,0,.5);
   --shadow-2:0 2px 6px rgba(0,0,0,.42), 0 18px 46px -20px rgba(0,0,0,.66);
@@ -95,25 +97,25 @@
   }
 }
 body.t-escuro{
-  --ink:#141414; --ink-2:#1C1C1C; --ink-3:#2A2A2A; --ink-line:#303030;
-  --canvas:#2B2B28; --surface:#393935; --surface-2:#343431; --surface-3:#45453F;
-  --line:#4B4B45; --line-2:#5C5C55;
-  --text:#F2F2EF; --muted:#B8B8B0; --muted-2:#AEADA4;
+  --ink:#222220; --ink-2:#2A2A28; --ink-3:#363633; --ink-line:#3A3A37;
+  --canvas:#3A3A37; --surface:#484844; --surface-2:#42423F; --surface-3:#54544F;
+  --line:#5C5C56; --line-2:#6E6E67;
+  --text:#F4F4F1; --muted:#C9C9C1; --muted-2:#BDBDB4;
   --solar-wash:#54320F; --solar-line:#8A5A1E; --solar-deep:#FFB266;
   --alert:#F59A8A; --alert-wash:#4E2620;
   --lb-vd:#2D4D36; --lb-vd-t:#A6DCB5;  --lb-am:#4A3C17; --lb-am-t:#EDD47E;
   --lb-vm:#4E2620; --lb-vm-t:#F7AE9F;  --lb-rx:#3A3354; --lb-rx-t:#CCC0F2;
   --lb-az:#30404B; --lb-az-t:#B3CADB;
-  --lb-ci:#284842; --lb-ci-t:#9DD6CF;  --lb-cz:#4A4A44; --lb-cz-t:#C4C4BA;
-  --coluna:#262624;
-  --wall:#1F1F1C;
-  --wall-desenho:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260' fill='none' stroke='%2330302C' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M18 42c9-6 20-6 28 0v26c-8-6-19-6-28 0zM46 42c8-6 19-6 28 0v26c-9-6-20-6-28 0%22/%3E%3Cpath d=%22M112 70l28-28 9 9-28 28-11 2zM134 48l9 9%22/%3E%3Cpath d=%22M206 30l4 9 10 1-8 6 3 10-9-5-9 5 3-10-8-6 10-1z%22/%3E%3Cpath d=%22M24 118h40a8 8 0 0 1 8 8v14a8 8 0 0 1-8 8H42l-10 9v-9h-8a8 8 0 0 1-8-8v-14a8 8 0 0 1 8-8zM36 126v14M44 126v14M36 133h8M53 130v10M53 126v.5%22/%3E%3Cpath d=%22M104 128l28-11 28 11-28 11zM116 133v10c9 6 23 6 32 0v-10M160 128v13%22/%3E%3Cpath d=%22M214 124c-5-4-14-2-14 8 0 9 6 17 11 17 2 0 3-1 5-1s3 1 5 1c5 0 11-8 11-17 0-10-9-12-14-8zM216 124c0-4 2-7 5-8M216 120c3-3 7-3 9-1%22/%3E%3Cpath d=%22M18 208l44-18-14 40-9-13zM39 217l23-27%22/%3E%3Cpath d=%22M132 186a14 14 0 0 1 8 25v6h-16v-6a14 14 0 0 1 8-25zM126 222h12M128 227h8%22/%3E%3Cpath d=%22M226 214a16 16 0 1 1-32 0 16 16 0 0 1 32 0zM194 214h32M210 198c-6 5-6 27 0 32M210 198c6 5 6 27 0 32%22/%3E%3Cpath d=%22M86 92v-16l12-3v16M86 92a4 3 0 1 1-8 0 4 3 0 0 1 8 0zM98 89a4 3 0 1 1-8 0 4 3 0 0 1 8 0z%22/%3E%3Cpath d=%22M170 92c-5 0-5-9 0-9s5 9 0 9zM176 78v14M176 88c0-5 9-5 9 0s-9 5-9 0zM196 84c-2-2-8-2-8 3s6 5 8 3%22/%3E%3Cpath d=%22M88 160h.5M240 96h.5M8 170h.5M160 250h.5M96 236h.5M250 170h.5M60 12h.5M170 160h.5%22/%3E%3C/svg%3E");
-  --balao-in:#3A3A36; --balao-out:#005C4B; --balao-txt:#F2F2EF; --balao-meta:#C3C3BB;
+  --lb-ci:#284842; --lb-ci-t:#9DD6CF;  --lb-cz:#575751; --lb-cz-t:#D2D2C9;
+  --coluna:#333331;
+  --wall:#2E2E2B;
+  --wall-desenho:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260' fill='none' stroke='%233B3B37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M18 42c9-6 20-6 28 0v26c-8-6-19-6-28 0zM46 42c8-6 19-6 28 0v26c-9-6-20-6-28 0%22/%3E%3Cpath d=%22M112 70l28-28 9 9-28 28-11 2zM134 48l9 9%22/%3E%3Cpath d=%22M206 30l4 9 10 1-8 6 3 10-9-5-9 5 3-10-8-6 10-1z%22/%3E%3Cpath d=%22M24 118h40a8 8 0 0 1 8 8v14a8 8 0 0 1-8 8H42l-10 9v-9h-8a8 8 0 0 1-8-8v-14a8 8 0 0 1 8-8zM36 126v14M44 126v14M36 133h8M53 130v10M53 126v.5%22/%3E%3Cpath d=%22M104 128l28-11 28 11-28 11zM116 133v10c9 6 23 6 32 0v-10M160 128v13%22/%3E%3Cpath d=%22M214 124c-5-4-14-2-14 8 0 9 6 17 11 17 2 0 3-1 5-1s3 1 5 1c5 0 11-8 11-17 0-10-9-12-14-8zM216 124c0-4 2-7 5-8M216 120c3-3 7-3 9-1%22/%3E%3Cpath d=%22M18 208l44-18-14 40-9-13zM39 217l23-27%22/%3E%3Cpath d=%22M132 186a14 14 0 0 1 8 25v6h-16v-6a14 14 0 0 1 8-25zM126 222h12M128 227h8%22/%3E%3Cpath d=%22M226 214a16 16 0 1 1-32 0 16 16 0 0 1 32 0zM194 214h32M210 198c-6 5-6 27 0 32M210 198c6 5 6 27 0 32%22/%3E%3Cpath d=%22M86 92v-16l12-3v16M86 92a4 3 0 1 1-8 0 4 3 0 0 1 8 0zM98 89a4 3 0 1 1-8 0 4 3 0 0 1 8 0z%22/%3E%3Cpath d=%22M170 92c-5 0-5-9 0-9s5 9 0 9zM176 78v14M176 88c0-5 9-5 9 0s-9 5-9 0zM196 84c-2-2-8-2-8 3s6 5 8 3%22/%3E%3Cpath d=%22M88 160h.5M240 96h.5M8 170h.5M160 250h.5M96 236h.5M250 170h.5M60 12h.5M170 160h.5%22/%3E%3C/svg%3E");
+  --balao-in:#4A4A46; --balao-out:#005C4B; --balao-txt:#F4F4F1; --balao-meta:#C9C9C1;
   --balao-sombra:0 1px .5px rgba(0,0,0,.35);
   --balao-nome:#FFB266; --balao-botao:#53BDEB;
-  --visto:#53BDEB; --tique:#AEADA4;
-  --wa-barra:#393935; --wa-campo:#45453F; --wa-verde:#00A884; --wa-sel:#45453F;
-  --wa-chip:#393935; --wa-chip-txt:#C3C3BB; --wa-aviso:#3D3720; --wa-aviso-txt:#E9D9A8;
+  --visto:#53BDEB; --tique:#BDBDB4;
+  --wa-barra:#484844; --wa-campo:#54544F; --wa-verde:#00A884; --wa-sel:#54544F;
+  --wa-chip:#484844; --wa-chip-txt:#C9C9C1; --wa-aviso:#3D3720; --wa-aviso-txt:#E9D9A8;
   --nota:#483C1B;
   --shadow:0 1px 2px rgba(0,0,0,.34), 0 8px 24px -12px rgba(0,0,0,.5);
   --shadow-2:0 2px 6px rgba(0,0,0,.42), 0 18px 46px -20px rgba(0,0,0,.66);

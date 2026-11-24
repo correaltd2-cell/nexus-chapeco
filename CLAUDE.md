@@ -308,7 +308,10 @@ telas com o cliente, não as cores: aquelas foram substituídas.
   paleta de visualização, conferidos para daltonismo nos dois temas. São exceções à
   paleta só dentro da agenda e do relatório, como as cores do WhatsApp na conversa.
 - **Tema claro, escuro ou automático.** O automático segue o aparelho; a escolha feita
-  em Configurações vale por cima, pela classe `t-escuro` ou `t-claro` no `body`.
+  em Configurações vale por cima, pela classe `t-escuro` ou `t-claro` no `body`. O
+  escuro é **um cinza grafite só, sem outra cor misturada** (24/11/2026, pedido do
+  cliente: "o mesmo modo dark sem ser muito dark"; laranja e verde na conversa foram
+  testados e descartados no mesmo dia): fundo `#3A3A37`, cartões `#484844`, menu `#222220`.
 - Interface clara por padrão, porque o time usa isso oito horas por dia.
 - A tela de atendimento tem o arranjo e o visual do WhatsApp (lista, conversa com
   bolhas verdes e brancas sobre o fundo bege, dados do contato) porque o time e os
