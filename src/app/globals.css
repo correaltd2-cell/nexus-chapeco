@@ -1278,7 +1278,7 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 /* ================= agenda ================= */
 .ag{display:flex;flex-direction:column;height:100%;min-height:0;position:relative}
 .ag-h{padding-bottom:4px}
-.ag-h,.ag-barra,.ag-filtros,.ag-legenda,.rel-impresso{flex:none}
+.ag-h,.ag-barra,.ag-filtros,.ag-legenda,.rel-impresso,.ag-dias-semana,.ag-g-troca{flex:none}
 .ag-abas{flex:1 1 auto;min-width:0}
 .ag-abas .chip{text-decoration:none}
 .ag-barra{display:flex;align-items:center;justify-content:space-between;gap:8px 14px;flex-wrap:wrap;padding:4px max(18px,env(safe-area-inset-right,0px)) 6px max(24px,env(safe-area-inset-left,0px))}
@@ -1293,6 +1293,7 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 .ag-seg.pequeno button{padding:5px 10px;font-size:12px}
 .ag-filtros{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:2px max(18px,env(safe-area-inset-right,0px)) 10px max(24px,env(safe-area-inset-left,0px))}
 .ag-conta{margin-left:auto;color:var(--muted);font-size:12px}
+.ag-contador{color:var(--muted);font-size:12px;margin-left:6px;white-space:nowrap}
 
 /* escolhas com busca */
 .ag-esc{position:relative}
@@ -1338,9 +1339,45 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 .ag-cal.carregando{background:var(--surface) linear-gradient(90deg,transparent,rgba(128,128,128,.08),transparent) 0 0/200% 100%}
 .ag-ev{border-radius:8px!important;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(20,20,20,.12)}
 .ag-ev.parado{opacity:.55}
+.ag-ev.cancelada{opacity:.3}
 .ag-ev.parado .ag-aula{text-decoration:line-through}
 .ag-b{position:relative;height:100%;padding:3px 5px 2px;line-height:1.25;overflow:hidden;font-size:11.5px}
+.ag-b.ag-tinta{border-left:4px solid var(--g-cor);border-radius:8px}
 .ag-b.mes{display:flex;align-items:center;padding:1px 4px;font-size:11.5px}
+/* na Semana: hora, aula e quantos alunos, quebrando linha quando a coluna é estreita */
+.ag-b.compacto{display:flex;flex-wrap:wrap;align-content:flex-start;column-gap:4px;padding:2px 4px 2px 5px;container-type:inline-size}
+.ag-b.compacto>*{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.ag-b.compacto .ag-icones .ag-st{width:9px;height:9px}
+.ag-b-hora{font-size:10.5px;opacity:.8;padding-right:16px}
+.ag-b.compacto .ag-aula{padding-right:0}
+.ag-b-qt{opacity:.85}
+.ag-b-qt .curto{display:none}
+.ag-b-qt .curto .ic{width:11px;height:11px;margin-right:2px}
+/* coluna estreita (4 aulas lado a lado): sem a hora (a régua mostra), o nome quebra e
+   os alunos viram o número com o desenho de pessoas */
+@container (max-width:78px){
+  .ag-b.compacto{padding:2px 3px 2px 4px}
+  .ag-b-hora,.ag-b.compacto .ag-wa{display:none}
+  .ag-b.compacto .ag-aula{flex-basis:100%;font-size:11px;letter-spacing:-.01em}
+  .ag-b.compacto .ag-icones{position:static;order:3;margin-left:auto}
+  .ag-b-qt{order:2}
+  .ag-b-qt .longo{display:none}
+  .ag-b-qt .curto{display:inline-flex;align-items:center}
+}
+.ag-ev-bl{box-shadow:none}
+.ag-bl-b{display:flex;flex-direction:column;padding:2px 5px;color:var(--muted);font-size:10.5px;font-weight:600;line-height:1.2;
+  background:var(--surface-2) repeating-linear-gradient(135deg,rgba(128,128,128,.2) 0 5px,transparent 5px 10px);border-radius:8px}
+.ag-bl-b span,.ag-bl-b small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-bl-b small{font-weight:500;font-size:10px}
+.ag-mais{box-shadow:none}
+.ag-mais-b{height:100%;display:grid;place-items:center;border-radius:8px;background:var(--surface-3);color:var(--text);font-size:12px;box-shadow:inset 0 0 0 1px var(--line-2)}
+.ag-mais:hover .ag-mais-b{background:var(--solar-wash);box-shadow:inset 0 0 0 1px var(--solar)}
+
+/* a tinta do professor (Grade e calendário): a cor suave no fundo e o texto que lê
+   melhor em cima dela (textoSobre), com um par para cada tema */
+.ag-tinta{background:var(--g-fc);color:var(--g-tc)}
+body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
+@media (prefers-color-scheme: dark){body:not(.t-claro) .ag-tinta{background:var(--g-fe);color:var(--g-te)}}
 .ag-linha{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:30px}
 .ag-aula{display:block;font-weight:700;padding-right:34px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ag-alunos{display:flex;flex-direction:column}
@@ -1352,12 +1389,11 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 .ag-wa .ic{width:9px;height:9px;stroke-width:2.6}
 .ag-alerta{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--alert);box-shadow:0 0 0 1.5px #fff;animation:pulsa-grava 1.4s ease-in-out infinite}
 .ag-bl{background:repeating-linear-gradient(135deg,rgba(128,128,128,.20) 0 7px,rgba(128,128,128,.07) 7px 14px)!important;opacity:1!important}
-.ag-bl.do-prof{background:repeating-linear-gradient(135deg,rgba(128,128,128,.13) 0 5px,transparent 5px 12px)!important}
-.ag-bl-tx{display:block;padding:3px 5px;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;line-height:1.2}
+.ag-bl-tx{display:inline-block;margin:3px 4px;padding:1px 7px;border-radius:6px;background:var(--surface);box-shadow:0 0 0 1px var(--line);font-size:10.5px;font-weight:600;color:var(--muted);letter-spacing:.02em;line-height:1.35;max-width:calc(100% - 8px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* a faixa do bloqueio não segura o clique: o horário embaixo continua clicável (aula
    nova, e a conferência de conflito avisa); o nome do bloqueio abre o bloqueio */
 .ag-cal .ag-bl{pointer-events:none}
-.ag-cal .ag-bl-tx{pointer-events:auto;cursor:pointer;display:inline-block;position:relative;z-index:6}
+.ag-cal .ag-bl-tx{pointer-events:auto;cursor:pointer;position:relative;z-index:6}
 .ag-cal .ag-bl-tx:hover{color:var(--text);text-decoration:underline}
 .ag-dica{
   position:fixed;z-index:80;width:280px;background:var(--surface);color:var(--text);border-radius:14px;
@@ -1375,6 +1411,73 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 .ag-legenda .ag-st{box-shadow:0 0 0 1px var(--line-2)}
 .ag-legenda .ag-alerta{animation:none}
 .ag-bl-amostra{display:inline-block;width:18px;height:11px;border-radius:3px;background:repeating-linear-gradient(135deg,rgba(128,128,128,.4) 0 3px,transparent 3px 6px)}
+
+/* ----- a Grade: um dia, uma coluna por professor (24/11/2026) ----- */
+.ag-dias-semana{padding:0 max(18px,env(safe-area-inset-right,0px)) 8px max(24px,env(safe-area-inset-left,0px))}
+.ag-dias-semana .chip{padding:5px 11px;font-size:12.5px}
+.ag-dias-semana .chip .num{margin-left:3px;font-size:12px;opacity:1}
+.chip.ag-chave .num{margin-left:6px}
+.ag-grade{
+  flex:1;min-height:420px;margin:0 max(12px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));
+  background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:auto;position:relative;overscroll-behavior:contain;
+}
+.ag-grade.carregando{background:var(--surface) linear-gradient(90deg,transparent,rgba(128,128,128,.08),transparent) 0 0/200% 100%}
+.ag-grade.vazia{display:grid;place-items:center;color:var(--muted);padding:24px;text-align:center;font-size:14px}
+.ag-g-folha{min-width:100%;width:max-content;display:flex;flex-direction:column}
+.ag-g-topo{position:sticky;top:0;z-index:4;display:flex;background:var(--surface);box-shadow:0 1px 0 var(--line)}
+.ag-g-canto{position:sticky;left:0;z-index:5;flex:0 0 56px;background:var(--surface)}
+.ag-g-cab{flex:1 0 150px;min-width:0;display:flex;align-items:baseline;gap:6px;padding:10px 10px 7px;border-left:1px solid var(--line);border-bottom:3px solid var(--g-cor);font-size:13px}
+.ag-g-cab b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.ag-g-cab small{margin-left:auto;font-size:11px;opacity:.78;flex:none}
+.ag-g-cab.fila{background:var(--solar-wash);color:var(--text);border-bottom-color:var(--solar)}
+.ag-g-cab.fila b{color:var(--solar-deep)}
+.ag-g-corpo{display:flex;position:relative}
+.ag-g-horas{position:sticky;left:0;z-index:3;flex:0 0 56px;background:var(--surface);box-shadow:1px 0 0 var(--line)}
+.ag-g-horas span{position:absolute;left:0;right:0;padding:3px 8px 0 0;text-align:right;font-family:var(--fonte-dados);font-variant-numeric:tabular-nums;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
+.ag-g-horas span.meia{color:var(--muted-2);font-size:10px;border-top-color:transparent}
+.ag-g-col{flex:1 0 150px;position:relative;border-left:1px solid var(--line)}
+.ag-g-col.fila{background:color-mix(in srgb,var(--solar) 4%,transparent)}
+.ag-g-slot{position:absolute;left:0;right:0;padding:0;border:0;border-top:1px solid var(--line);background:none;cursor:pointer}
+.ag-g-slot.meia{border-top-color:color-mix(in srgb,var(--line) 45%,transparent)}
+.ag-g-slot:hover{background:color-mix(in srgb,var(--solar) 7%,transparent)}
+.ag-g-aula{
+  position:absolute;z-index:2;display:flex;flex-direction:column;overflow:hidden;cursor:pointer;text-align:left;
+  border-radius:8px;border-left:4px solid var(--g-cor);padding:4px 6px 3px 7px;box-shadow:0 1px 2px rgba(20,20,20,.12);
+  font-size:12px;line-height:16px;
+}
+.ag-g-aula[draggable="true"]{cursor:grab}
+.ag-g-aula:hover{box-shadow:0 2px 8px rgba(20,20,20,.18)}
+.ag-g-aula:focus-visible{outline:2px solid var(--solar);outline-offset:1px}
+.ag-g-a-topo{display:flex;align-items:center;gap:5px;min-height:19px;flex:none}
+.ag-g-a-topo b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;font-size:12.5px}
+.ag-g-a-topo .ag-st{width:9px;height:9px}
+.ag-g-a-topo small{font-weight:600;opacity:.8}
+.ag-g-al{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-g-al.falta{text-decoration:line-through;opacity:.7}
+.ag-g-al.mais,.ag-g-al.vazio{opacity:.75;font-weight:600}
+.ag-g-aula.parado{opacity:.55}
+.ag-g-aula.cancelada{opacity:.32}
+.ag-g-aula.parado b{text-decoration:line-through}
+.ag-g-bl{
+  position:absolute;left:0;right:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(135deg,rgba(128,128,128,.22) 0 6px,rgba(128,128,128,.07) 6px 12px);box-shadow:inset 0 1px 0 rgba(128,128,128,.35);
+}
+.ag-g-bl.escola{left:56px}
+.ag-g-bl-tx{
+  pointer-events:auto;display:inline-block;margin:3px 4px;padding:1px 7px;border:0;border-radius:6px;max-width:calc(100% - 8px);
+  background:var(--surface);color:var(--muted);box-shadow:0 0 0 1px var(--line);
+  font-size:10.5px;font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;
+}
+.ag-g-bl-tx:hover{color:var(--text);box-shadow:0 0 0 1px var(--line-2)}
+.ag-g-sombra{position:absolute;left:3px;right:3px;z-index:3;pointer-events:none;border:2px dashed var(--solar);border-radius:8px;background:color-mix(in srgb,var(--solar) 10%,transparent)}
+.ag-g-agora{position:absolute;left:56px;right:0;z-index:3;height:0;border-top:2px solid var(--alert);pointer-events:none}
+.ag-g-agora::before{content:'';position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:var(--alert)}
+.ag-g-troca{display:flex;align-items:center;gap:8px;padding:0 10px 8px}
+.ag-g-troca .cx{flex:1;min-width:0;border-left:4px solid var(--g-cor);font-weight:600}
+.ag-g-troca .ib{width:36px;height:36px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);flex:none}
+.ag-grade.um .ag-g-horas,.ag-grade.um .ag-g-canto{flex-basis:46px}
+.ag-grade.um .ag-g-bl.escola,.ag-grade.um .ag-g-agora{left:46px}
+.ag-arraste-resumo{margin:0;font-weight:600}
 
 /* o modal da aula */
 .ag-mod{position:fixed;z-index:90}
@@ -1461,6 +1564,10 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
   .ag-filtros{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
   .ag-filtros .ag-esc-p{position:fixed;left:12px;right:12px;top:auto;max-width:none}
   .ag-conta{display:none}
+  .ag-nav{flex-wrap:wrap}
+  .ag-contador{flex-basis:100%;margin:2px 0 0 4px}
+  .ag-dias-semana{padding-left:14px;padding-right:14px}
+  .ag-grade{margin:0 8px;min-height:60vh}
   .ag-mod{padding:0}
   .ag-mc,.ag-mc.pequeno{width:100%;min-height:100%;border-radius:0}
   .ag-mh,.ag-mb,.ag-mf{padding-left:14px;padding-right:14px}
@@ -1470,7 +1577,7 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 }
 
 @media print{
-  .rail,.tabs,.ag-filtros,.ag-barra,.ag-h .fim,.fita-saude,.demo,.ag-abas,.rel-acoes,.vh .fim{display:none!important}
+  .rail,.tabs,.ag-filtros,.ag-barra,.ag-h .fim,.fita-saude,.demo,.ag-abas,.rel-acoes,.vh .fim,.ag-dias-semana{display:none!important}
 }
 
 /* ================= agenda: relatório, log e cadastros ================= */

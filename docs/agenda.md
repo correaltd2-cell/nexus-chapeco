@@ -11,14 +11,18 @@ observação e notas são de cada aluno.
 | Regras puras (status, conflito, recorrência, "este e os próximos", permissões, indicadores, CSV, lembrete, resumo) | `src/lib/dominio/agenda.ts`, prova em `testes/agenda.ts` |
 | Dados fictícios (3 professores, 15 alunos, 2 semanas, séries, bloqueios, log) | `src/lib/dominio/agenda-exemplo.ts` |
 | Gravação pelo navegador (lote único com log) | `src/lib/dados/agenda.ts` |
-| Calendário (FullCalendar 7), modal, filtros | `src/componentes/agenda/` |
+| Grade por professor (visão padrão), feita aqui | `src/componentes/agenda/grade.tsx` |
+| Contas da Grade e da Semana enxuta (colunas, encaixe, altura das linhas, "+N", contador, nomes curtos, tinta do professor) | `src/lib/dominio/agenda-grade.ts`, prova em `testes/agenda-grade.ts` |
+| Dia fechado (domingo) | `DIAS_FECHADOS` em `src/lib/dominio/agenda.ts` |
+| Calendário (FullCalendar 7: Semana, Mês e Dia), modal, filtros | `src/componentes/agenda/` |
 | Lembrete, resposta aos botões, próxima aula de quem escreve, resumo com IA | `src/lib/agenda-servidor.ts` |
 | A agenda na conversa (painel e atalho) | `src/componentes/aulas-na-conversa.tsx` |
 | Por quem o número fala (telefone com e sem o 9, responsável) | `src/lib/dominio/contato.ts`, prova em `testes/contato.ts` |
 | Rotas | `/api/agenda/lembrete`, `/api/agenda/resumo`, `/api/agenda/teste`, `/api/cron/lembretes` |
-| Telas | `/aulas` (calendário), `/aulas/relatorio`, `/aulas/log`; os cadastros (professores, módulos, aulas) moram em `/cadastros/professores` e `/cadastros/aulas` desde 24/11/2026 (`/aulas/cadastros` leva para lá) |
+| Telas | `/aulas` (Grade, Semana, Mês e Dia), `/aulas/relatorio`, `/aulas/log`; os cadastros (professores, módulos, aulas) moram em `/cadastros/professores` e `/cadastros/aulas` desde 24/11/2026 (`/aulas/cadastros` leva para lá) |
 
 Rodar antes de mexer nas regras: `node --experimental-strip-types testes/agenda.ts`.
+Rodar antes de mexer na Grade ou na Semana: `node --experimental-strip-types testes/agenda-grade.ts`.
 
 ## Dados (Firestore)
 
@@ -49,6 +53,67 @@ Rodar antes de mexer nas regras: `node --experimental-strip-types testes/agenda.
   próximos" mexe só nas aulas da série com data igual ou depois; leva horário, professor,
   módulo, aula, modalidade e alunos. Status e presença ficam em cada aula.
 - Toda ação grava em `logs_agenda`.
+
+## A Grade e as visões (24/11/2026)
+
+Com os dados do ELLO (1.993 aulas, 632 bloqueios, 14 professores) a semana do
+calendário ficou ilegível: reunião de professor cobrindo o dia inteiro e 6 a 8 aulas
+espremidas na mesma coluna. A agenda passou a abrir na **Grade**, que é como a recepção
+trabalha ("quem está livre às 18h30?"). As regras de conflito, recorrência e permissão e
+o formato dos dados não mudaram: isto é só tela.
+
+**Grade** (padrão, também no celular)
+- Um dia por vez: setas de dia anterior e próximo, **Hoje** e os atalhos Seg a Sáb.
+- Colunas = professores. **"A definir" sempre na primeira**, em laranja: é a fila das
+  aulas sem professor (o professor com esse nome na equipe; aula de professor que não
+  está na equipe também cai nela). Depois, quem tem mais aula no dia; empate pelo nome.
+  A ordem é calculada ao abrir o dia e fica parada enquanto a pessoa está nele, para a
+  coluna não pular quando alguém arrasta uma aula. O filtro de professor escolhe as colunas.
+- Linhas de 30 em 30 minutos, das 7h30 às 21h30, com o cabeçalho e as horas presos ao
+  rolar. Coluna com no mínimo 150px e rolagem de lado: nada se espreme. A linha cresce
+  para o cartão mostrar **todos os alunos** (até 8; acima disso, 7 e "+N"); o crescimento
+  vale para a linha inteira, como numa planilha.
+- Cartão: a cor do professor suave no fundo e cheia na borda de 4px, bolinha de status,
+  nome da aula e um aluno por linha (primeiro e último nome), quem faltou riscado.
+  Cancelada bem apagada. Clique abre o modal.
+- Bloqueio do professor é faixa cinza listrada **só na coluna dele**, com o motivo curto
+  ("Reunião", "Não abrir: Pilates"); o nome abre o bloqueio. Bloqueio da escola atravessa
+  todas as colunas.
+- Clique no horário vazio: aula nova com aquele professor, dia e hora (uma hora).
+- Arrastar: outro horário (de 15 em 15 minutos) e, em outra coluna, **outro professor**,
+  pela mesma conferência de conflito (incluindo o bloqueio do professor novo); aula de
+  série pergunta "só esta ou esta e as próximas". A coluna "A definir" que não existe na
+  equipe não recebe aula.
+- Celular: um professor por vez, pelo seletor ou deslizando para o lado.
+
+**Semana** (e Mês e Dia)
+- Bloco enxuto: hora, nome curto da aula ("A2 L11") e quantos alunos. Os nomes ficam no
+  cartão de passar o mouse e no modal (no Dia, que é largo, os nomes aparecem). Em coluna
+  estreita, a hora sai (a régua mostra) e os alunos viram o número com o desenho de pessoas.
+- **Acima de 4 aulas no mesmo horário, aparecem 3 e um "+N"**, que abre a Grade naquele
+  dia e hora. Com 4, aparecem as 4.
+- Bloqueio de professor deixou de ser fundo da coluna inteira: só aparece com a chave
+  **Mostrar bloqueios** (desligada; a escolha fica no aparelho; a chave mostra quantos
+  bloqueios há no período), como bloco pequeno listrado. O da escola continua como faixa.
+- **Esconder canceladas** (também fica no aparelho) vale para todas as visões.
+- O nome do dia (Semana e Mês) e o dia no Mês abrem a Grade daquele dia.
+
+**Contador** no topo: "X aulas · Y alunos" do dia (Grade e Dia) ou do período (Semana e
+Mês), com os filtros. Y conta alunos diferentes.
+
+**Cores**: o texto em cima da cor do professor sai sempre do `textoSobre()`. O fundo do
+cartão é a cor misturada com o fundo do tema (16% no claro, 22% no escuro), então cor
+neon (#8cff00, #faa0eb) não cansa a vista; a prova confere contraste de 4,5:1 nos dois
+temas.
+
+**Domingo fora** (`DIAS_FECHADOS = [0]`): Semana e Mês de segunda a sábado (6 colunas mais
+largas); as setas da Grade e do Dia pulam de sábado para segunda e voltam; Hoje num domingo
+e qualquer link que caia num domingo (o "Ver na agenda" da conversa, por exemplo) abrem a
+segunda seguinte. Para a escola abrir no domingo, é mudar a constante.
+
+**Atenção:** a recorrência não lê `DIAS_FECHADOS`. "Todo dia" ainda gera aula no domingo e
+"Toda semana" deixa marcar o D. Não foi mexido porque a recorrência ficou fora deste
+pedido; uma aula criada assim existe no banco mas não aparece na agenda.
 
 ## Permissões (também no firestore.rules)
 

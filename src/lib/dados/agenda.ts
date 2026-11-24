@@ -245,24 +245,34 @@ export async function confirmaPresenca(quem: Quem, ag: Agendamento, alunoId: str
   await grava(ops);
 }
 
-/** Arrastar ou esticar no calendário: muda só o horário (da série, se escolhido). */
-export async function remarca(quem: Quem, alvo: Agendamento, novo: { inicio: string; fim: string }, escopo: Escopo) {
+/** O novo lugar de uma aula arrastada: o horário e, na Grade, o professor da coluna. */
+export interface NovoLugar { inicio: string; fim: string; professorId?: string }
+
+/** O horário (e o professor, se mudou) de cada aula atingida pelo arraste. */
+function lugarDe(o: Agendamento, alvo: Agendamento, novo: NovoLugar) {
+  const h = o.id === alvo.id ? { inicio: novo.inicio, fim: novo.fim } : deslocaHorario(o, alvo, novo);
+  return novo.professorId !== undefined && novo.professorId !== alvo.professorId ? { ...h, professorId: novo.professorId } : h;
+}
+
+/** Arrastar ou esticar no calendário: muda o horário e, arrastando para a coluna de outro
+    professor na Grade, o professor (da série, se escolhido "esta e as próximas"). */
+export async function remarca(quem: Quem, alvo: Agendamento, novo: NovoLugar, escopo: Escopo) {
   const quando = agora();
   const lista = escopo === 'proximos' && alvo.recorrenciaId ? atingidos(await serieDe(alvo.recorrenciaId), alvo, 'proximos') : [alvo];
   const ops: OpGravacao[] = [];
   for (const o of lista) {
-    const h = o.id === alvo.id ? novo : deslocaHorario(o, alvo, novo);
+    const h = lugarDe(o, alvo, novo);
     ops.push({ tipo: 'atualizar', colecao: 'agendamentos', id: o.id, campos: { ...h, atualizadoPor: quem.id, atualizadoEm: quando } });
-    ops.push(opLog(quem, o.id, 'editou', { inicio: o.inicio, fim: o.fim }, h));
+    ops.push(opLog(quem, o.id, 'editou', { inicio: o.inicio, fim: o.fim, ...('professorId' in h ? { professorId: o.professorId } : {}) }, h));
   }
   await grava(ops);
   return lista.length;
 }
 
-/** Confere conflito de um arraste antes de gravar. */
-export async function confereRemarcacao(alvo: Agendamento, novo: { inicio: string; fim: string }, escopo: Escopo, bloqueios: Bloqueio[], nomes: Parameters<typeof conflitosDe>[3] = {}) {
+/** Confere conflito de um arraste antes de gravar (com o professor novo, se mudou). */
+export async function confereRemarcacao(alvo: Agendamento, novo: NovoLugar, escopo: Escopo, bloqueios: Bloqueio[], nomes: Parameters<typeof conflitosDe>[3] = {}) {
   const lista = escopo === 'proximos' && alvo.recorrenciaId ? atingidos(await serieDe(alvo.recorrenciaId), alvo, 'proximos') : [alvo];
-  const candidatas = lista.map((o) => ({ ...o, ...(o.id === alvo.id ? novo : deslocaHorario(o, alvo, novo)) }));
+  const candidatas = lista.map((o) => ({ ...o, ...lugarDe(o, alvo, novo) }));
   const existentes = await aulasEntre(candidatas[0].inicio, candidatas[candidatas.length - 1].fim);
   const ignorar = new Set(lista.map((o) => o.id));
   return candidatas.flatMap((c) => conflitosDe(c, existentes, bloqueios, nomes, ignorar));

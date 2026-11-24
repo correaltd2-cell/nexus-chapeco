@@ -1,7 +1,10 @@
 'use client';
-/* A tela da agenda. Junta o calendário, os filtros, o modal da aula e o do bloqueio,
-   e decide o que fazer quando alguém arrasta uma aula (perguntando "só esta ou esta e
-   as próximas" quando é de uma série, e conferindo conflito antes de gravar). */
+/* A tela da agenda. Junta a Grade (um dia, uma coluna por professor: a visão padrão desde
+   24/11/2026), o calendário (Semana, Mês e Dia), os filtros, o modal da aula e o do
+   bloqueio, e decide o que fazer quando alguém arrasta uma aula: pergunta "só esta ou
+   esta e as próximas" quando é de uma série, e confere conflito antes de gravar. Na
+   Grade, arrastar para a coluna de outro professor troca o professor, pela mesma
+   conferência. O domingo não aparece (DIAS_FECHADOS, em dominio/agenda.ts). */
 import dynamic from 'next/dynamic';
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -10,33 +13,51 @@ import { useSessao } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
-import { confereRemarcacao, remarca } from '@/lib/dados/agenda';
-import { filtra, LISTA_STATUS, permissoesDe, STATUS, type Agendamento, type Conflito, type Escopo, type Modalidade } from '@/lib/dominio/agenda';
+import { useBloqueiosNaAgenda, useCanceladasNaAgenda } from '@/componentes/preferencias';
+import { confereRemarcacao, remarca, type NovoLugar } from '@/lib/dados/agenda';
+import {
+  diaAbertoDesde, diaDaSemana, diaLocal, diasAbertosDaSemana, filtra, horaLocal, inicioDoDia, LISTA_STATUS, passaDia,
+  permissoesDe, somaDias, sobrepoe, STATUS, type Agendamento, type Conflito, type Escopo, type Modalidade,
+} from '@/lib/dominio/agenda';
+import { contaDoPeriodo, GRADE_FIM, GRADE_INICIO, isoNoDia, minutosNoDia } from '@/lib/dominio/agenda-grade';
 import { useAgendamentos, useCadastros } from './dados';
 import { Multi } from './escolha';
 import ModalDaAula, { type Abertura } from './aula';
 import ModalDoBloqueio, { type AberturaDeBloqueio } from './bloqueio';
 import AbasDaAgenda from './abas';
+import Grade from './grade';
 import type { Visao } from './calendario';
 
 const Calendario = dynamic(() => import('./calendario'), { ssr: false, loading: () => <div className="ag-cal carregando" aria-busy="true" /> });
 
-/* celular abre no dia; computador na semana */
+type VisaoDaAgenda = 'grade' | Visao;
+const VISOES: [VisaoDaAgenda, string][] = [['grade', 'Grade'], ['timeGridWeek', 'Semana'], ['dayGridMonth', 'Mês'], ['timeGridDay', 'Dia']];
+const SIGLA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/* celular: a Grade mostra um professor por vez */
 const ouveTela = (f: () => void) => { window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); };
 const useEstreita = () => useSyncExternalStore(ouveTela, () => window.innerWidth < 760, () => false);
 
-/** "15 a 21 de novembro de 2026", "novembro de 2026", "sábado, 21 de novembro". */
+const fmt = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('pt-BR', o).format(d);
+/** "segunda-feira, 23 de novembro", lido no calendário de Chapecó. */
+const tituloDoDia = (dia: string) => fmt(new Date(`${dia}T12:00:00Z`), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+
+/** "23 a 28 de novembro de 2026", "novembro de 2026", "sábado, 21 de novembro". */
 function tituloDoPeriodo(de: Date, ate: Date, visao: Visao) {
-  const f = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('pt-BR', o).format(d);
-  if (visao === 'dayGridMonth') return f(new Date(de.getTime() + 15 * 86_400_000), { month: 'long', year: 'numeric' });
-  if (visao === 'timeGridDay') return f(de, { weekday: 'long', day: 'numeric', month: 'long' });
-  const fim = new Date(ate.getTime() - 1);
-  return de.getMonth() === fim.getMonth()
-    ? `${de.getDate()} a ${f(fim, { day: 'numeric', month: 'long', year: 'numeric' })}`
-    : `${f(de, { day: 'numeric', month: 'short' })} a ${f(fim, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  if (visao === 'dayGridMonth') return fmt(new Date(de.getTime() + 15 * 86_400_000), { month: 'long', year: 'numeric' });
+  if (visao === 'timeGridDay') return fmt(de, { weekday: 'long', day: 'numeric', month: 'long' });
+  /* a semana vai de domingo a domingo no calendário; o título mostra os dias abertos */
+  const dias = diasAbertosDaSemana(diaDoNavegador(de));
+  const [a, b] = [new Date(`${dias[0]}T12:00:00Z`), new Date(`${dias[dias.length - 1]}T12:00:00Z`)];
+  return a.getUTCMonth() === b.getUTCMonth()
+    ? `${a.getUTCDate()} a ${fmt(b, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}`
+    : `${fmt(a, { day: 'numeric', month: 'short', timeZone: 'UTC' })} a ${fmt(b, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`;
 }
 
-interface Arraste { alvo: Agendamento; novo: { inicio: string; fim: string }; desfaz: () => void; escopo?: Escopo; conflitos?: Conflito[] }
+/** O dia (AAAA-MM-DD) de uma data do calendário, que vem no fuso do navegador. */
+const diaDoNavegador = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+interface Arraste { alvo: Agendamento; novo: NovoLugar; desfaz: () => void; escopo?: Escopo; conflitos?: Conflito[] }
 
 export default function Agenda() {
   const { perfil } = useSessao();
@@ -45,22 +66,36 @@ export default function Agenda() {
   const agora = useAgora();
   const calRef = useRef<CalendarRef | null>(null);
   const perm = permissoesDe(perfil?.papel);
+  const [bloqueiosNaAgenda, setBloqueiosNaAgenda] = useBloqueiosNaAgenda();
+  const [canceladas, setCanceladas] = useCanceladasNaAgenda();
 
-  const [periodo, setPeriodo] = useState({ de: '', ate: '', titulo: '', visao: 'timeGridWeek' as Visao });
-  const { agendamentos } = useAgendamentos(periodo.de, periodo.ate);
-  const [professorIds, setProfessorIds] = useState<string[]>([]);
-  /* /aulas?aluno=ID&data=AAAA-MM-DD: o "Ver na agenda" da conversa já abre filtrado
-     pelo aluno, na semana da próxima aula dele */
+  /* /aulas?aluno=ID&data=AAAA-MM-DD&hora=HH:MM: o "Ver na agenda" da conversa já abre
+     filtrado pelo aluno, no dia e perto da hora da próxima aula dele. Domingo vira a
+     segunda seguinte. */
   const params = useSearchParams();
   const alunoPedido = params.get('aluno');
-  const dataPedida = /^\d{4}-\d{2}-\d{2}$/.test(params.get('data') || '') ? params.get('data') || '' : '';
+  const dataPedida = /^\d{4}-\d{2}-\d{2}$/.test(params.get('data') || '') ? diaAbertoDesde(params.get('data') || '') : '';
   const horaPedida = /^\d{2}:\d{2}$/.test(params.get('hora') || '') ? params.get('hora') || '' : '';
-  /* uma hora antes da aula, para ela aparecer com folga; nunca antes do início da grade */
-  const rolarAte = horaPedida ? (() => {
+  /* no calendário, uma hora antes da aula, para ela aparecer com folga */
+  const rolarNoCalendario = horaPedida ? (() => {
     const [h, m] = horaPedida.split(':').map(Number);
-    const min = Math.max(7 * 60 + 30, h * 60 + m - 60);
+    const min = Math.max(GRADE_INICIO, h * 60 + m - 60);
     return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00`;
   })() : '';
+
+  const [visao, setVisao] = useState<VisaoDaAgenda>('grade');
+  const [diaEscolhido, setDiaEscolhido] = useState<string | null>(null);
+  const [rolarNaGrade, setRolarNaGrade] = useState(horaPedida);
+  const hoje = horaConhecida(agora) ? diaAbertoDesde(diaLocal(agora)) : '';
+  const dia = diaEscolhido || dataPedida || hoje;
+
+  const [periodoDoCalendario, setPeriodoDoCalendario] = useState({ de: '', ate: '', titulo: '' });
+  const periodo = visao === 'grade'
+    ? (dia ? { de: inicioDoDia(dia), ate: inicioDoDia(somaDias(dia, 1)), titulo: tituloDoDia(dia) } : { de: '', ate: '', titulo: '' })
+    : periodoDoCalendario;
+  const { agendamentos } = useAgendamentos(periodo.de, periodo.ate);
+
+  const [professorIds, setProfessorIds] = useState<string[]>([]);
   const [alunoIds, setAlunoIds] = useState<string[]>(alunoPedido ? [alunoPedido] : []);
   const [alunoVisto, setAlunoVisto] = useState(alunoPedido);
   if (alunoPedido !== alunoVisto) {
@@ -80,16 +115,62 @@ export default function Agenda() {
     return (id: string) => m.get(id) || 'Aula';
   }, [cad.aulas]);
 
-  const visiveis = useMemo(() => filtra(agendamentos, { professorIds, alunoIds, moduloIds, aulaIds, modalidade }),
-    [agendamentos, professorIds, alunoIds, moduloIds, aulaIds, modalidade]);
-  const bloqueiosVisiveis = useMemo(() => cad.bloqueios.filter((b) => !b.professorId || !professorIds.length || professorIds.includes(b.professorId)),
+  /* só o que é do período na tela (enquanto o período novo chega, o anterior não vaza
+     para o dia errado da Grade) */
+  const visiveis = useMemo(() => {
+    const de = periodo.de ? new Date(periodo.de).getTime() : 0;
+    const ate = periodo.ate ? new Date(periodo.ate).getTime() : 0;
+    return filtra(agendamentos, { professorIds, alunoIds, moduloIds, aulaIds, modalidade })
+      .filter((a) => { const t = new Date(a.inicio).getTime(); return t >= de && t < ate; })
+      .filter((a) => canceladas === 'mostradas' || a.status !== 'cancelado');
+  }, [agendamentos, periodo.de, periodo.ate, professorIds, alunoIds, moduloIds, aulaIds, modalidade, canceladas]);
+  const conta = useMemo(() => contaDoPeriodo(visiveis), [visiveis]);
+
+  const doFiltro = useMemo(() => cad.bloqueios.filter((b) => !b.professorId || !professorIds.length || professorIds.includes(b.professorId)),
     [cad.bloqueios, professorIds]);
+  const bloqueiosDoPeriodo = useMemo(() => (periodo.de && periodo.ate
+    ? doFiltro.filter((b) => sobrepoe(b, { inicio: periodo.de, fim: periodo.ate })) : []), [doFiltro, periodo.de, periodo.ate]);
+  /* na Semana, no Mês e no Dia, o bloqueio de professor só aparece se pedir; o da escola sempre */
+  const bloqueiosNoCalendario = useMemo(() => doFiltro.filter((b) => !b.professorId || bloqueiosNaAgenda === 'mostrados'),
+    [doFiltro, bloqueiosNaAgenda]);
   const filtrando = professorIds.length + alunoIds.length + moduloIds.length + aulaIds.length + (modalidade ? 1 : 0) > 0;
 
-  const aoMudarPeriodo = useCallback((de: Date, ate: Date, _titulo: string, visao: Visao) => {
-    setPeriodo({ de: de.toISOString(), ate: ate.toISOString(), titulo: tituloDoPeriodo(de, ate, visao), visao });
+  const aoMudarPeriodo = useCallback((de: Date, ate: Date, _titulo: string, v: Visao) => {
+    setPeriodoDoCalendario({ de: de.toISOString(), ate: ate.toISOString(), titulo: tituloDoPeriodo(de, ate, v) });
+    setVisao(v);
   }, []);
   const api = () => calRef.current?.getApi();
+
+  /** Abre a Grade num dia (e perto de uma hora). */
+  function abreGrade(d: string, hora = '') {
+    setDiaEscolhido(diaAbertoDesde(d));
+    setRolarNaGrade(hora);
+    setVisao('grade');
+  }
+  function trocaVisao(v: VisaoDaAgenda) {
+    if (v === visao) return;
+    if (v === 'grade') {
+      const d = api()?.getDate();
+      abreGrade(d ? diaDoNavegador(d) : dia);
+      return;
+    }
+    if (visao === 'grade') { setVisao(v); return; }   // o calendário nasce no dia da Grade
+    api()?.changeView(v);
+  }
+  function anda(n: 1 | -1) {
+    if (visao === 'grade') { if (dia) { setDiaEscolhido(passaDia(dia, n)); setRolarNaGrade(''); } return; }
+    if (visao === 'timeGridDay') {
+      /* no Dia, a seta pula o dia fechado: de sábado vai para segunda, e volta */
+      const d = api()?.getDate();
+      if (d) api()?.gotoDate(new Date(`${passaDia(diaDoNavegador(d), n)}T12:00:00`));
+      return;
+    }
+    if (n > 0) api()?.next(); else api()?.prev();
+  }
+  function vaiParaHoje() {
+    if (visao === 'grade') { if (hoje) { setDiaEscolhido(hoje); setRolarNaGrade(''); } return; }
+    if (hoje) api()?.gotoDate(new Date(`${hoje}T12:00:00`));
+  }
 
   const quem = { id: perfil?.id || '', nome: perfil?.nome || 'Equipe', papel: perfil?.papel || 'recepcao' as const };
   const nomes = {
@@ -105,7 +186,8 @@ export default function Agenda() {
         if (c.length) { setArraste({ ...a, escopo, conflitos: c }); return; }
       }
       const n = await remarca(quem, a.alvo, a.novo, escopo);
-      avisa(n > 1 ? `${n} aulas remarcadas` : 'Aula remarcada');
+      const troca = a.novo.professorId !== undefined && a.novo.professorId !== a.alvo.professorId;
+      avisa(troca ? `${n > 1 ? `${n} aulas passaram` : 'Aula passou'} para ${nomes.professor(a.novo.professorId || '')}` : n > 1 ? `${n} aulas remarcadas` : 'Aula remarcada');
       setArraste(null);
     } catch {
       a.desfaz();
@@ -114,10 +196,10 @@ export default function Agenda() {
     } finally { setMovendo(false); }
   }
 
-  function aoMover(id: string, inicio: Date, fim: Date, desfaz: () => void) {
+  function aoMover(id: string, inicio: Date, fim: Date, desfaz: () => void, professorId?: string) {
     const alvo = agendamentos.find((a) => a.id === id);
     if (!alvo || !perm.remarcar) { desfaz(); return; }
-    const a: Arraste = { alvo, novo: { inicio: inicio.toISOString(), fim: fim.toISOString() }, desfaz };
+    const a: Arraste = { alvo, novo: { inicio: inicio.toISOString(), fim: fim.toISOString(), ...(professorId !== undefined ? { professorId } : {}) }, desfaz };
     if (alvo.recorrenciaId) setArraste(a);
     else void confereEGrava(a, 'este');
   }
@@ -126,9 +208,31 @@ export default function Agenda() {
     setArraste(null);
   }
 
+  function novaAula(professorId: string, inicio: Date, fim: Date) {
+    if (!perm.criar) { avisa('Quem marca aula é a recepção, a coordenação ou a gestão.'); return; }
+    setAberta({ tipo: 'nova', inicio: inicio.toISOString(), fim: fim.toISOString(), ...(professorId ? { professorId } : {}) });
+  }
+  function novaAulaDoBotao() {
+    /* a próxima meia hora; na Grade de outro dia, nesse dia, no mesmo horário */
+    const ini = new Date(); ini.setMinutes(ini.getMinutes() < 30 ? 30 : 60, 0, 0);
+    if (visao === 'grade' && dia && dia !== diaLocal(ini)) {
+      const min = Math.min(Math.max(minutosNoDia(ini.toISOString(), diaLocal(ini)), GRADE_INICIO), GRADE_FIM - 60);
+      novaAula('', new Date(isoNoDia(dia, min)), new Date(isoNoDia(dia, min + 60)));
+      return;
+    }
+    novaAula('', ini, new Date(ini.getTime() + 3600_000));
+  }
+
   const opAulas = useMemo(() => cad.aulas
     .filter((a) => a.ativo && (!moduloIds.length || moduloIds.includes(a.moduloId)))
     .map((a) => ({ id: a.id, nome: a.nome, grupo: cad.modulos.find((m) => m.id === a.moduloId)?.nome })), [cad.aulas, cad.modulos, moduloIds]);
+
+  /* o que muda no arraste, em uma linha: "sexta, 27/11, das 18:30 às 19:30, com Helena" */
+  const resumoDoArraste = arraste ? (() => {
+    const d = diaLocal(arraste.novo.inicio);
+    const troca = arraste.novo.professorId !== undefined && arraste.novo.professorId !== arraste.alvo.professorId;
+    return `${tituloDoDia(d).split(',')[0]}, ${d.slice(8, 10)}/${d.slice(5, 7)}, das ${horaLocal(arraste.novo.inicio)} às ${horaLocal(arraste.novo.fim)}${troca ? `, com ${nomes.professor(arraste.novo.professorId || '')}` : ''}.`;
+  })() : '';
 
   return (
     <div className="ag">
@@ -138,27 +242,35 @@ export default function Agenda() {
         {perm.criar && (
           <div className="fim">
             <button className="btn" title="Novo bloqueio" onClick={() => setBloqueio({})}><Ic n="x" /><span className="so-largo">Bloqueio</span></button>
-            <button className="btn p" onClick={() => {
-              const ini = new Date(); ini.setMinutes(ini.getMinutes() < 30 ? 30 : 60, 0, 0);
-              setAberta({ tipo: 'nova', inicio: ini.toISOString(), fim: new Date(ini.getTime() + 3600_000).toISOString() });
-            }}><Ic n="mais" />Nova aula</button>
+            <button className="btn p" onClick={novaAulaDoBotao}><Ic n="mais" />Nova aula</button>
           </div>
         )}
       </header>
 
       <div className="ag-barra">
         <div className="ag-nav">
-          <button className="ib" aria-label="Período anterior" onClick={() => api()?.prev()}><Ic n="volta" /></button>
-          <button className="ib" aria-label="Próximo período" onClick={() => api()?.next()}><Ic n="seta" /></button>
-          <button className="chip" onClick={() => api()?.today()}>Hoje</button>
+          <button className="ib" aria-label={visao === 'grade' ? 'Dia anterior' : 'Período anterior'} onClick={() => anda(-1)}><Ic n="volta" /></button>
+          <button className="ib" aria-label={visao === 'grade' ? 'Próximo dia' : 'Próximo período'} onClick={() => anda(1)}><Ic n="seta" /></button>
+          <button className="chip" onClick={vaiParaHoje}>Hoje</button>
           <b className="ag-titulo">{periodo.titulo}</b>
+          <span className="ag-contador num" aria-live="polite">{conta.texto}</span>
         </div>
         <div className="ag-seg ag-visao" role="group" aria-label="Visão">
-          {([['dayGridMonth', 'Mês'], ['timeGridWeek', 'Semana'], ['timeGridDay', 'Dia']] as [Visao, string][]).map(([v, n]) => (
-            <button key={v} type="button" aria-pressed={periodo.visao === v} onClick={() => api()?.changeView(v)}>{n}</button>
+          {VISOES.map(([v, n]) => (
+            <button key={v} type="button" aria-pressed={visao === v} onClick={() => trocaVisao(v)}>{n}</button>
           ))}
         </div>
       </div>
+
+      {visao === 'grade' && dia && (
+        <div className="ag-dias-semana chips" role="group" aria-label="Dias da semana">
+          {diasAbertosDaSemana(dia).map((d) => (
+            <button key={d} type="button" className="chip" aria-pressed={d === dia} onClick={() => { setDiaEscolhido(d); setRolarNaGrade(''); }}>
+              {SIGLA[diaDaSemana(d)]} <span className="num">{d.slice(8, 10)}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="ag-filtros">
         <Multi rotulo="Professor" valor={professorIds} aoMudar={setProfessorIds}
@@ -173,48 +285,83 @@ export default function Agenda() {
             <button key={n} type="button" aria-pressed={modalidade === v} onClick={() => setModalidade(v)}>{n}</button>
           ))}
         </div>
+        {visao !== 'grade' && (
+          <button type="button" className="chip ag-chave" aria-pressed={bloqueiosNaAgenda === 'mostrados'}
+                  title="Reuniões e indisponibilidades dos professores. Na Grade, ficam sempre na coluna de cada um."
+                  onClick={() => setBloqueiosNaAgenda(bloqueiosNaAgenda === 'mostrados' ? 'escondidos' : 'mostrados')}>
+            Mostrar bloqueios <span className="num">{bloqueiosDoPeriodo.length}</span>
+          </button>
+        )}
+        <button type="button" className="chip ag-chave" aria-pressed={canceladas === 'escondidas'}
+                onClick={() => setCanceladas(canceladas === 'escondidas' ? 'mostradas' : 'escondidas')}>
+          Esconder canceladas
+        </button>
         {filtrando && (
           <button className="tx-btn" onClick={() => { setProfessorIds([]); setAlunoIds([]); setModuloIds([]); setAulaIds([]); setModalidade(null); }}>
             Limpar filtros
           </button>
         )}
-        <span className="ag-conta num">{visiveis.length} {visiveis.length === 1 ? 'aula' : 'aulas'}</span>
       </div>
 
-      <Calendario
-        calRef={calRef}
-        visao={estreita ? 'timeGridDay' : 'timeGridWeek'}
-        dataInicial={dataPedida}
-        rolarAte={rolarAte}
-        agendamentos={visiveis}
-        bloqueios={bloqueiosVisiveis}
-        professores={cad.professores}
-        nomeDaAula={nomeDaAula}
-        podeCriar={perm.criar}
-        podeRemarcar={perm.remarcar}
-        agora={horaConhecida(agora) ? agora : new Date(0)}
-        aoMudarPeriodo={aoMudarPeriodo}
-        aoSelecionar={(inicio, fim) => setAberta({ tipo: 'nova', inicio: inicio.toISOString(), fim: fim.toISOString() })}
-        aoClicar={(quando, diaInteiro) => {
-          /* no mês, o dia abre o dia; no dia e na semana, o horário abre a aula nova */
-          if (diaInteiro) { api()?.changeView('timeGridDay', quando); return; }
-          if (!perm.criar) { avisa('Quem marca aula é a recepção, a coordenação ou a gestão.'); return; }
-          setAberta({ tipo: 'nova', inicio: quando.toISOString(), fim: new Date(quando.getTime() + 3_600_000).toISOString() });
-        }}
-        aoAbrir={(id) => { const a = agendamentos.find((x) => x.id === id); if (a) setAberta({ tipo: 'editar', agendamento: a }); }}
-        aoAbrirBloqueio={(id) => { const b = cad.bloqueios.find((x) => x.id === id); if (b) setBloqueio({ bloqueio: b }); }}
-        aoMover={aoMover}
-      />
+      {visao === 'grade' ? (
+        dia ? (
+          <Grade
+            dia={dia}
+            agendamentos={visiveis}
+            bloqueios={doFiltro}
+            professores={cad.professores}
+            soProfessores={professorIds}
+            nomeDaAula={nomeDaAula}
+            podeCriar={perm.criar}
+            podeRemarcar={perm.remarcar}
+            agora={horaConhecida(agora) ? agora : new Date(0)}
+            rolarAte={rolarNaGrade}
+            estreita={estreita}
+            aoNova={novaAula}
+            aoAbrir={(id) => { const a = agendamentos.find((x) => x.id === id); if (a) setAberta({ tipo: 'editar', agendamento: a }); }}
+            aoAbrirBloqueio={(id) => { const b = cad.bloqueios.find((x) => x.id === id); if (b) setBloqueio({ bloqueio: b }); }}
+            aoMover={(id, inicio, fim, professorId) => aoMover(id, inicio, fim, () => {}, professorId)}
+          />
+        ) : <div className="ag-grade carregando" aria-busy="true" />
+      ) : (
+        <Calendario
+          calRef={calRef}
+          visao={visao}
+          dataInicial={dia}
+          rolarAte={rolarNoCalendario}
+          agendamentos={visiveis}
+          bloqueios={bloqueiosNoCalendario}
+          professores={cad.professores}
+          nomeDaAula={nomeDaAula}
+          podeCriar={perm.criar}
+          podeRemarcar={perm.remarcar}
+          agora={horaConhecida(agora) ? agora : new Date(0)}
+          aoMudarPeriodo={aoMudarPeriodo}
+          aoSelecionar={(inicio, fim) => novaAula('', inicio, fim)}
+          aoClicar={(quando, diaInteiro) => {
+            /* no mês, o dia abre a Grade do dia; no dia e na semana, o horário abre a aula nova */
+            if (diaInteiro) { abreGrade(diaDoNavegador(quando)); return; }
+            novaAula('', quando, new Date(quando.getTime() + 3_600_000));
+          }}
+          aoAbrirDia={(d) => abreGrade(diaDoNavegador(d))}
+          aoMais={(d, hora) => abreGrade(d, hora)}
+          aoAbrir={(id) => { const a = agendamentos.find((x) => x.id === id); if (a) setAberta({ tipo: 'editar', agendamento: a }); }}
+          aoAbrirBloqueio={(id) => { const b = cad.bloqueios.find((x) => x.id === id); if (b) setBloqueio({ bloqueio: b }); }}
+          aoMover={(id, inicio, fim, desfaz) => aoMover(id, inicio, fim, desfaz)}
+        />
+      )}
 
       <div className="ag-legenda" aria-label="Legenda">
         {LISTA_STATUS.map((s) => <span key={s}><i className="ag-st" style={{ background: STATUS[s].cor }} />{STATUS[s].nome}</span>)}
         <span><i className="ag-wa"><Ic n="chat" /></i>Lembrete enviado</span>
         <span><i className="ag-alerta" />Falta presença</span>
         <span><i className="ag-bl-amostra" />Bloqueio</span>
+        {visao === 'grade' && !estreita && <span>Arraste a aula para outro horário ou para a coluna de outro professor.</span>}
+        {visao === 'timeGridWeek' && <span>Mais de 4 aulas no mesmo horário viram <b>+N</b>: toque para ver na Grade.</span>}
       </div>
 
       {aberta && (
-        <ModalDaAula key={aberta.tipo === 'editar' ? aberta.agendamento.id : `nova-${aberta.inicio}`}
+        <ModalDaAula key={aberta.tipo === 'editar' ? aberta.agendamento.id : `nova-${aberta.inicio}-${aberta.professorId || ''}`}
                      abertura={aberta} cad={cad} aoFechar={() => setAberta(null)} />
       )}
       {bloqueio && <ModalDoBloqueio abertura={bloqueio} cad={cad} aoFechar={() => setBloqueio(null)} />}
@@ -224,9 +371,10 @@ export default function Agenda() {
           <div className="mod-c ag-mc pequeno" role="dialog" aria-modal="true" aria-label="Remarcar aula">
             <header className="ag-mh"><h2>Remarcar aula</h2></header>
             <div className="ag-mb">
+              <p className="ag-arraste-resumo">{resumoDoArraste}</p>
               {!arraste.conflitos ? (
                 <>
-                  <p>Esta aula faz parte de uma série. O novo horário vale para:</p>
+                  <p>Esta aula faz parte de uma série. {arraste.novo.professorId !== undefined && arraste.novo.professorId !== arraste.alvo.professorId ? 'O novo horário e o professor valem' : 'O novo horário vale'} para:</p>
                   <div className="ag-mf-col">
                     <button className="btn" disabled={movendo} onClick={() => void confereEGrava(arraste, 'este')}>Só esta aula</button>
                     <button className="btn p" disabled={movendo} onClick={() => void confereEGrava(arraste, 'proximos')}>Esta e as próximas</button>

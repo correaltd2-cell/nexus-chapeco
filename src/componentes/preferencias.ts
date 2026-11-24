@@ -84,3 +84,17 @@ export function useAvisos(): [Avisos, (v: Avisos) => void] {
 export function useSomDoAviso(): [SomDoAviso, (v: SomDoAviso) => void] {
   return [useSyncExternalStore(som.assina, som.le, () => som.padrao), som.define];
 }
+
+/* ---- a agenda (24/11/2026) ----
+   Na Semana, no Mês e no Dia, o bloqueio de um professor só aparece se a pessoa pedir
+   (na Grade ele fica sempre na coluna do professor). E a aula cancelada pode sumir. */
+export type BloqueiosNaAgenda = 'escondidos' | 'mostrados';
+export type CanceladasNaAgenda = 'mostradas' | 'escondidas';
+const bloqueiosNaAgenda = preferencia<BloqueiosNaAgenda>('nexus-agenda-bloqueios', 'escondidos', ['escondidos', 'mostrados']);
+const canceladasNaAgenda = preferencia<CanceladasNaAgenda>('nexus-agenda-canceladas', 'mostradas', ['mostradas', 'escondidas']);
+export function useBloqueiosNaAgenda(): [BloqueiosNaAgenda, (v: BloqueiosNaAgenda) => void] {
+  return [useSyncExternalStore(bloqueiosNaAgenda.assina, bloqueiosNaAgenda.le, () => bloqueiosNaAgenda.padrao), bloqueiosNaAgenda.define];
+}
+export function useCanceladasNaAgenda(): [CanceladasNaAgenda, (v: CanceladasNaAgenda) => void] {
+  return [useSyncExternalStore(canceladasNaAgenda.assina, canceladasNaAgenda.le, () => canceladasNaAgenda.padrao), canceladasNaAgenda.define];
+}

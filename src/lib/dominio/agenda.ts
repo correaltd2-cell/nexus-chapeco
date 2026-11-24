@@ -148,6 +148,34 @@ export const somaDias = (dia: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 
+/* ---- os dias em que a escola abre ----
+   A escola não abre no domingo (decisão de 24/11/2026): a agenda esconde o dia, as
+   setas pulam ele e um link que caia nele abre o dia aberto seguinte. Uma constante só,
+   para virar configuração se a escola um dia abrir no domingo. As regras de conflito e
+   de recorrência não leem isto. */
+export const DIAS_FECHADOS: readonly number[] = [0];   // 0 domingo ... 6 sábado
+
+/** 0 domingo ... 6 sábado, de um dia AAAA-MM-DD. */
+export const diaDaSemana = (dia: string) => new Date(`${dia}T12:00:00Z`).getUTCDay();
+export const diaAberto = (dia: string, fechados: readonly number[] = DIAS_FECHADOS) => !fechados.includes(diaDaSemana(dia));
+
+/** O próprio dia, se a escola abre nele; senão o primeiro aberto depois (ou antes). */
+export function diaAbertoDesde(dia: string, direcao: 1 | -1 = 1, fechados: readonly number[] = DIAS_FECHADOS) {
+  let d = dia;
+  for (let i = 0; i < 7 && !diaAberto(d, fechados); i += 1) d = somaDias(d, direcao);
+  return d;
+}
+
+/** O dia aberto seguinte (1) ou anterior (-1): de sábado vai para segunda, e volta. */
+export const passaDia = (dia: string, direcao: 1 | -1, fechados: readonly number[] = DIAS_FECHADOS) =>
+  diaAbertoDesde(somaDias(dia, direcao), direcao, fechados);
+
+/** Os dias abertos da semana de um dia (a semana começa no domingo), em ordem. */
+export function diasAbertosDaSemana(dia: string, fechados: readonly number[] = DIAS_FECHADOS) {
+  const domingo = somaDias(dia, -diaDaSemana(dia));
+  return Array.from({ length: 7 }, (_, i) => somaDias(domingo, i)).filter((d) => diaAberto(d, fechados));
+}
+
 /** "16:00" no relógio de Chapecó. */
 export const horaLocal = (iso: string) => new Date(ms(iso) + FUSO_MIN * 60_000).toISOString().slice(11, 16);
 
