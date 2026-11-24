@@ -44,6 +44,8 @@ export interface AlunoDaGrade {
   endereco?: string;
   /** o contrato que entrou pelo cadastro (Storage), dominio/contrato.ts */
   contratoArquivo?: { caminho: string; nome: string; enviadoEm: string } | null;
+  portalStudentId?: string | null;
+  portalNome?: string | null;
   observacao?: string;
   teste?: boolean;
 }
@@ -51,9 +53,9 @@ export interface AlunoDaGrade {
 export type ColunaDaGrade =
   | 'codigo' | 'nome' | 'menor' | 'marcouSemana' | 'situacao' | 'horarioFixoTexto' | 'livroOriginal' | 'modalidade' | 'saude'
   | 'appAtivo' | 'nexiaAtivo' | 'pendenciaLivro' | 'contratoFim' | 'contratoAssinado' | 'telefone' | 'responsavelNome'
-  | 'responsavelTelefone' | 'email' | 'nascimento' | 'documento' | 'endereco' | 'contratoArquivo' | 'observacao';
+  | 'responsavelTelefone' | 'email' | 'nascimento' | 'documento' | 'endereco' | 'contratoArquivo' | 'portalStudentId' | 'observacao';
 
-export type TipoDaColuna = 'texto' | 'longo' | 'sim' | 'situacao' | 'modalidade' | 'saude' | 'data' | 'telefone' | 'email' | 'documento' | 'arquivo';
+export type TipoDaColuna = 'texto' | 'longo' | 'sim' | 'situacao' | 'modalidade' | 'saude' | 'data' | 'telefone' | 'email' | 'documento' | 'arquivo' | 'portal';
 
 export interface DefinicaoDaColuna { k: ColunaDaGrade; rotulo: string; tipo: TipoDaColuna; largura: number; dica?: string }
 
@@ -81,6 +83,7 @@ const DEFINICOES: DefinicaoDaColuna[] = [
   { k: 'documento', rotulo: 'CPF', tipo: 'documento', largura: 130 },
   { k: 'endereco', rotulo: 'Endereço', tipo: 'texto', largura: 260 },
   { k: 'contratoArquivo', rotulo: 'Contrato', tipo: 'arquivo', largura: 96, dica: 'o arquivo do contrato que entrou pelo cadastro' },
+  { k: 'portalStudentId', rotulo: 'Provas', tipo: 'portal', largura: 104, dica: 'as provas do aluno no portal (nexusenglish.com.br)' },
   { k: 'responsavelNome', rotulo: 'Responsável', tipo: 'texto', largura: 170 },
   { k: 'responsavelTelefone', rotulo: 'Tel. responsável', tipo: 'telefone', largura: 150 },
   { k: 'observacao', rotulo: 'Observação', tipo: 'longo', largura: 240, dica: 'OBSERVAÇÕES: o texto quebra em linhas; Alt+Enter pula linha' },
@@ -101,7 +104,7 @@ export const COLUNAS_DA_MARCACAO: ColunaDaGrade[] = [
 /** O cadastro: quem é o aluno e como falar com ele. */
 export const COLUNAS_DO_CADASTRO: ColunaDaGrade[] = [
   'codigo', 'nome', 'situacao', 'telefone', 'email', 'responsavelNome', 'responsavelTelefone', 'nascimento', 'documento',
-  'endereco', 'livroOriginal', 'modalidade', 'contratoFim', 'contratoAssinado', 'contratoArquivo', 'horarioFixoTexto', 'observacao',
+  'endereco', 'livroOriginal', 'modalidade', 'contratoFim', 'contratoAssinado', 'contratoArquivo', 'portalStudentId', 'horarioFixoTexto', 'observacao',
 ];
 
 export const NOME_DA_MODALIDADE: Record<ModalidadeDoAluno, string> = { presencial: 'Presencial', online: 'Online', hibrido: 'Híbrido' };
@@ -243,6 +246,8 @@ export function camposEditados(coluna: ColunaDaGrade, valor: string | boolean, a
       break;
     case 'contratoArquivo':
       return { erro: 'O contrato entra pela ficha de cadastro.' };
+    case 'portalStudentId':
+      return { erro: 'O vínculo com o portal muda pela aba Provas do aluno.' };
     case 'observacao':
       c.observacao = typeof valor === 'string' ? valor.replace(/[ \t]+/g, ' ').trim() || null : null;
       break;
@@ -276,6 +281,7 @@ export function valorDaCelula(coluna: ColunaDaGrade, a: AlunoDaGrade): string {
   if (coluna === 'nome') return `${a.nome}${a.menor ? ' - menor' : ''}`;
   if (coluna === 'documento') return cpfLegivel(a.documento);
   if (coluna === 'contratoArquivo') return a.contratoArquivo?.nome || '';
+  if (coluna === 'portalStudentId') return a.portalNome || '';
   if (v === null || v === undefined) return '';
   return String(v);
 }

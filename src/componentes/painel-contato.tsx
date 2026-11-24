@@ -19,6 +19,8 @@ import {
 } from '@/lib/dominio/formato';
 import { reduzFoto } from '@/lib/dominio/foto';
 import AulasNaConversa from '@/componentes/aulas-na-conversa';
+import ProvasDoAluno from '@/componentes/provas-portal';
+import { podeNoPortal } from '@/lib/dominio/provas-portal';
 import type { Cadastros } from '@/componentes/agenda/dados';
 import { alunosDoContato, falaComoResponsavel } from '@/lib/dominio/contato';
 import { ETIQUETAS_PADRAO, cartoesDaLista, novoId, ordemEntre, vencido } from '@/lib/dominio/quadros';
@@ -54,7 +56,13 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
   const [prazo, setPrazo] = useState('');
   const [ondeId, setOndeId] = useState('');
   const [aviso, setAviso] = useState('');
+  /* a aba Provas: as provas do portal do aluno desta conversa (24/11/2026) */
+  const [aba, setAba] = useState<'contato' | 'provas'>('contato');
+  const [alunoDaProva, setAlunoDaProva] = useState('');
   const foto = useRef<HTMLInputElement>(null);
+  const veProvas = podeNoPortal(perfil?.papel, 'consultar');
+  const alunosDaConversa = useMemo(() => alunosDoContato(cad.alunos, conversa), [cad.alunos, conversa]);
+  const alunoEscolhido = alunosDaConversa.find((a) => a.id === alunoDaProva) || alunosDaConversa[0] || null;
 
   useEffect(() => assina('quadros', (d) => setQuadros(d as unknown as Quadro[])), []);
   useEffect(() => assina('listas', (d) => setListas(d as unknown as Lista[])), []);
@@ -219,6 +227,34 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
                 onClick={aoFechar}><Ic n="x" /></button>
         Dados do contato
       </div>
+
+      {veProvas && (
+        <div className="chips pc-abas" role="group" aria-label="Partes do painel">
+          <button className="chip" aria-pressed={aba === 'contato'} onClick={() => setAba('contato')}>Contato</button>
+          <button className="chip" aria-pressed={aba === 'provas'} onClick={() => setAba('provas')}><Ic n="doc" />Provas</button>
+        </div>
+      )}
+
+      {aba === 'provas' && veProvas ? (
+        <div className="bl pc-provas">
+          <p className="bt">Provas do portal</p>
+          {!alunoEscolhido ? (
+            <p className="vz">Esta conversa ainda não está ligada a um aluno. Ligue a conversa a um aluno (na aba Contato, em Aluno e aulas) para ver e mandar as provas dele.</p>
+          ) : (
+            <>
+              {alunosDaConversa.length > 1 && (
+                <div className="chips pc-alunos" role="group" aria-label="De qual aluno">
+                  {alunosDaConversa.map((a) => (
+                    <button key={a.id} className="chip" aria-pressed={a.id === alunoEscolhido.id} onClick={() => setAlunoDaProva(a.id)}>{a.nome.split(' ')[0]}</button>
+                  ))}
+                </div>
+              )}
+              <ProvasDoAluno key={alunoEscolhido.id} aluno={alunoEscolhido} conversas={[conversa]} conversaInicial={conversa.id} />
+            </>
+          )}
+        </div>
+      ) : (
+      <>
 
       <div className="bl cab">
         <span className="pf">
@@ -400,6 +436,8 @@ export default function PainelContato({ conversa, mensagens, agendadas, aoFechar
           ))}
         </div>
       </div>
+      </>
+      )}
     </>
   );
 }

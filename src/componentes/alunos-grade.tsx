@@ -60,7 +60,7 @@ function leLarguras(chave: string): Larguras {
 }
 
 export default function GradeDeAlunos({
-  colunas, chave, alunos, todos, podeEditar, conversaDe, destaque, selecionados, aoSelecionar,
+  colunas, chave, alunos, todos, podeEditar, conversaDe, destaque, selecionados, aoSelecionar, aoAbrirProvas,
 }: {
   colunas: ColunaDaGrade[];        // as colunas desta planilha, na ordem; as duas primeiras ficam presas
   chave: string;                   // onde guardar as larguras no aparelho ("marcacao", "cadastro")
@@ -71,6 +71,7 @@ export default function GradeDeAlunos({
   destaque?: string | null;        // o aluno que acabou de ser criado
   selecionados?: Set<string>;
   aoSelecionar?: (ids: Set<string>) => void;
+  aoAbrirProvas?: (a: AlunoDaGrade) => void;   // a aba Provas do aluno (portal de provas)
 }) {
   const [editando, setEditando] = useState<Editando | null>(null);
   const [rascunho, setRascunho] = useState('');
@@ -293,6 +294,18 @@ export default function GradeDeAlunos({
     const rotuloAria = `${rotulo} de ${a.nome}`;
 
     if (editando && editando.id === a.id && editando.k === k) return editor(tipo, rotulo, a.nome);
+
+    /* as provas do portal: abre a aba Provas do aluno (o vínculo não se edita aqui) */
+    if (tipo === 'portal') {
+      if (!aoAbrirProvas) return <span className="alu-g-nada" tabIndex={-1} {...marca}>—</span>;
+      return (
+        <button type="button" className={`alu-g-cel alu-g-abrir${a.portalStudentId ? '' : ' vincular'}`} {...marca}
+                title={a.portalStudentId ? `No portal: ${a.portalNome || a.portalStudentId}` : 'Ainda não vinculado ao portal'}
+                aria-label={`${a.portalStudentId ? 'Provas' : 'Vincular ao portal'} de ${a.nome}`} onClick={() => aoAbrirProvas(a)}>
+          <Ic n="doc" />{a.portalStudentId ? 'Provas' : 'Vincular'}
+        </button>
+      );
+    }
 
     /* o contrato que entrou pelo cadastro: abre numa aba nova (não se edita aqui) */
     if (tipo === 'arquivo') {

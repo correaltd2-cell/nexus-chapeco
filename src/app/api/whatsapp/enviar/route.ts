@@ -3,10 +3,9 @@
    Três jeitos de sair: texto livre, modelo aprovado, ou arquivo (foto, áudio, vídeo,
    documento) que o navegador já subiu para o Storage, na pasta da conversa. */
 import { NextResponse } from 'next/server';
-import { FieldValue } from 'firebase-admin/firestore';
 import { adminArquivos, adminBd, quemChamou } from '@/lib/firebase/admin';
 import { mandaMidia, mandaTemplate, mandaTexto, sobeMidia, type RespostaEnvio } from '@/lib/whatsapp/cloud';
-import { camposDaFalaDaEscola } from '@/lib/whatsapp/automatico';
+import { gravaSaidaDaEquipe } from '@/lib/whatsapp/envio';
 import { assinaturaDe } from '@/lib/whatsapp/assinatura';
 import { assinaTexto } from '@/lib/dominio/assinatura';
 import { leModelo } from '@/lib/whatsapp/modelos';
@@ -34,8 +33,7 @@ export async function POST(req: Request) {
   if (!corpo.conversaId) return recusa('Falta dizer qual conversa.', 400);
 
   const bd = adminBd();
-  const ref = bd.doc(`conversas/${corpo.conversaId}`);
-  const snap = await ref.get();
+  const snap = await bd.doc(`conversas/${corpo.conversaId}`).get();
   if (!snap.exists) return recusa('Conversa não encontrada.', 404);
   const conversa = snap.data() as Conversa;
   const legenda = (corpo.texto || '').trim();
@@ -100,36 +98,10 @@ export async function POST(req: Request) {
     previa = texto;
   }
 
-  const agora = new Date().toISOString();
-  await bd.collection('mensagens').add({
-    conversaId: corpo.conversaId,
-    direcao: 'saida',
-    autor: 'humano',
-    autorNome: quem.nome,
-    texto,
-    ...anexo,
-    template: modelo?.nome || null,
+  await gravaSaidaDaEquipe(bd, corpo.conversaId, conversa, {
+    autorNome: quem.nome, texto, previa, resposta, anexo,
+    modelo: modelo ? { nome: modelo.nome, respostas: modelo.respostas } : null,
     ...(assinou ? { assinadaComo: assinatura } : {}),
-    ...(modelo?.respostas.length ? { botoes: modelo.respostas } : {}),
-    waMessageId: resposta.waMessageId || null,
-    falhouEm: resposta.ok ? null : agora,
-    falhaMotivo: resposta.ok ? null : resposta.erro || null,
-    criadaEm: agora,
-  });
-
-  /* a primeira resposta de gente desliga o atendimento automático: quem fala agora é o
-     time. A etapa vira "gente", senão o "Confirmo" de um modelo cairia no menu da
-     saudação. Texto e arquivo ligam o relógio do follow-up; modelo não: é aviso, e o
-     contato responde quando puder */
-  await ref.update({
-    ultimaEm: agora,
-    ultimaPreviaTexto: previa,
-    agenteAtivo: false,
-    etapa: 'gente',
-    tentativasMenu: FieldValue.delete(),
-    estado: conversa.estado === 'encerrada' || conversa.estado === 'ia' ? 'aberta' : conversa.estado,
-    aguardandoDesde: FieldValue.delete(),
-    ...(resposta.ok ? camposDaFalaDaEscola(agora, !modelo) : {}),
   });
 
   if (!resposta.ok) return recusa(resposta.erro || 'A Meta recusou o envio.');

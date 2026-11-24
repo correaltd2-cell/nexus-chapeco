@@ -29,6 +29,9 @@ import { telefoneLegivel } from '@/lib/dominio/formato';
 import { normal, type AlunoDoSistema } from '@/lib/dominio/planilha';
 import { CONTRATO_DE_EXEMPLO, caminhoDoContrato, fichaDoContrato, tipoDoContrato, type LidoDoContrato } from '@/lib/dominio/contrato';
 import { reduzParaLer } from '@/lib/dominio/foto';
+import ProvasDoAluno from '@/componentes/provas-portal';
+import { alunosDoContato } from '@/lib/dominio/contato';
+import { podeNoPortal } from '@/lib/dominio/provas-portal';
 
 type Filtro = 'todos' | 'ativos' | 'sem_telefone' | 'menores';
 type Painel = 'ficha' | 'arquivo' | 'google' | null;
@@ -46,7 +49,9 @@ const FICHA_VAZIA: FichaDoAluno = {
 
 export default function CadastroDeAlunos({ abrirFicha }: { abrirFicha: boolean }) {
   const { alunos, carregou, conversas, conversaDe, veConversas, podeEditar, podeApagar } = useAlunosDaEscola();
-  const { usuario } = useSessao();
+  const { usuario, perfil } = useSessao();
+  const [provasDe, setProvasDe] = useState<string | null>(null);
+  const veProvas = podeNoPortal(perfil?.papel, 'consultar');
   const [contrato, setContrato] = useState<Contrato | null>(null);
   const [leitura, setLeitura] = useState<Leitura | null>(null);
   const escolhe = useRef<HTMLInputElement>(null);
@@ -247,7 +252,8 @@ export default function CadastroDeAlunos({ abrirFicha }: { abrirFicha: boolean }
           ) : (
             <GradeDeAlunos colunas={COLUNAS_DO_CADASTRO} chave="cadastro" alunos={visiveis as AlunoDaGrade[]} todos={alunos as AlunoDaGrade[]}
                            podeEditar={podeEditar} conversaDe={veConversas ? conversaDe : undefined} destaque={destaque}
-                           selecionados={selecionados} aoSelecionar={podeApagar ? setSelecionados : undefined} />
+                           selecionados={selecionados} aoSelecionar={podeApagar ? setSelecionados : undefined}
+                           aoAbrirProvas={veProvas ? (a) => setProvasDe(a.id) : undefined} />
           )}
         </div>
 
@@ -355,6 +361,25 @@ export default function CadastroDeAlunos({ abrirFicha }: { abrirFicha: boolean }
           </>
         )}
       </div>
+      {provasDe && (() => {
+        const a = alunos.find((x) => x.id === provasDe);
+        if (!a) return null;
+        const dele = conversas.filter((c) => alunosDoContato([a], c).length > 0);
+        return (
+          <>
+            <button type="button" className="alu-gaveta-fundo" aria-label="Fechar as provas" tabIndex={-1} onClick={() => setProvasDe(null)} />
+            <aside className="alu-gaveta" aria-label={`Provas de ${a.nome}`} onKeyDown={(e) => { if (e.key === 'Escape') setProvasDe(null); }}>
+              <div className="alu-ficha-cab">
+                <p className="alu-ficha-tit">Provas de {a.nome.split(' ')[0]}<small>{a.nome}{a.codigo ? ` · cód. ${a.codigo}` : ''}</small></p>
+                <button type="button" className="ib" aria-label="Fechar as provas" onClick={() => setProvasDe(null)}><Ic n="x" /></button>
+              </div>
+              <div className="alu-ficha-corpo">
+                <ProvasDoAluno key={a.id} aluno={a} conversas={dele} conversaInicial={conversaDe.get(a.id)} />
+              </div>
+            </aside>
+          </>
+        );
+      })()}
     </div>
   );
 }

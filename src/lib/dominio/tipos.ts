@@ -41,6 +41,11 @@ export interface Aluno {
   nascimento?: string;     // AAAA-MM-DD
   endereco?: string;
   contratoArquivo?: { caminho: string; nome: string; enviadoEm: string } | null;  // o contrato que entrou pelo cadastro
+  /* o vínculo com o aluno do portal de provas (nexusenglish.com.br); só o servidor grava */
+  portalStudentId?: string | null;
+  portalNome?: string | null;
+  portalVinculadoPor?: { uid: string; nome: string } | null;
+  portalVinculadoEm?: string | null;
   trilha: Trilha;
   nivel: string;           // Starter, A1, A2, B1, B2, Kids 1...
   licao: number;           // 1 a 20

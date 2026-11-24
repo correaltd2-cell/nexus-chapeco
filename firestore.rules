@@ -27,10 +27,26 @@ service cloud.firestore {
             && request.resource.data.get('daAula', false) == resource.data.get('daAula', false));
     }
 
+    /* O vínculo com o portal de provas (portalStudentId e companhia) só muda pelo
+       servidor (/api/provas/portal/vinculo), que confere o aluno no portal e registra
+       quem fez: o navegador não grava esses campos, nem ao criar nem ao mudar. */
+    function camposDoPortal() { return ['portalStudentId', 'portalNome', 'portalVinculadoPor', 'portalVinculadoEm']; }
     match /alunos/{id} {
       allow read: if equipe();
-      allow write: if veTudo() || papel() == 'coordenacao';
+      allow create: if (veTudo() || papel() == 'coordenacao')
+        && !request.resource.data.keys().hasAny(camposDoPortal());
+      allow update: if (veTudo() || papel() == 'coordenacao')
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(camposDoPortal());
+      allow delete: if veTudo() || papel() == 'coordenacao';
     }
+
+    /* Provas do portal (24/11/2026): a liberação e os envios de cada prova
+       (provas_portal) e o registro de quem fez o quê (provas_portal_log) só o servidor
+       grava. A trava de uma liberação por vez (provas_portal_travas) nem se lê: não tem
+       regra, fica fechada. (provas e provas_envios, mais abaixo, são do plano antigo de
+       provas feitas aqui dentro, que não chegou a ser usado.) */
+    match /provas_portal/{id}     { allow read: if veTudo() || papel() == 'coordenacao'; allow write: if false; }
+    match /provas_portal_log/{id} { allow read: if gestao(); allow write: if false; }
 
     match /conversas/{id} {
       allow read: if equipe() && veSetor(resource.data.setor);
