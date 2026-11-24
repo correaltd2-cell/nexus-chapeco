@@ -1589,7 +1589,8 @@ button.alu-g-linha:hover{color:var(--text);background:var(--surface-3)}
 .alu-g-nome .alu-g-cel b{font-weight:600}
 .alu-g-marca-menor{color:var(--muted);font-weight:500}
 .alu-g-codigo .alu-g-cel,.alu-g-t-telefone .alu-g-cel,.alu-g-t-data .alu-g-cel,.alu-g-t-documento .alu-g-cel{font-family:var(--fonte-dados);font-variant-numeric:tabular-nums;font-size:12px}
-.alu-g-observacao .alu-g-cel{color:var(--muted)}
+/* a observação quebra em linhas, como o "quebrar texto" do Excel: a linha cresce */
+.alu-g-observacao .alu-g-cel{color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;text-overflow:clip;height:auto;padding:7px 8px;line-height:1.4}
 .alu-g-cel.alerta{color:var(--alert);font-weight:600}
 .alu-g-cel.aviso{text-decoration:underline dotted var(--solar-deep);text-underline-offset:3px}
 .alu-g-cel:focus-visible,.alu-g-sel:focus-visible,.alu-g-caixa-sel:focus-visible,.alu-g-nada:focus-visible,.alu-g-linha:focus-visible{outline:2px solid var(--solar);outline-offset:-2px}

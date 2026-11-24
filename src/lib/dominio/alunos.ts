@@ -78,16 +78,17 @@ const DEFINICOES: DefinicaoDaColuna[] = [
   { k: 'documento', rotulo: 'CPF', tipo: 'documento', largura: 130 },
   { k: 'responsavelNome', rotulo: 'Responsável', tipo: 'texto', largura: 170 },
   { k: 'responsavelTelefone', rotulo: 'Tel. responsável', tipo: 'telefone', largura: 150 },
-  { k: 'observacao', rotulo: 'Observação', tipo: 'longo', largura: 280, dica: 'OBSERVAÇÕES' },
+  { k: 'observacao', rotulo: 'Observação', tipo: 'longo', largura: 240, dica: 'OBSERVAÇÕES: o texto quebra em linhas; Alt+Enter pula linha' },
 ];
 
 export const COLUNA: Record<ColunaDaGrade, DefinicaoDaColuna> = Object.fromEntries(DEFINICOES.map((d) => [d.k, d])) as Record<ColunaDaGrade, DefinicaoDaColuna>;
 
-/** A planilha de marcação (pedido do cliente, 24/11/2026): a observação ao lado do nome,
-    o horário fixo no fim, o menor de idade no próprio nome, sem "falta livro" e sem os
-    telefones, que moram no cadastro. As duas primeiras ficam presas na rolagem. */
+/** A planilha de marcação (pedido do cliente, 24/11/2026): marcou e observação logo
+    depois do nome, o horário fixo no fim, o menor de idade no próprio nome, sem "falta
+    livro" e sem os telefones, que moram no cadastro. As duas primeiras ficam presas na
+    rolagem. A observação quebra em linhas, como o "quebrar texto" do Excel. */
 export const COLUNAS_DA_MARCACAO: ColunaDaGrade[] = [
-  'codigo', 'nome', 'observacao', 'marcouSemana', 'situacao', 'livroOriginal', 'modalidade', 'saude',
+  'codigo', 'nome', 'marcouSemana', 'observacao', 'situacao', 'livroOriginal', 'modalidade', 'saude',
   'appAtivo', 'nexiaAtivo', 'contratoFim', 'contratoAssinado', 'horarioFixoTexto',
 ];
 

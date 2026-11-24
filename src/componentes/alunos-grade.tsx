@@ -218,6 +218,16 @@ export default function GradeDeAlunos({
   }
 
   function teclaDoEditor(e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, longo: boolean) {
+    /* no texto longo, Alt+Enter (como no Excel) ou Shift+Enter pula linha dentro da célula */
+    if (longo && e.key === 'Enter' && e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      const t = e.currentTarget;
+      const [de, ate] = [t.selectionStart ?? rascunho.length, t.selectionEnd ?? rascunho.length];
+      const novo = `${rascunho.slice(0, de)}\n${rascunho.slice(ate)}`;
+      setRascunho(novo);
+      requestAnimationFrame(() => t.setSelectionRange(de + 1, de + 1));
+      return;
+    }
     if (e.key === 'Enter' && !(longo && e.shiftKey)) { e.preventDefault(); confirma('baixo'); }
     if (e.key === 'Escape') { e.preventDefault(); cancela(); }
   }
