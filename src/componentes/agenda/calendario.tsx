@@ -1,14 +1,15 @@
 'use client';
-/* O calendário da agenda (Semana, Mês e Dia), com o FullCalendar 7. Só desenha e avisa o
-   que a pessoa fez (selecionou horário, tocou numa aula, arrastou); quem decide e grava é
-   agenda.tsx. A visão padrão é a Grade (grade.tsx); esta fica para ver a semana e o mês.
-   Bloco: a cor do professor suave no fundo e cheia na borda, bolinha de status no canto,
-   selo do WhatsApp quando o lembrete saiu, ponto de alerta quando a aula passou sem
-   presença. Na Semana o bloco é enxuto (hora, aula e quantos alunos; os nomes ficam no
-   passar o mouse e no modal) e, acima de 4 no mesmo horário, aparecem 3 e um "+N" que
-   abre a Grade ali (dominio/agenda-grade.ts). No Dia, os nomes aparecem, e quem faltou
-   fica riscado. Bloqueio da escola é faixa cinza listrada por baixo; o de um professor
-   só aparece se a pessoa pedir, como bloco pequeno listrado. Domingo não aparece. */
+/* O calendário da agenda para o Mês e o Dia, com o FullCalendar 7. Só desenha e avisa o
+   que a pessoa fez (tocou num dia, num horário, numa aula, arrastou); quem decide e grava
+   é agenda.tsx. A Semana (a visão padrão) e a Grade são feitas aqui no sistema
+   (semana.tsx e grade.tsx).
+   - Mês: cada dia mostra quantas aulas e quantos alunos tem, nunca um "+N" que esconde
+     aula; o dia abre a Grade daquele dia.
+   - Dia: linhas de hora cheia, das 7h às 22h; o bloco tem a cor do professor suave no
+     fundo e cheia na borda, a bolinha de status, o selo do WhatsApp quando o lembrete
+     saiu, o ponto de alerta quando passou sem presença, e os alunos (quem faltou riscado).
+   Bloqueio da escola é faixa cinza listrada por baixo; o de um professor só aparece no
+   Dia se a pessoa pedir, como bloco pequeno listrado. Domingo não aparece. */
 import { useMemo, useState, type CSSProperties, type RefObject } from 'react';
 import FullCalendar, { type CalendarRef, type EventInput } from '@fullcalendar/react';
 import classicTheme from '@fullcalendar/react/themes/classic';
@@ -20,19 +21,17 @@ import '@fullcalendar/react/skeleton.css';
 import '@fullcalendar/react/themes/classic/theme.css';
 import '@fullcalendar/react/themes/classic/palette.css';
 import { Ic } from '@/componentes/icones';
-import {
-  DIAS_FECHADOS, diaLocal, faltaPresenca, horaLocal, nomesCurtos, STATUS,
-  type Agendamento, type Bloqueio, type Professor,
-} from '@/lib/dominio/agenda';
-import { compactaSemana, motivoCompleto, motivoCurto, nomeCurtoDaAula, tintaDoProfessor, type ItemDaSemana, type MaisNaSemana } from '@/lib/dominio/agenda-grade';
+import { DIAS_FECHADOS, faltaPresenca, nomesCurtos, STATUS, type Agendamento, type Bloqueio, type Professor } from '@/lib/dominio/agenda';
+import { contaDoPeriodo, motivoCompleto, motivoCurto, tintaDoProfessor } from '@/lib/dominio/agenda-grade';
+import CartaoDaAula, { type Dica } from './cartao-da-aula';
 
-export type Visao = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
+export type Visao = 'dayGridMonth' | 'timeGridDay';
 
 interface Props {
   calRef: RefObject<CalendarRef | null>;
   visao: Visao;
-  dataInicial?: string;           // AAAA-MM-DD: o link da conversa abre na semana da aula
-  rolarAte?: string;              // HH:MM:SS: e rola até perto da hora dela
+  dataInicial?: string;           // AAAA-MM-DD
+  rolarAte?: string;              // HH:MM:SS: o Dia rola até perto dessa hora
   agendamentos: Agendamento[];
   bloqueios: Bloqueio[];
   professores: Professor[];
@@ -40,17 +39,15 @@ interface Props {
   podeCriar: boolean;
   podeRemarcar: boolean;
   agora: Date;
-  aoMudarPeriodo: (de: Date, ate: Date, titulo: string, visao: Visao) => void;
+  aoMudarPeriodo: (de: Date, ate: Date, visao: Visao) => void;
   aoSelecionar: (inicio: Date, fim: Date) => void;
-  /** clique (ou toque) num horário; no mês, num dia */
-  aoClicar: (quando: Date, diaInteiro: boolean) => void;
+  /** clique (ou toque) num horário do Dia */
+  aoClicar: (quando: Date) => void;
   aoAbrir: (id: string) => void;
   aoAbrirBloqueio: (id: string) => void;
   aoMover: (id: string, inicio: Date, fim: Date, desfaz: () => void) => void;
-  /** o nome do dia (Semana e Mês) abre a Grade daquele dia */
+  /** no Mês, o dia (ou o número dele) abre a Grade daquele dia */
   aoAbrirDia: (dia: Date) => void;
-  /** o "+N" da Semana abre a Grade naquele dia e hora */
-  aoMais: (dia: string, hora: string) => void;
 }
 
 /** As cores do professor como variáveis do CSS (fundo e texto de cada tema). */
@@ -62,7 +59,8 @@ function tinta(cor: string): CSSProperties {
 /* o bloco pinta a si mesmo (a tinta do professor); o calendário não põe cor nem borda */
 const SEM_COR = { color: 'transparent' };
 
-interface Dica { a: Agendamento; x: number; y: number }
+/** O dia (AAAA-MM-DD) de uma data do calendário, que vem no fuso do navegador. */
+const diaDoNavegador = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /* O calendário escuta o toque direto no elemento (antes do React): o nome do bloqueio
    segura o toque ali mesmo, senão o horário embaixo também abre a aula nova. */
@@ -80,22 +78,20 @@ export default function Calendario({ calRef, ...p }: Props) {
   const { agendamentos, bloqueios, professores, podeRemarcar, podeCriar, visao, agora, nomeDaAula, dataInicial, rolarAte } = p;
   const porId = useMemo(() => new Map(agendamentos.map((a) => [a.id, a])), [agendamentos]);
   const prof = useMemo(() => new Map(professores.map((x) => [x.id, x])), [professores]);
-  const semana = tipo === 'timeGridWeek';
+  const mes = tipo === 'dayGridMonth';
 
-  /* na Semana, acima de 4 no mesmo horário: 3 e o "+N" */
-  const enxuta = useMemo(() => {
-    if (!semana) return null;
-    const itens: ItemDaSemana[] = [
-      ...agendamentos.map((a) => ({ id: a.id, inicio: a.inicio, fim: a.fim, prioridade: a.status === 'cancelado' || a.status === 'remarcado' ? 1 : 0 })),
-      ...bloqueios.filter((b) => b.professorId && diaLocal(b.inicio) === diaLocal(new Date(new Date(b.fim).getTime() - 1)))
-        .map((b) => ({ id: `bl:${b.id}`, inicio: b.inicio, fim: b.fim, prioridade: 2 })),
-    ];
-    return compactaSemana(itens);
-  }, [semana, agendamentos, bloqueios]);
-  const mais = useMemo(() => new Map((enxuta?.mais || []).map((m) => [m.id, m])), [enxuta]);
+  /* no Mês, o resumo de cada dia: todas as aulas contadas, nenhuma escondida */
+  const doDia = useMemo(() => {
+    const m = new Map<string, Agendamento[]>();
+    for (const a of agendamentos) {
+      const d = diaDoNavegador(new Date(a.inicio));
+      m.set(d, [...(m.get(d) || []), a]);
+    }
+    return new Map([...m].map(([d, l]) => [d, contaDoPeriodo(l)]));
+  }, [agendamentos]);
 
   const eventos = useMemo<EventInput[]>(() => [
-    ...agendamentos.filter((a) => !enxuta || enxuta.visiveis.has(a.id)).map((a) => {
+    ...(mes ? [] : agendamentos).map((a) => {
       const parado = a.status === 'cancelado' || a.status === 'remarcado';
       return {
         id: a.id, start: a.inicio, end: a.fim, ...SEM_COR,
@@ -104,24 +100,19 @@ export default function Calendario({ calRef, ...p }: Props) {
         extendedProps: { tipo: 'aula' },
       };
     }),
-    /* bloqueio da escola: faixa por baixo do dia inteiro; o do professor (quando pedido):
-       bloco pequeno, como uma aula, para não cobrir a coluna inteira */
+    /* bloqueio da escola: faixa por baixo; o do professor (quando pedido): bloco pequeno */
     ...bloqueios.filter((b) => !b.professorId).map((b) => ({
       id: `bl:${b.id}`, start: b.inicio, end: b.fim, display: 'background',
       className: 'ag-bl', extendedProps: { tipo: 'bloqueio', bloqueio: b },
     })),
-    ...bloqueios.filter((b) => b.professorId && (!enxuta || enxuta.visiveis.has(`bl:${b.id}`))).map((b) => ({
+    ...(mes ? [] : bloqueios.filter((b) => b.professorId)).map((b) => ({
       id: `bl:${b.id}`, start: b.inicio, end: b.fim, ...SEM_COR, editable: false,
       className: 'ag-ev ag-ev-bl', extendedProps: { tipo: 'bloqueio', bloqueio: b },
     })),
-    ...(enxuta?.mais || []).map((m) => ({
-      id: m.id, start: m.inicio, end: m.fim, ...SEM_COR, editable: false,
-      className: 'ag-ev ag-mais', extendedProps: { tipo: 'mais' },
-    })),
-  ], [agendamentos, bloqueios, podeRemarcar, enxuta]);
+  ], [agendamentos, bloqueios, podeRemarcar, mes]);
 
   return (
-    <div className="ag-cal">
+    <div className={`ag-cal${mes ? ' mes' : ''}`}>
       <FullCalendar
         ref={calRef}
         plugins={[classicTheme, dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -132,17 +123,18 @@ export default function Calendario({ calRef, ...p }: Props) {
         hiddenDays={[...DIAS_FECHADOS]}
         height="100%"
         allDaySlot={false}
-        slotMinTime="07:30:00"
-        slotMaxTime="21:30:00"
-        slotDuration="00:30:00"
-        slotHeaderInterval="00:30:00"
+        /* hora cheia (pedido do cliente) */
+        slotMinTime="07:00:00"
+        slotMaxTime="22:00:00"
+        slotDuration="01:00:00"
+        slotHeaderInterval="01:00:00"
         slotHeaderFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-        slotMinHeight={36}
-        scrollTime={rolarAte || '07:30:00'}
+        slotMinHeight={64}
+        scrollTime={rolarAte || '07:00:00'}
         nowIndicator
         slotEventOverlap={false}
-        eventMinHeight={22}
-        dayMaxEvents={4}
+        eventMinHeight={26}
+        dayMaxEvents={false}
         selectable={podeCriar}
         selectMirror
         /* clique simples é dateClick (funciona com toque no celular, sem segurar o dedo);
@@ -153,18 +145,35 @@ export default function Calendario({ calRef, ...p }: Props) {
         navLinkDayClick={(d) => { setDica(null); p.aoAbrirDia(d); }}
         dayLaneClass="ag-faixa"
         dayCellClass="ag-dia"
-        dateClick={(i) => { setDica(null); p.aoClicar(i.date, i.allDay); }}
+        dayCellTopContent={(i) => {
+          if (i.view.type !== 'dayGridMonth') return undefined;
+          const c = doDia.get(diaDoNavegador(i.date));
+          return (
+            <span className="ag-mes-dia">
+              <span className="ag-mes-n">{i.dayNumberText}</span>
+              {c && c.aulas > 0 && (
+                <span className="ag-mes-conta">
+                  <b className="num">{c.aulas}</b> {c.aulas === 1 ? 'aula' : 'aulas'}
+                  <small className="num">{c.alunos} {c.alunos === 1 ? 'aluno' : 'alunos'}</small>
+                </span>
+              )}
+            </span>
+          );
+        }}
+        dateClick={(i) => {
+          setDica(null);
+          if (i.allDay) p.aoAbrirDia(i.date);
+          else p.aoClicar(i.date);
+        }}
         editable={podeRemarcar}
         eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
         events={eventos}
-        datesSet={(i) => { setDica(null); setTipo(i.view.type as Visao); p.aoMudarPeriodo(i.start, i.end, i.view.title, i.view.type as Visao); }}
+        datesSet={(i) => { setDica(null); setTipo(i.view.type as Visao); p.aoMudarPeriodo(i.start, i.end, i.view.type as Visao); }}
         select={(i) => { p.aoSelecionar(i.start, i.end); i.view.calendar.unselect(); }}
         eventClick={(i) => {
           i.jsEvent.preventDefault();
           setDica(null);
-          const t = i.event.extendedProps.tipo;
-          if (t === 'bloqueio') p.aoAbrirBloqueio(i.event.id.slice(3));
-          else if (t === 'mais') { const m = mais.get(i.event.id); if (m) p.aoMais(m.dia, m.hora); }
+          if (i.event.extendedProps.tipo === 'bloqueio') p.aoAbrirBloqueio(i.event.id.slice(3));
           else p.aoAbrir(i.event.id);
         }}
         eventMouseEnter={(i) => {
@@ -196,12 +205,7 @@ export default function Calendario({ calRef, ...p }: Props) {
           );
         }}
         eventContent={(i) => {
-          const t = i.event.extendedProps.tipo;
-          if (t === 'mais') {
-            const m = mais.get(i.event.id);
-            return m ? <MaisNaHora m={m} /> : null;
-          }
-          if (t === 'bloqueio') {
+          if (i.event.extendedProps.tipo === 'bloqueio') {
             const b = i.event.extendedProps.bloqueio as Bloqueio;
             const quem = b.professorId ? prof.get(b.professorId)?.nome.split(' ')[0] : '';
             return (
@@ -213,41 +217,14 @@ export default function Calendario({ calRef, ...p }: Props) {
           const a = porId.get(i.event.id);
           if (!a) return null;
           const cor = prof.get(a.professorId)?.cor || '#8E8E88';
-          const alerta = faltaPresenca(a, agora);
-          const icones = (
-            <span className="ag-icones">
-              {alerta && <span className="ag-alerta" title="Falta lançar presença" />}
-              {a.lembreteEnviadoEm && <span className="ag-wa" title="Lembrete enviado no WhatsApp"><Ic n="chat" /></span>}
-              <span className="ag-st" style={{ background: STATUS[a.status].cor }} title={STATUS[a.status].nome} />
-            </span>
-          );
-          const n = a.alunos.length;
-          if (i.view.type === 'dayGridMonth') {
-            return (
-              <div className="ag-b mes ag-tinta" style={tinta(cor)}>
-                {icones}
-                <span className="ag-linha"><span className="num">{horaLocal(a.inicio)}</span> {nomeCurtoDaAula(nomeDaAula(a.aulaId))}{n ? ` (${n})` : ''}</span>
-              </div>
-            );
-          }
-          if (i.view.type === 'timeGridWeek') {
-            /* enxuto: hora, aula e quantos alunos; os nomes ficam no passar o mouse e no modal */
-            return (
-              <div className="ag-b compacto ag-tinta" style={tinta(cor)}>
-                {icones}
-                <span className="num ag-b-hora">{horaLocal(a.inicio)}</span>
-                <b className="ag-aula">{nomeCurtoDaAula(nomeDaAula(a.aulaId))}</b>
-                <span className="ag-b-qt">
-                  <span className="longo">· {n} {n === 1 ? 'aluno' : 'alunos'}</span>
-                  <span className="curto" title={`${n} ${n === 1 ? 'aluno' : 'alunos'}`}><Ic n="pessoas" />{n}</span>
-                </span>
-              </div>
-            );
-          }
           const nomes = nomesCurtos(a.alunos);
           return (
             <div className="ag-b ag-tinta" style={tinta(cor)}>
-              {icones}
+              <span className="ag-icones">
+                {faltaPresenca(a, agora) && <span className="ag-alerta" title="Falta lançar presença" />}
+                {a.lembreteEnviadoEm && <span className="ag-wa" title="Lembrete enviado no WhatsApp"><Ic n="chat" /></span>}
+                <span className="ag-st" style={{ background: STATUS[a.status].cor }} title={STATUS[a.status].nome} />
+              </span>
               <b className="ag-aula">{nomeDaAula(a.aulaId)}</b>
               <span className="ag-alunos">
                 {a.alunos.map((x, k) => (
@@ -259,40 +236,6 @@ export default function Calendario({ calRef, ...p }: Props) {
         }}
       />
       {dica && <CartaoDaAula {...dica} professor={prof.get(dica.a.professorId)} aula={nomeDaAula(dica.a.aulaId)} />}
-    </div>
-  );
-}
-
-/** O "+N" da Semana: as aulas que não couberam naquele horário; abre a Grade ali. */
-function MaisNaHora({ m }: { m: MaisNaSemana }) {
-  return (
-    <div className="ag-mais-b" title={`Mais ${m.ocultos.length} às ${m.hora}: abrir na Grade`}>
-      <b className="num">+{m.ocultos.length}</b>
-    </div>
-  );
-}
-
-/** O cartão do passar o mouse: horário, status, professor, aula e os alunos com presença. */
-function CartaoDaAula({ a, x, y, professor, aula }: Dica & { professor?: Professor; aula: string }) {
-  /* se não cabe à direita, vai para a esquerda do bloco */
-  const largura = 280;
-  const esquerda = typeof window !== 'undefined' && x + largura > window.innerWidth - 8 ? Math.max(8, x - largura - 24) : x;
-  const topo = typeof window !== 'undefined' ? Math.min(y, window.innerHeight - 260) : y;
-  return (
-    <div className="ag-dica" style={{ left: esquerda, top: Math.max(8, topo) }} role="tooltip">
-      <p className="num">{horaLocal(a.inicio)} às {horaLocal(a.fim)}</p>
-      <p><span className="ag-st" style={{ background: STATUS[a.status].cor }} /> {STATUS[a.status].nome}</p>
-      <p><b>Professor:</b> {professor?.nome || 'sem professor'}</p>
-      <p><b>Aula:</b> {aula}</p>
-      {a.alunos.length ? (
-        <ul>
-          {a.alunos.map((x) => (
-            <li key={x.id} className={x.presenca === 'faltou' ? 'falta' : undefined}>
-              {x.nome}<small>{x.presenca === 'presente' ? 'presente' : x.presenca === 'faltou' ? 'faltou' : 'sem presença'}</small>
-            </li>
-          ))}
-        </ul>
-      ) : <p className="vz-dica">Nenhum aluno nesta aula.</p>}
     </div>
   );
 }

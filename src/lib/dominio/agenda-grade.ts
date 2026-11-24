@@ -1,11 +1,13 @@
-/* A Grade da agenda e a Semana enxuta (24/11/2026): contas puras, sem banco e sem tela.
-   Grade = um dia por vez, uma coluna por professor, linhas de 30 em 30 minutos das 7h30
-   às 21h30. Mora aqui:
-   - a ordem das colunas ("A definir" sempre primeiro, depois quem tem mais aula no dia);
+/* A Grade e a Semana da agenda: contas puras, sem banco e sem tela.
+   Grade (24/11/2026) = um dia por vez, uma coluna por professor, linhas de hora cheia
+   das 7h às 22h. Semana (refeita em 24/11/2026, a visão padrão) = os dias abertos lado a
+   lado e as horas cheias de cima para baixo; cada célula lista TODAS as aulas que começam
+   naquela hora, uma embaixo da outra, sem "+N". Mora aqui:
+   - a ordem das colunas da Grade ("A definir" sempre primeiro, depois quem tem mais aula);
    - o encaixe das aulas na coluna (lado a lado só quando duas se sobrepõem);
-   - a altura de cada linha, que cresce para o cartão mostrar todos os alunos;
+   - a altura de cada linha da Grade, que cresce para o cartão mostrar todos os alunos;
    - a volta do pixel para a hora (arrastar e soltar);
-   - a Semana com no máximo 4 por horário (acima disso, 3 e o "+N");
+   - as células da Semana e onde cada bloqueio aparece nela;
    - o contador, os nomes curtos e a tinta suave da cor do professor.
    As regras da agenda (conflito, recorrência, permissão) continuam em agenda.ts.
    Prova: node --experimental-strip-types testes/agenda-grade.ts */
@@ -13,9 +15,10 @@ import { BLOQUEIOS, diaLocal, inicioDoDia, textoSobre, type Agendamento, type Bl
 
 /* ================= a régua do dia ================= */
 
-export const GRADE_INICIO = 7 * 60 + 30;   // minutos desde a meia-noite
-export const GRADE_FIM = 21 * 60 + 30;
-export const PASSO = 30;
+/* hora cheia (pedido do cliente: "pode ser hora cheia, não precisa ser hora quebrada") */
+export const GRADE_INICIO = 7 * 60;   // minutos desde a meia-noite
+export const GRADE_FIM = 22 * 60;
+export const PASSO = 60;
 export const LINHAS = (GRADE_FIM - GRADE_INICIO) / PASSO;
 
 export const hhmm = (min: number) => {
@@ -30,7 +33,7 @@ export const minutosNoDia = (iso: string, dia: string) =>
 /** O instante (ISO) de um minuto num dia de Chapecó. */
 export const isoNoDia = (dia: string, min: number) => new Date(new Date(inicioDoDia(dia)).getTime() + min * 60_000).toISOString();
 
-/** "07:30", "08:00" ... "21:00": o começo de cada linha. */
+/** "07:00", "08:00" ... "21:00": o começo de cada linha. */
 export const rotulosDasLinhas = () => Array.from({ length: LINHAS }, (_, i) => hhmm(GRADE_INICIO + i * PASSO));
 
 /* ================= as colunas ================= */
@@ -38,7 +41,7 @@ export const rotulosDasLinhas = () => Array.from({ length: LINHAS }, (_, i) => h
 /** Coluna das aulas cujo professor não está na equipe, quando não existe um "A definir". */
 export const ID_SEM_PROFESSOR = '';
 
-const normaliza = (t: string) => (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+const normaliza = (t: string) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
 /** O professor "A definir" é a fila das aulas que ainda não têm professor. */
 export const ehADefinir = (nome: string) => /^(a definir|sem professor)\b/.test(normaliza(nome));
@@ -155,7 +158,7 @@ export function encaixa(itens: { id: string; inicio: string; fim: string }[], di
 /* ================= a altura das linhas ================= */
 
 export interface Medidas {
-  base: number;        // px de cada linha de 30 minutos
+  base: number;        // px de cada linha de uma hora
   vao: number;         // o espaço entre um cartão e o seguinte, que sai da altura dele
   folga: number;       // respiro de cima e de baixo do cartão
   cabecalho: number;   // a linha da bolinha e do nome da aula
@@ -163,7 +166,7 @@ export interface Medidas {
   maxAlunos: number;   // acima disso, o cartão mostra um a menos e o "+N"
   maxLinha: number;    // nenhuma linha passa disso
 }
-export const MEDIDAS: Medidas = { base: 40, vao: 2, folga: 8, cabecalho: 19, linha: 16, maxAlunos: 8, maxLinha: 160 };
+export const MEDIDAS: Medidas = { base: 80, vao: 2, folga: 8, cabecalho: 19, linha: 16, maxAlunos: 8, maxLinha: 320 };
 
 /** A altura que o trecho do cartão pede para mostrar todos os alunos (até o máximo),
     contando o vão até o cartão de baixo. */
@@ -185,7 +188,7 @@ function cobertura(ini: number, fim: number) {
 }
 
 /**
- * A altura de cada linha de 30 minutos. Começa na base e cresce onde um cartão precisa
+ * A altura de cada linha de uma hora. Começa na base e cresce onde um cartão precisa
  * para mostrar todos os alunos. A linha vale para todas as colunas, como numa planilha.
  */
 export function alturasDasLinhas(cartoes: { ini: number; fim: number; alunos: number }[], m: Medidas = MEDIDAS): number[] {
@@ -239,64 +242,83 @@ export function nomesQueCabem(altura: number, alunos: number, m: Medidas = MEDID
   return { nomes, mais: alunos - nomes };
 }
 
-/* ================= a Semana enxuta ================= */
+/* ================= a Semana: hora cheia, todas as aulas ================= */
 
-/** Acima de 4 no mesmo horário, a Semana mostra 3 e um "+N" que abre a Grade ali. */
-export const LIMITE_POR_HORARIO = 4;
-export const MOSTRA_QUANDO_PASSA = 3;
+/** As horas que a Semana sempre mostra (7h a 21h); aula fora disso abre a linha dela. */
+export const SEMANA_INICIO = 7;
+export const SEMANA_FIM = 21;
 
-export interface ItemDaSemana {
-  id: string;
-  inicio: string;
-  fim: string;
-  prioridade: number;  // 0 aula, 1 aula cancelada ou remarcada, 2 bloqueio: o menor aparece primeiro
+/** A hora cheia em que a aula começa, no dia dela (18:30 fica na linha das 18h). */
+export const horaDoInicio = (iso: string, dia: string) =>
+  Math.min(23, Math.max(0, Math.floor(minutosNoDia(iso, dia) / 60)));
+
+export const chaveDaCelula = (dia: string, hora: number) => `${dia}|${hora}`;
+
+export interface Semana<T> {
+  horas: number[];                       // as linhas, de cima para baixo
+  celulas: Map<string, T[]>;             // dia|hora: as aulas, em ordem de horário
+  porDia: Map<string, number>;           // quantas aulas em cada dia
+  maisCheia: Map<number, number>;        // a célula mais cheia de cada hora (para a altura)
 }
-
-export interface MaisNaSemana { id: string; dia: string; hora: string; inicio: string; fim: string; ocultos: string[] }
-
-const MEIAS_HORAS = 48;
 
 /**
- * O que a Semana desenha. Onde há até 4 ao mesmo tempo, aparecem todos. Onde passa de
- * 4, aparecem 3 e o resto vai para um "+N" de meia hora naquele horário. Assim nenhum
- * horário fica com mais de 4 colunas lado a lado.
+ * A Semana: cada aula na célula do dia e da hora cheia em que começa, todas, uma
+ * embaixo da outra (por horário e, no mesmo horário, pelo desempate dado, o nome do
+ * professor). Nenhuma fica de fora: aula antes das 7h ou depois das 21h abre a linha.
  */
-export function compactaSemana(
-  itens: ItemDaSemana[], limite = LIMITE_POR_HORARIO, mostra = MOSTRA_QUANDO_PASSA,
-): { visiveis: Set<string>; mais: MaisNaSemana[] } {
-  const visiveis = new Set<string>();
-  const mais: MaisNaSemana[] = [];
-  const porDia = new Map<string, ItemDaSemana[]>();
-  for (const i of itens) {
-    const d = diaLocal(i.inicio);
-    porDia.set(d, [...(porDia.get(d) || []), i]);
+export function montaSemana<T extends { id: string; inicio: string }>(
+  itens: T[], dias: string[], desempate: (a: T, b: T) => number = () => 0,
+): Semana<T> {
+  const aberto = new Set(dias);
+  const celulas = new Map<string, T[]>();
+  const porDia = new Map<string, number>(dias.map((d) => [d, 0]));
+  const horas = new Set<number>();
+  for (let h = SEMANA_INICIO; h <= SEMANA_FIM; h += 1) horas.add(h);
+  for (const a of itens) {
+    const dia = diaLocal(a.inicio);
+    if (!aberto.has(dia)) continue;
+    const h = horaDoInicio(a.inicio, dia);
+    horas.add(h);
+    const k = chaveDaCelula(dia, h);
+    celulas.set(k, [...(celulas.get(k) || []), a]);
+    porDia.set(dia, (porDia.get(dia) || 0) + 1);
   }
-  for (const [dia, lista] of porDia) {
-    const faixa = (i: ItemDaSemana) => {
-      const s0 = Math.min(MEIAS_HORAS - 1, Math.max(0, Math.floor(minutosNoDia(i.inicio, dia) / PASSO)));
-      const s1 = Math.min(MEIAS_HORAS - 1, Math.max(s0, Math.ceil(minutosNoDia(i.fim, dia) / PASSO) - 1));
-      return [s0, s1] as const;
-    };
-    const total: number[] = Array(MEIAS_HORAS).fill(0);
-    for (const i of lista) { const [a, b] = faixa(i); for (let s = a; s <= b; s += 1) total[s] += 1; }
-    const vis: number[] = Array(MEIAS_HORAS).fill(0);
-    const ocultos = new Map<number, string[]>();
-    const ordem = [...lista].sort((a, b) => a.prioridade - b.prioridade || a.inicio.localeCompare(b.inicio) || a.id.localeCompare(b.id));
-    for (const i of ordem) {
-      const [a, b] = faixa(i);
-      let motivo = -1;
-      for (let s = a; s <= b; s += 1) if (total[s] > limite && vis[s] >= mostra) { motivo = s; break; }
-      if (motivo < 0) {
-        visiveis.add(i.id);
-        for (let s = a; s <= b; s += 1) vis[s] += 1;
-      } else ocultos.set(motivo, [...(ocultos.get(motivo) || []), i.id]);
-    }
-    for (const [s, ids] of [...ocultos].sort((x, y) => x[0] - y[0])) {
-      mais.push({ id: `mais:${dia}:${hhmm(s * PASSO)}`, dia, hora: hhmm(s * PASSO), inicio: isoNoDia(dia, s * PASSO), fim: isoNoDia(dia, s * PASSO + PASSO), ocultos: ids });
-    }
+  const maisCheia = new Map<number, number>();
+  for (const [k, l] of celulas) {
+    l.sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime() || desempate(a, b) || a.id.localeCompare(b.id));
+    const h = Number(k.split('|')[1]);
+    maisCheia.set(h, Math.max(maisCheia.get(h) || 0, l.length));
   }
-  return { visiveis, mais };
+  return { horas: [...horas].sort((a, b) => a - b), celulas, porDia, maisCheia };
 }
+
+export interface BloqueioNaCelula { rotulos: Bloqueio[]; daEscola: Bloqueio[] }
+
+/**
+ * Onde cada bloqueio aparece na Semana: o da escola pinta todas as células que cobre,
+ * com o nome na primeira; o do professor (quando a pessoa pede para ver) entra como um
+ * item pequeno só na primeira célula que cobre, em cada dia.
+ */
+export function bloqueiosDaSemana(bloqueios: Bloqueio[], dias: string[], horas: number[]): Map<string, BloqueioNaCelula> {
+  const m = new Map<string, BloqueioNaCelula>();
+  const pega = (k: string) => { const c = m.get(k) || { rotulos: [], daEscola: [] }; m.set(k, c); return c; };
+  for (const b of bloqueios) {
+    for (const dia of dias) {
+      const ini = Math.max(0, minutosNoDia(b.inicio, dia));
+      const fim = Math.min(24 * 60, minutosNoDia(b.fim, dia));
+      if (fim <= ini) continue;
+      const cobre = horas.filter((h) => h * 60 < fim && (h + 1) * 60 > ini);
+      if (!cobre.length) continue;
+      pega(chaveDaCelula(dia, cobre[0])).rotulos.push(b);
+      if (!b.professorId) for (const h of cobre) pega(chaveDaCelula(dia, h)).daEscola.push(b);
+    }
+  }
+  return m;
+}
+
+/** "18:30 às 19:30": o horário do item da Semana. */
+export const horarioDe = (a: { inicio: string; fim: string }, dia: string) =>
+  `${hhmm(minutosNoDia(a.inicio, dia))} às ${hhmm(minutosNoDia(a.fim, dia))}`;
 
 /* ================= o que se lê ================= */
 

@@ -11,15 +11,16 @@ observação e notas são de cada aluno.
 | Regras puras (status, conflito, recorrência, "este e os próximos", permissões, indicadores, CSV, lembrete, resumo) | `src/lib/dominio/agenda.ts`, prova em `testes/agenda.ts` |
 | Dados fictícios (3 professores, 15 alunos, 2 semanas, séries, bloqueios, log) | `src/lib/dominio/agenda-exemplo.ts` |
 | Gravação pelo navegador (lote único com log) | `src/lib/dados/agenda.ts` |
-| Grade por professor (visão padrão), feita aqui | `src/componentes/agenda/grade.tsx` |
-| Contas da Grade e da Semana enxuta (colunas, encaixe, altura das linhas, "+N", contador, nomes curtos, tinta do professor) | `src/lib/dominio/agenda-grade.ts`, prova em `testes/agenda-grade.ts` |
+| Semana (visão padrão, hora cheia, todas as aulas), feita aqui | `src/componentes/agenda/semana.tsx` |
+| Grade por professor, feita aqui | `src/componentes/agenda/grade.tsx` |
+| Contas da Semana e da Grade (células da Semana, colunas, encaixe, altura das linhas, contador, nomes curtos, tinta do professor) | `src/lib/dominio/agenda-grade.ts`, prova em `testes/agenda-grade.ts` |
 | Dia fechado (domingo) | `DIAS_FECHADOS` em `src/lib/dominio/agenda.ts` |
-| Calendário (FullCalendar 7: Semana, Mês e Dia), modal, filtros | `src/componentes/agenda/` |
+| Calendário (FullCalendar 7: Mês e Dia), modal, filtros | `src/componentes/agenda/` |
 | Lembrete, resposta aos botões, próxima aula de quem escreve, resumo com IA | `src/lib/agenda-servidor.ts` |
 | A agenda na conversa (painel e atalho) | `src/componentes/aulas-na-conversa.tsx` |
 | Por quem o número fala (telefone com e sem o 9, responsável) | `src/lib/dominio/contato.ts`, prova em `testes/contato.ts` |
 | Rotas | `/api/agenda/lembrete`, `/api/agenda/resumo`, `/api/agenda/teste`, `/api/cron/lembretes` |
-| Telas | `/aulas` (Grade, Semana, Mês e Dia), `/aulas/relatorio`, `/aulas/log`; os cadastros (professores, módulos, aulas) moram em `/cadastros/professores` e `/cadastros/aulas` desde 24/11/2026 (`/aulas/cadastros` leva para lá) |
+| Telas | `/aulas` (Semana, Grade, Mês e Dia), `/aulas/relatorio`, `/aulas/log`; os cadastros (professores, módulos, aulas) moram em `/cadastros/professores` e `/cadastros/aulas` desde 24/11/2026 (`/aulas/cadastros` leva para lá) |
 
 Rodar antes de mexer nas regras: `node --experimental-strip-types testes/agenda.ts`.
 Rodar antes de mexer na Grade ou na Semana: `node --experimental-strip-types testes/agenda-grade.ts`.
@@ -54,49 +55,63 @@ Rodar antes de mexer na Grade ou na Semana: `node --experimental-strip-types tes
   módulo, aula, modalidade e alunos. Status e presença ficam em cada aula.
 - Toda ação grava em `logs_agenda`.
 
-## A Grade e as visões (24/11/2026)
+## A Semana e as visões (24/11/2026)
 
 Com os dados do ELLO (1.993 aulas, 632 bloqueios, 14 professores) a semana do
 calendário ficou ilegível: reunião de professor cobrindo o dia inteiro e 6 a 8 aulas
-espremidas na mesma coluna. A agenda passou a abrir na **Grade**, que é como a recepção
-trabalha ("quem está livre às 18h30?"). As regras de conflito, recorrência e permissão e
-o formato dos dados não mudaram: isto é só tela.
+espremidas na mesma coluna. Primeiro veio a Grade por professor; no mesmo dia o cliente
+pediu a **Semana como padrão**, em **hora cheia**, com **todas as aulas sempre à vista**
+("quando tem mais de 3 aulas, fica aparecendo um +2. Não pode acontecer") e a tela menos
+poluída. As regras de conflito, recorrência e permissão e o formato dos dados não mudaram:
+isto é só tela.
 
-**Grade** (padrão, também no celular)
-- Um dia por vez: setas de dia anterior e próximo, **Hoje** e os atalhos Seg a Sáb.
+**Semana** (padrão), feita aqui, sem o calendário
+- Colunas = os dias abertos (segunda a sábado), com quantas aulas tem cada um; o nome do
+  dia abre a Grade daquele dia. Setas andam uma semana; Hoje volta para a semana de hoje.
+- Linhas = horas cheias, das 7h às 21h (aula fora disso abre a linha dela). A aula das
+  18:30 fica na linha das 18h, com o horário escrito nela.
+- **Cada célula lista todas as aulas que começam naquela hora, uma embaixo da outra**:
+  bolinha de status, horário, aula curta ("A2 L11"), professor e quantos alunos. Os nomes
+  dos alunos ficam no passar o mouse e no modal. **Nunca há "+N"**: a linha cresce o que
+  precisar, e hora sem nada fica baixinha. No mesmo horário, a ordem é pelo professor.
+- Cor do professor suave no fundo e cheia na borda; cancelada bem apagada.
+- Bloqueio da escola pinta as células que cobre, com o nome na primeira. O do professor
+  só aparece com a chave **Mostrar bloqueios** (desligada; fica no aparelho; mostra
+  quantos há na semana), como item listrado pequeno na hora em que começa.
+- Clique no espaço vazio da célula: aula nova naquele dia e hora (uma hora). Arrastar a
+  aula para outra célula: outro dia e hora com os mesmos minutos, pela mesma
+  conferência de conflito; aula de série pergunta "só esta ou esta e as próximas".
+- Abre perto da hora pedida (o "Ver na agenda" da conversa) ou, na semana de hoje, uma
+  hora antes de agora.
+- No celular, os dias um embaixo do outro, só com as horas que têm aula.
+
+**Grade** (um dia, uma coluna por professor)
+- Setas de dia anterior e próximo, **Hoje** e os atalhos Seg a Sáb.
 - Colunas = professores. **"A definir" sempre na primeira**, em laranja: é a fila das
   aulas sem professor (o professor com esse nome na equipe; aula de professor que não
   está na equipe também cai nela). Depois, quem tem mais aula no dia; empate pelo nome.
   A ordem é calculada ao abrir o dia e fica parada enquanto a pessoa está nele, para a
   coluna não pular quando alguém arrasta uma aula. O filtro de professor escolhe as colunas.
-- Linhas de 30 em 30 minutos, das 7h30 às 21h30, com o cabeçalho e as horas presos ao
-  rolar. Coluna com no mínimo 150px e rolagem de lado: nada se espreme. A linha cresce
-  para o cartão mostrar **todos os alunos** (até 8; acima disso, 7 e "+N"); o crescimento
-  vale para a linha inteira, como numa planilha.
+- Linhas de **hora cheia**, das 7h às 22h, com o cabeçalho e as horas presos ao rolar.
+  Coluna com no mínimo 150px e rolagem de lado. A linha cresce para o cartão mostrar
+  **todos os alunos** (até 8; acima disso, 7 e "+N alunos" no próprio cartão).
 - Cartão: a cor do professor suave no fundo e cheia na borda de 4px, bolinha de status,
-  nome da aula e um aluno por linha (primeiro e último nome), quem faltou riscado.
-  Cancelada bem apagada. Clique abre o modal.
-- Bloqueio do professor é faixa cinza listrada **só na coluna dele**, com o motivo curto
-  ("Reunião", "Não abrir: Pilates"); o nome abre o bloqueio. Bloqueio da escola atravessa
-  todas as colunas.
-- Clique no horário vazio: aula nova com aquele professor, dia e hora (uma hora).
-- Arrastar: outro horário (de 15 em 15 minutos) e, em outra coluna, **outro professor**,
-  pela mesma conferência de conflito (incluindo o bloqueio do professor novo); aula de
-  série pergunta "só esta ou esta e as próximas". A coluna "A definir" que não existe na
-  equipe não recebe aula.
+  nome da aula e um aluno por linha, quem faltou riscado. Clique abre o modal.
+- Bloqueio do professor é faixa cinza listrada **só na coluna dele**; o da escola
+  atravessa todas as colunas.
+- Clique no horário vazio: aula nova com aquele professor, dia e hora. Arrastar: outro
+  horário (de 15 em 15 minutos) e, em outra coluna, **outro professor**, pela mesma
+  conferência de conflito.
 - Celular: um professor por vez, pelo seletor ou deslizando para o lado.
 
-**Semana** (e Mês e Dia)
-- Bloco enxuto: hora, nome curto da aula ("A2 L11") e quantos alunos. Os nomes ficam no
-  cartão de passar o mouse e no modal (no Dia, que é largo, os nomes aparecem). Em coluna
-  estreita, a hora sai (a régua mostra) e os alunos viram o número com o desenho de pessoas.
-- **Acima de 4 aulas no mesmo horário, aparecem 3 e um "+N"**, que abre a Grade naquele
-  dia e hora. Com 4, aparecem as 4.
-- Bloqueio de professor deixou de ser fundo da coluna inteira: só aparece com a chave
-  **Mostrar bloqueios** (desligada; a escolha fica no aparelho; a chave mostra quantos
-  bloqueios há no período), como bloco pequeno listrado. O da escola continua como faixa.
-- **Esconder canceladas** (também fica no aparelho) vale para todas as visões.
-- O nome do dia (Semana e Mês) e o dia no Mês abrem a Grade daquele dia.
+**Mês**: cada dia mostra quantas aulas e quantos alunos tem, sem "+N" escondendo aula; o
+dia abre a Grade daquele dia.
+
+**Dia**: o calendário em hora cheia (7h às 22h), com os nomes dos alunos no bloco e o
+bloqueio de professor só com a chave.
+
+**Esconder canceladas** (fica no aparelho) vale para todas as visões. A legenda fica
+recolhida no botão **Legenda**, para a agenda ter mais espaço.
 
 **Contador** no topo: "X aulas · Y alunos" do dia (Grade e Dia) ou do período (Semana e
 Mês), com os filtros. Y conta alunos diferentes.

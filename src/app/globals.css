@@ -1277,7 +1277,8 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 
 /* ================= agenda ================= */
 .ag{display:flex;flex-direction:column;height:100%;min-height:0;position:relative}
-.ag-h{padding-bottom:4px}
+.ag-h{padding-bottom:2px}
+.ag .vh.ag-h{min-height:0;padding-top:12px}
 .ag-h,.ag-barra,.ag-filtros,.ag-legenda,.rel-impresso,.ag-dias-semana,.ag-g-troca{flex:none}
 .ag-abas{flex:1 1 auto;min-width:0}
 .ag-abas .chip{text-decoration:none}
@@ -1324,7 +1325,7 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 
 /* o calendário, com as cores do sistema */
 .ag-cal{
-  flex:1;min-height:420px;margin:0 max(12px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));
+  flex:1;min-height:420px;margin:0 max(8px,env(safe-area-inset-right,0px)) 8px max(8px,env(safe-area-inset-left,0px));
   background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:6px 4px 4px;overflow:hidden;position:relative;
   --fc-classic-primary:var(--solar);--fc-classic-primary-foreground:#141414;
   --fc-classic-background:var(--surface);--fc-classic-foreground:var(--text);
@@ -1344,34 +1345,11 @@ textarea.cx.ms-descricao{min-height:170px;max-height:60vh;resize:vertical;line-h
 .ag-b{position:relative;height:100%;padding:3px 5px 2px;line-height:1.25;overflow:hidden;font-size:11.5px}
 .ag-b.ag-tinta{border-left:4px solid var(--g-cor);border-radius:8px}
 .ag-b.mes{display:flex;align-items:center;padding:1px 4px;font-size:11.5px}
-/* na Semana: hora, aula e quantos alunos, quebrando linha quando a coluna é estreita */
-.ag-b.compacto{display:flex;flex-wrap:wrap;align-content:flex-start;column-gap:4px;padding:2px 4px 2px 5px;container-type:inline-size}
-.ag-b.compacto>*{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.ag-b.compacto .ag-icones .ag-st{width:9px;height:9px}
-.ag-b-hora{font-size:10.5px;opacity:.8;padding-right:16px}
-.ag-b.compacto .ag-aula{padding-right:0}
-.ag-b-qt{opacity:.85}
-.ag-b-qt .curto{display:none}
-.ag-b-qt .curto .ic{width:11px;height:11px;margin-right:2px}
-/* coluna estreita (4 aulas lado a lado): sem a hora (a régua mostra), o nome quebra e
-   os alunos viram o número com o desenho de pessoas */
-@container (max-width:78px){
-  .ag-b.compacto{padding:2px 3px 2px 4px}
-  .ag-b-hora,.ag-b.compacto .ag-wa{display:none}
-  .ag-b.compacto .ag-aula{flex-basis:100%;font-size:11px;letter-spacing:-.01em}
-  .ag-b.compacto .ag-icones{position:static;order:3;margin-left:auto}
-  .ag-b-qt{order:2}
-  .ag-b-qt .longo{display:none}
-  .ag-b-qt .curto{display:inline-flex;align-items:center}
-}
 .ag-ev-bl{box-shadow:none}
 .ag-bl-b{display:flex;flex-direction:column;padding:2px 5px;color:var(--muted);font-size:10.5px;font-weight:600;line-height:1.2;
   background:var(--surface-2) repeating-linear-gradient(135deg,rgba(128,128,128,.2) 0 5px,transparent 5px 10px);border-radius:8px}
 .ag-bl-b span,.ag-bl-b small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ag-bl-b small{font-weight:500;font-size:10px}
-.ag-mais{box-shadow:none}
-.ag-mais-b{height:100%;display:grid;place-items:center;border-radius:8px;background:var(--surface-3);color:var(--text);font-size:12px;box-shadow:inset 0 0 0 1px var(--line-2)}
-.ag-mais:hover .ag-mais-b{background:var(--solar-wash);box-shadow:inset 0 0 0 1px var(--solar)}
 
 /* a tinta do professor (Grade e calendário): a cor suave no fundo e o texto que lê
    melhor em cima dela (textoSobre), com um par para cada tema */
@@ -1418,7 +1396,7 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 .ag-dias-semana .chip .num{margin-left:3px;font-size:12px;opacity:1}
 .chip.ag-chave .num{margin-left:6px}
 .ag-grade{
-  flex:1;min-height:420px;margin:0 max(12px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));
+  flex:1;min-height:420px;margin:0 max(8px,env(safe-area-inset-right,0px)) 8px max(8px,env(safe-area-inset-left,0px));
   background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:auto;position:relative;overscroll-behavior:contain;
 }
 .ag-grade.carregando{background:var(--surface) linear-gradient(90deg,transparent,rgba(128,128,128,.08),transparent) 0 0/200% 100%}
@@ -1478,6 +1456,90 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 .ag-grade.um .ag-g-horas,.ag-grade.um .ag-g-canto{flex-basis:46px}
 .ag-grade.um .ag-g-bl.escola,.ag-grade.um .ag-g-agora{left:46px}
 .ag-arraste-resumo{margin:0;font-weight:600}
+
+/* ----- a Semana: hora cheia, todas as aulas à vista (refeita em 24/11/2026) ----- */
+.ag-sem{
+  flex:1;min-height:420px;margin:0 max(8px,env(safe-area-inset-right,0px)) 8px max(8px,env(safe-area-inset-left,0px));
+  background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:auto;position:relative;overscroll-behavior:contain;
+}
+.ag-sem.carregando{background:var(--surface) linear-gradient(90deg,transparent,rgba(128,128,128,.08),transparent) 0 0/200% 100%}
+.ag-sem-folha{display:grid;width:100%}
+.ag-sem-canto{position:sticky;top:0;left:0;z-index:4;background:var(--surface);box-shadow:0 1px 0 var(--line)}
+.ag-sem-cab{
+  position:sticky;top:0;z-index:3;display:flex;align-items:baseline;gap:7px;padding:10px 12px 8px;border:0;border-left:1px solid var(--line);
+  background:var(--surface);box-shadow:0 1px 0 var(--line);text-align:left;cursor:pointer;font-size:13px;color:var(--muted);
+}
+.ag-sem-cab b{font-family:var(--fonte-display);font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ag-sem-cab small{margin-left:auto;font-size:11.5px}
+.ag-sem-cab:hover{background:var(--surface-2)}
+.ag-sem-cab.hoje,.ag-sem-cab.hoje b{color:var(--solar-deep)}
+.ag-sem-hora{
+  position:sticky;left:0;z-index:2;background:var(--surface);padding:7px 9px 0 0;text-align:right;min-height:72px;
+  font-family:var(--fonte-dados);font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted);border-top:1px solid var(--line);
+}
+.ag-sem-cel{min-height:72px;padding:5px 5px 12px;border-top:1px solid var(--line);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:5px;cursor:pointer;min-width:0}
+.ag-sem-hora.vazia,.ag-sem-cel.vazia{min-height:30px}
+.ag-sem-cel:hover{background:color-mix(in srgb,var(--solar) 5%,transparent)}
+.ag-sem-cel.hoje{background:color-mix(in srgb,var(--solar) 4%,transparent)}
+.ag-sem-cel.escola{background:repeating-linear-gradient(135deg,rgba(128,128,128,.16) 0 6px,rgba(128,128,128,.05) 6px 12px)}
+.ag-sem-cel.alvo{background:color-mix(in srgb,var(--solar) 12%,transparent);box-shadow:inset 0 0 0 2px var(--solar)}
+.ag-sem-aula{
+  display:flex;flex-direction:column;gap:1px;padding:5px 8px;border-radius:9px;border-left:4px solid var(--g-cor);cursor:pointer;
+  font-size:12.5px;line-height:1.3;box-shadow:0 1px 2px rgba(20,20,20,.08);min-width:0;
+}
+.ag-sem-aula[draggable="true"]{cursor:grab}
+.ag-sem-aula:hover{box-shadow:0 2px 8px rgba(20,20,20,.16)}
+.ag-sem-aula:focus-visible{outline:2px solid var(--solar);outline-offset:1px}
+.ag-sem-l1{display:flex;align-items:center;gap:6px;min-width:0}
+.ag-sem-l1 b{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-sem-l1 .ag-st{width:9px;height:9px}
+.ag-sem-h{flex:none;font-size:11.5px;opacity:.8}
+.ag-sem-l2{font-size:11.5px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-sem-aula.parado{opacity:.55}
+.ag-sem-aula.cancelada{opacity:.32}
+.ag-sem-aula.parado b{text-decoration:line-through}
+.ag-sem-bl{
+  display:flex;flex-direction:column;align-items:flex-start;padding:3px 8px;border:0;border-radius:8px;text-align:left;cursor:pointer;
+  color:var(--muted);font-size:11px;font-weight:600;line-height:1.3;
+  background:var(--surface-2) repeating-linear-gradient(135deg,rgba(128,128,128,.18) 0 5px,transparent 5px 10px);
+}
+.ag-sem-bl span,.ag-sem-bl small{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-sem-bl small{font-weight:500;font-size:10.5px}
+.ag-sem-bl.escola{background:var(--surface);box-shadow:0 0 0 1px var(--line)}
+.ag-sem-bl:hover{color:var(--text)}
+/* celular: os dias um embaixo do outro */
+.ag-sem.lista{padding:0 0 12px}
+.ag-sem.lista section{padding:0 10px 6px}
+.ag-sem-dia{
+  position:sticky;top:0;z-index:2;display:flex;align-items:baseline;gap:8px;width:100%;padding:12px 4px 7px;border:0;
+  background:var(--surface);box-shadow:0 1px 0 var(--line);text-align:left;font-size:15px;color:var(--text);
+}
+.ag-sem-dia b::first-letter{text-transform:uppercase}
+.ag-sem-dia small{margin-left:auto;color:var(--muted);font-size:12px}
+.ag-sem.lista section.hoje .ag-sem-dia b{color:var(--solar-deep)}
+.ag-sem-linha{display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.ag-sem-linha:first-of-type{border-top:0}
+.ag-sem-hora-l{flex:0 0 44px;padding-top:6px;font-size:12px;color:var(--muted)}
+.ag-sem-itens{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.ag-sem-vazio{margin:8px 4px;color:var(--muted);font-size:13px}
+
+/* o Mês: quantas aulas tem cada dia, sem "+N" */
+.ag-mes-dia{display:flex;flex-direction:column;gap:4px;width:100%;padding:2px 4px 6px;text-align:left}
+.ag-mes-n{align-self:flex-end;font-size:12.5px;color:var(--muted)}
+.ag-mes-conta{display:block;font-size:12.5px;color:var(--text);line-height:1.3}
+.ag-mes-conta b{font-size:18px;font-weight:600;margin-right:3px}
+.ag-mes-conta small{display:block;font-size:11px;color:var(--muted)}
+.ag-cal.mes .ag-dia:hover{background:color-mix(in srgb,var(--solar) 6%,transparent)}
+
+/* a legenda recolhida */
+.ag-legenda-d{position:relative;margin-left:auto}
+.ag-legenda-d>summary{list-style:none;cursor:pointer}
+.ag-legenda-d>summary::-webkit-details-marker{display:none}
+.ag-legenda-d[open]>summary{border-color:var(--line-2);color:var(--text)}
+.ag-legenda-d .ag-legenda{
+  position:absolute;z-index:40;top:calc(100% + 6px);right:0;width:max-content;max-width:min(360px,90vw);
+  display:flex;flex-direction:column;gap:7px;padding:12px 14px;background:var(--surface);border-radius:14px;box-shadow:var(--shadow-2);
+}
 
 /* o modal da aula */
 .ag-mod{position:fixed;z-index:90}
@@ -1567,7 +1629,9 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
   .ag-nav{flex-wrap:wrap}
   .ag-contador{flex-basis:100%;margin:2px 0 0 4px}
   .ag-dias-semana{padding-left:14px;padding-right:14px}
-  .ag-grade{margin:0 8px;min-height:60vh}
+  .ag-grade,.ag-sem{margin:0 8px;min-height:60vh}
+  .ag-sem{overflow:visible}
+  .ag-legenda-d .ag-legenda{position:fixed;left:12px;right:12px;top:auto;max-width:none;width:auto}
   .ag-mod{padding:0}
   .ag-mc,.ag-mc.pequeno{width:100%;min-height:100%;border-radius:0}
   .ag-mh,.ag-mb,.ag-mf{padding-left:14px;padding-right:14px}

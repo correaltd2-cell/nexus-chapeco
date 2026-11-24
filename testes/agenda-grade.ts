@@ -1,16 +1,15 @@
-/* Prova da Grade e da Semana enxuta da agenda (src/lib/dominio/agenda-grade.ts) e dos
+/* Prova da Grade e da Semana da agenda (src/lib/dominio/agenda-grade.ts) e dos
    dias em que a escola abre (DIAS_FECHADOS em src/lib/dominio/agenda.ts).
    Nomes e ids inventados.
    Rodar:  node --experimental-strip-types testes/agenda-grade.ts  */
 import {
   DIAS_FECHADOS, diaAberto, diaAbertoDesde, diasAbertosDaSemana, passaDia, textoSobre,
-  type Agendamento, type Professor,
+  type Agendamento, type Bloqueio, type Professor,
 } from '../src/lib/dominio/agenda.ts';
 import {
-  alturaDoCartao, alturaPedida, alturasDasLinhas, arredonda, colunasDaGrade, compactaSemana, contaDoPeriodo, encaixa, GRADE_FIM, GRADE_INICIO,
-  hhmm, ID_SEM_PROFESSOR, isoNoDia, mantemOrdem, LINHAS, MEDIDAS, minutoDoY, minutosNoDia, misturaCor, motivoCompleto, motivoCurto,
+  alturaDoCartao, alturaPedida, alturasDasLinhas, arredonda, bloqueiosDaSemana, chaveDaCelula, colunasDaGrade, contaDoPeriodo, encaixa, GRADE_FIM, GRADE_INICIO,
+  hhmm, horaDoInicio, horarioDe, ID_SEM_PROFESSOR, isoNoDia, mantemOrdem, montaSemana, LINHAS, MEDIDAS, minutoDoY, minutosNoDia, misturaCor, motivoCompleto, motivoCurto,
   nomeCurtoDaAula, nomesCurtosDosProfessores, nomesQueCabem, rotulosDasLinhas, tintaDoProfessor, topos, yDoMinuto,
-  type ItemDaSemana,
 } from '../src/lib/dominio/agenda-grade.ts';
 
 let falhas = 0;
@@ -36,7 +35,7 @@ igual('a semana de um domingo é a que começa nele', diasAbertosDaSemana('2026-
 igual('se um dia abrir no domingo, é só a constante', [passaDia('2026-11-28', 1, []), diasAbertosDaSemana('2026-11-25', []).length], ['2026-11-29', 7]);
 
 /* ---------------- a régua ---------------- */
-igual('28 linhas de 7h30 às 21h30', [LINHAS, rotulosDasLinhas()[0], rotulosDasLinhas()[LINHAS - 1]], [28, '07:30', '21:00']);
+igual('15 linhas de hora cheia, das 7h às 22h', [LINHAS, rotulosDasLinhas()[0], rotulosDasLinhas()[LINHAS - 1]], [15, '07:00', '21:00']);
 igual('minutos no dia de Chapecó', [minutosNoDia(em('2026-11-27', '18:30'), '2026-11-27'), hhmm(18 * 60 + 30)], [1110, '18:30']);
 igual('ida e volta do minuto', isoNoDia('2026-11-27', 1110), em('2026-11-27', '18:30'));
 
@@ -74,57 +73,63 @@ const enc = encaixa([
 igual('duas sobrepostas ficam lado a lado; a seguinte volta inteira',
   enc.map((e) => [e.id, e.faixa, e.faixas]), [['a', 0, 2], ['b', 1, 2], ['c', 0, 1]]);
 const borda = encaixa([
-  { id: 'cedo', inicio: em('2026-11-27', '07:00'), fim: em('2026-11-27', '08:00') },
-  { id: 'tarde', inicio: em('2026-11-27', '21:00'), fim: em('2026-11-27', '22:00') },
+  { id: 'cedo', inicio: em('2026-11-27', '06:30'), fim: em('2026-11-27', '07:30') },
+  { id: 'tarde', inicio: em('2026-11-27', '21:30'), fim: em('2026-11-27', '22:30') },
 ], '2026-11-27');
 igual('nada some: o que sai da grade aparece cortado na borda',
-  borda.map((e) => [e.ini, e.fim, e.cortadoAntes, e.cortadoDepois]), [[GRADE_INICIO, 480, true, false], [1260, GRADE_FIM, false, true]]);
+  borda.map((e) => [e.ini, e.fim, e.cortadoAntes, e.cortadoDepois]), [[GRADE_INICIO, 450, true, false], [1290, GRADE_FIM, false, true]]);
 
-/* ---------------- a altura das linhas ---------------- */
-igual('cartão de 1 hora com 3 alunos cabe na base', alturasDasLinhas([{ ini: 1110, fim: 1170, alunos: 3 }]).every((h) => h === MEDIDAS.base), true);
-const altas = alturasDasLinhas([{ ini: 1110, fim: 1170, alunos: 7 }]);
-const r = (1110 - GRADE_INICIO) / 30;
-igual('7 alunos fazem as duas linhas crescerem, só elas', [altas[r] > MEDIDAS.base, altas[r + 1] > MEDIDAS.base, altas[r - 1], altas[r + 2]], [true, true, MEDIDAS.base, MEDIDAS.base]);
-igual('e o cartão passa a ter a altura que pede', altas[r] + altas[r + 1] >= alturaPedida(7), true);
-igual('com a altura que pediu, o cartão desenhado mostra todos os nomes', nomesQueCabem(alturaDoCartao(altas[r] + altas[r + 1]), 7), { nomes: 7, mais: 0 });
+/* ---------------- a altura das linhas (hora cheia) ---------------- */
+const r = (18 * 60 - GRADE_INICIO) / 60;
+igual('aula de 1 hora com 3 alunos cabe na base', alturasDasLinhas([{ ini: 1080, fim: 1140, alunos: 3 }]).every((h) => h === MEDIDAS.base), true);
+const altas = alturasDasLinhas([{ ini: 1080, fim: 1140, alunos: 7 }]);
+igual('7 alunos fazem só a linha das 18h crescer', [altas[r] > MEDIDAS.base, altas[r - 1], altas[r + 1]], [true, MEDIDAS.base, MEDIDAS.base]);
+igual('e o cartão desenhado mostra todos os nomes', nomesQueCabem(alturaDoCartao(altas[r]), 7), { nomes: 7, mais: 0 });
 for (let n = 1; n <= 8; n += 1) {
-  const h = alturasDasLinhas([{ ini: 1110, fim: 1170, alunos: n }]);
-  igual(`1 hora com ${n} alunos mostra todos`, nomesQueCabem(alturaDoCartao(h[r] + h[r + 1]), n).mais, 0);
-  const m = alturasDasLinhas([{ ini: 1110, fim: 1140, alunos: n }]);
-  igual(`meia hora com ${n} alunos mostra todos`, nomesQueCabem(alturaDoCartao(m[r]), n).mais, 0);
+  const h = alturasDasLinhas([{ ini: 1080, fim: 1140, alunos: n }]);
+  igual(`1 hora com ${n} alunos mostra todos`, nomesQueCabem(alturaDoCartao(h[r]), n).mais, 0);
+  const m = alturasDasLinhas([{ ini: 1110, fim: 1170, alunos: n }]);
+  const yy = topos(m);
+  igual(`aula das 18:30 com ${n} alunos mostra todos`, nomesQueCabem(alturaDoCartao(yDoMinuto(1170, m, yy) - yDoMinuto(1110, m, yy)), n).mais, 0);
+  const meia = alturasDasLinhas([{ ini: 1080, fim: 1110, alunos: n }]);
+  igual(`meia hora com ${n} alunos mostra todos`, nomesQueCabem(alturaDoCartao(meia[r] / 2), n).mais, 0);
 }
 igual('aula enorme mostra 7 e o +N', nomesQueCabem(alturaDoCartao(alturaPedida(20)), 20), { nomes: 7, mais: 13 });
-igual('cartão pequeno: um nome e o +N', nomesQueCabem(MEDIDAS.base, 3), { nomes: 0, mais: 3 });
+igual('cartão pequeno: um nome e o +N', nomesQueCabem(30, 3), { nomes: 0, mais: 3 });
 const t = topos(altas);
 igual('px e minuto vão e voltam', [Math.round(minutoDoY(yDoMinuto(1125, altas, t), altas, t)), arredonda(1127), arredonda(1133)], [1125, 1125, 1140]);
 igual('o px fora da grade fica na borda', [minutoDoY(-20, altas), minutoDoY(99999, altas)], [GRADE_INICIO, GRADE_FIM]);
 
-/* ---------------- a Semana enxuta ---------------- */
-const item = (id: string, ini: string, fim: string, prioridade = 0, d = '2026-11-27'): ItemDaSemana => ({ id, inicio: em(d, ini), fim: em(d, fim), prioridade });
-const oito = Array.from({ length: 8 }, (_, i) => item(`s${i}`, '18:30', '19:30'));
-const c8 = compactaSemana(oito);
-igual('8 no mesmo horário: 3 e um +5 às 18:30', [c8.visiveis.size, c8.mais.length, c8.mais[0]?.hora, c8.mais[0]?.ocultos.length], [3, 1, '18:30', 5]);
-igual('o +N é de meia hora, no próprio dia', [c8.mais[0]?.inicio, c8.mais[0]?.fim, c8.mais[0]?.dia], [em('2026-11-27', '18:30'), em('2026-11-27', '19:00'), '2026-11-27']);
-const c4 = compactaSemana(oito.slice(0, 4));
-igual('4 no mesmo horário aparecem todos', [c4.visiveis.size, c4.mais.length], [4, 0]);
-const c5 = compactaSemana(oito.slice(0, 5));
-igual('5 viram 3 e +2', [c5.visiveis.size, c5.mais[0]?.ocultos.length], [3, 2]);
-const comCancelada = compactaSemana([item('cancelada', '18:30', '19:30', 1), ...oito.slice(0, 4)]);
-igual('a cancelada é a primeira a ir para o +N', [comCancelada.visiveis.has('cancelada'), comCancelada.mais[0]?.ocultos.includes('cancelada')], [false, true]);
-const escada = compactaSemana([...oito.slice(0, 4), item('t1', '19:00', '20:00'), item('t2', '19:00', '20:00')]);
-igual('nenhum horário passa de 4 colunas', (() => {
-  const todos = [...oito.slice(0, 4), item('t1', '19:00', '20:00'), item('t2', '19:00', '20:00')];
-  let pior = 0;
-  for (let m = 0; m < 1440; m += 30) {
-    const at = new Date(em('2026-11-27', '00:00')).getTime() + m * 60_000;
-    const vis = todos.filter((i) => escada.visiveis.has(i.id) && new Date(i.inicio).getTime() <= at && at < new Date(i.fim).getTime()).length;
-    const mais = escada.mais.filter((x) => new Date(x.inicio).getTime() <= at && at < new Date(x.fim).getTime()).length;
-    pior = Math.max(pior, vis + mais);
-  }
-  return pior <= 4;
-})(), true);
-const doisDias = compactaSemana([...oito, ...Array.from({ length: 2 }, (_, i) => item(`q${i}`, '18:30', '19:30', 0, '2026-11-26'))]);
-igual('cada dia conta o seu', [doisDias.visiveis.has('q0'), doisDias.visiveis.has('q1'), doisDias.mais.length], [true, true, 1]);
+/* ---------------- a Semana: hora cheia, todas as aulas ---------------- */
+const SEMANA_DIAS = diasAbertosDaSemana('2026-11-25');
+const oito = Array.from({ length: 8 }, (_, i) => aula(`s${i}`, `p${(i % 4) + 1}`, '18:30', '19:30'));
+const sem = montaSemana([...oito, aula('cedo', 'p1', '18:00', '19:00'), aula('qui', 'p1', '08:00', '09:00', 1, 'agendado', '2026-11-26')], SEMANA_DIAS,
+  (a, b) => a.professorId.localeCompare(b.professorId));
+const sexta18 = sem.celulas.get(chaveDaCelula('2026-11-27', 18)) || [];
+igual('sexta às 18h: as 9 aulas, nenhuma escondida', sexta18.length, 9);
+igual('a das 18:00 vem antes das 18:30, e no mesmo horário pelo professor', [sexta18[0].id, sexta18.slice(1, 3).map((x) => x.professorId)], ['cedo', ['p1', 'p1']]);
+igual('a aula das 18:30 fica na linha das 18h', [horaDoInicio(em('2026-11-27', '18:30'), '2026-11-27'), sem.celulas.has(chaveDaCelula('2026-11-27', 19))], [18, false]);
+igual('contagem por dia', [sem.porDia.get('2026-11-27'), sem.porDia.get('2026-11-26'), sem.porDia.get('2026-11-23')], [9, 1, 0]);
+igual('as horas de sempre: 7h a 21h', [sem.horas[0], sem.horas[sem.horas.length - 1], sem.horas.length], [7, 21, 15]);
+igual('a célula mais cheia de cada hora', [sem.maisCheia.get(18), sem.maisCheia.get(8), sem.maisCheia.has(12)], [9, 1, false]);
+const fora = montaSemana([aula('tarde', 'p1', '22:00', '23:00'), aula('dom', 'p1', '10:00', '11:00', 1, 'agendado', '2026-11-29')], SEMANA_DIAS);
+igual('aula depois das 21h abre a linha dela; domingo não entra', [fora.horas.includes(22), fora.porDia.get('2026-11-27'), [...fora.celulas.keys()].length], [true, 1, 1]);
+igual('montar a semana não perde aula', montaSemana(oito, SEMANA_DIAS).celulas.get(chaveDaCelula('2026-11-27', 18))?.length, 8);
+
+const bl = (id: string, professorId: string | null, dia: string, ini: string, fim: string, tipo: Bloqueio['tipo'] = 'reuniao'): Bloqueio =>
+  ({ id, tipo, professorId, inicio: em(dia, ini), fim: em(dia, fim), motivo: '' });
+const nas = bloqueiosDaSemana([
+  bl('reu', 'p1', '2026-11-23', '09:00', '10:00'),
+  bl('feriado', null, '2026-11-28', '10:00', '12:00', 'feriado'),
+  bl('ferias', 'p2', '2026-11-24', '00:00', '00:00'),
+], SEMANA_DIAS, sem.horas);
+igual('reunião do professor: um item só, na célula das 9h', [nas.get(chaveDaCelula('2026-11-23', 9))?.rotulos.map((b) => b.id), nas.get(chaveDaCelula('2026-11-23', 10))], [['reu'], undefined]);
+igual('o da escola pinta as horas que cobre e tem o nome na primeira',
+  [nas.get(chaveDaCelula('2026-11-28', 10))?.rotulos.length, nas.get(chaveDaCelula('2026-11-28', 10))?.daEscola.length, nas.get(chaveDaCelula('2026-11-28', 11))?.rotulos.length, nas.get(chaveDaCelula('2026-11-28', 11))?.daEscola.length, nas.has(chaveDaCelula('2026-11-28', 12))],
+  [1, 1, 0, 1, false]);
+const ferias = bloqueiosDaSemana([{ ...bl('ferias', 'p2', '2026-11-24', '00:00', '00:00', 'ferias'), fim: em('2026-11-26', '00:00') }], SEMANA_DIAS, sem.horas);
+igual('bloqueio de vários dias aparece em cada dia, na primeira hora', [ferias.get(chaveDaCelula('2026-11-24', 7))?.rotulos.length, ferias.get(chaveDaCelula('2026-11-25', 7))?.rotulos.length, ferias.has(chaveDaCelula('2026-11-26', 7))], [1, 1, false]);
+igual('horário do item', horarioDe(oito[0], '2026-11-27'), '18:30 às 19:30');
 
 /* ---------------- o que se lê ---------------- */
 igual('contador conta alunos diferentes', contaDoPeriodo([aula('k1', 'p1', '08:00', '09:00', 2), { ...aula('k2', 'p1', '09:00', '10:00', 1), alunoIds: ['k1-al0'] }]).texto, '2 aulas · 2 alunos');
