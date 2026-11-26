@@ -8,6 +8,7 @@ import { saiDaSimulacao, simulacaoNoAparelho } from '@/lib/dados/simulacao';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, bd, configurado } from '@/lib/firebase/cliente';
+import { limpaEntrada, loginValeAqui } from '@/lib/firebase/sessao-aparelho';
 import { avisa } from '@/componentes/aviso';
 import type { Perfil } from '@/lib/dominio/tipos';
 
@@ -49,6 +50,13 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!configurado || modoSimulacao) return;
     return onAuthStateChanged(auth(), (u) => {
+      /* login lembrado pelo navegador, mas a pessoa não entrou nesta aba nem pediu para
+         continuar conectada: sai e pede e-mail e senha (dominio/sessao.ts) */
+      if (u && !loginValeAqui()) {
+        setUsuario(null); setPerfil(null); setEstado('fora');
+        void signOut(auth());
+        return;
+      }
       setUsuario(u);
       if (!u) { setPerfil(null); setEstado('fora'); }
     });
@@ -71,6 +79,7 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
   const sair = async () => {
     if (modoSimulacao) { saiDaSimulacao(); return; }
     if (!configurado) { avisa('Na demonstração não tem login para sair.'); return; }
+    limpaEntrada();
     await signOut(auth());
   };
 

@@ -1,6 +1,6 @@
 /* Os desenhos de icone, num sprite so. Vieram da demonstracao aprovada.
    Use <Ic n="chat"/> onde precisar; o sprite entra uma vez na casca. */
-export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "clipe", "doc", "emoji", "envia", "expandir", "ficha", "filtro", "grade", "grafico", "info", "lista", "lixo", "lua", "mais", "menu", "mic", "modelo", "moeda", "nota", "pausa", "pessoas", "play", "pontos", "quadro", "raio", "recolher", "relogio", "seta", "sol", "tag", "texto", "toca", "troca", "volta", "x"] as const;
+export const NOMES_ICONE = ["agenda", "ajuste", "balao", "busca", "camera", "chat", "check", "clipe", "doc", "emoji", "envia", "expandir", "ficha", "filtro", "grade", "grafico", "info", "lista", "lixo", "lua", "mais", "menu", "mic", "modelo", "moeda", "nota", "pausa", "pessoas", "play", "pontos", "quadro", "raio", "recolher", "relogio", "sair", "seta", "sol", "tag", "texto", "toca", "troca", "volta", "x"] as const;
 export type NomeIcone = (typeof NOMES_ICONE)[number];
 
 export function Ic({ n, c }: { n: NomeIcone | string; c?: string }) {
@@ -45,6 +45,7 @@ export function SpriteDeIcones() {
   <symbol id="i-quadro" viewBox="0 0 24 24"><rect x="4" y="4.5" width="6.5" height="15" rx="1.5"/><rect x="13.5" y="4.5" width="6.5" height="9.5" rx="1.5"/></symbol>
   <symbol id="i-grafico" viewBox="0 0 24 24"><path d="M4 20h16M7.5 16.5v-5M12 16.5V6M16.5 16.5V9.5"/></symbol>
   <symbol id="i-ajuste" viewBox="0 0 24 24"><path d="M4.5 7.5h8M17 7.5h2.5M4.5 16.5H7M11 16.5h8.5"/><circle cx="15" cy="7.5" r="2"/><circle cx="9" cy="16.5" r="2"/></symbol>
+  <symbol id="i-sair" viewBox="0 0 24 24"><path d="M9 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3m7 13 5-5-5-5m5 5H9"/></symbol>
   <symbol id="i-lua" viewBox="0 0 24 24"><path d="M19.5 14.2A7.8 7.8 0 0 1 9.8 4.5a7.8 7.8 0 1 0 9.7 9.7z"/></symbol>
   <symbol id="i-sol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.8"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M6 18l1.4-1.4M16.6 7.4 18 6"/></symbol>
   <symbol id="i-pessoas" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.500-5s4.900 1.800 5.500 5M15.500 6.200a3 3 0 0 1 0 5.600M17.500 14.600c1.600.800 2.600 2.300 3 4.400"/></symbol>

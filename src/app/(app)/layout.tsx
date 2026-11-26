@@ -53,7 +53,11 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
   const atual = (MODULOS.find((m) => rota.startsWith(ROTA[m])) || 'conversas') as Modulo;
 
   useEffect(() => {
-    if (estado === 'fora' || estado === 'sem-perfil') router.replace('/entrar');
+    /* sem login: a tela de entrar, que depois volta para onde a pessoa ia (o link do aviso) */
+    if (estado === 'fora' || estado === 'sem-perfil') {
+      const ia = `${window.location.pathname}${window.location.search}`;
+      router.replace(ia && ia !== '/' ? `/entrar?volta=${encodeURIComponent(ia)}` : '/entrar');
+    }
   }, [estado, router]);
 
   useEffect(() => {
@@ -129,12 +133,15 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
           </div>
 
           <div className="rail-foot">
-            <button className="me" onClick={() => void sair()} title={`${perfil.nome}. Sair`}>
+            <Link className="me" href="/ajustes" title={`${perfil.nome}: sua conta em Configurações`}>
               <BonecoNoCirculo a={leAvatar(perfil.avatar, perfil.nome)} tamanho={34} />
               <div>
                 <b>{perfil.nome}</b>
                 <small>{NOME_PAPEL[perfil.papel]}</small>
               </div>
+            </Link>
+            <button className="rail-sair" onClick={() => void sair()} title="Sair da conta" aria-label="Sair da conta">
+              <Ic n="sair" /><span>Sair</span>
             </button>
             <button className="ib" onClick={() => setTema(escuro ? 'claro' : 'escuro')}
                     title={rotulo} aria-label={rotulo}>

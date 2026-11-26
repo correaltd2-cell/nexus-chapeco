@@ -1,8 +1,12 @@
 'use client';
+/* A tela de entrar. Desde 26/11/2026 o login vale só enquanto a aba está aberta, a não
+   ser que a pessoa marque "Continuar conectado neste aparelho" (dominio/sessao.ts). */
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { browserLocalPersistence, browserSessionPersistence, setPersistence, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, configurado } from '@/lib/firebase/cliente';
+import { limpaEntrada, marcaEntrada } from '@/lib/firebase/sessao-aparelho';
+import { destinoDepoisDeEntrar } from '@/lib/dominio/sessao';
 import { modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import Logo from '@/componentes/logo';
@@ -12,8 +16,14 @@ export default function Entrar() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [indo, setIndo] = useState(false);
+  const [continuar, setContinuar] = useState(false);
   const { estado, sair } = useSessao();
   const router = useRouter();
+  /* a tela que a pessoa tentou abrir (lida na hora, para não precisar de Suspense) */
+  const destino = () => destinoDepoisDeEntrar(new URLSearchParams(window.location.search).get('volta'));
+
+  /* quem já está dentro (continuou conectado) não fica parado aqui */
+  useEffect(() => { if (estado === 'dentro' && !modoDemo) router.replace(destino()); }, [estado, router]);
 
   /* sem Firebase, o sistema roda em demonstracao e nao tem o que logar */
   /* sem Firebase (demonstração) ou em modo simulação, não há login: vai para as conversas */
@@ -23,9 +33,12 @@ export default function Entrar() {
     e.preventDefault();
     setErro(''); setIndo(true);
     try {
+      marcaEntrada(continuar);
+      await setPersistence(auth(), continuar ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth(), email.trim(), senha);
-      router.replace('/conversas');
+      router.replace(destino());
     } catch (err) {
+      limpaEntrada();
       const codigo = (err as { code?: string }).code || '';
       setErro(
         codigo === 'auth/invalid-credential' || codigo === 'auth/wrong-password' || codigo === 'auth/user-not-found'
@@ -78,6 +91,15 @@ export default function Entrar() {
         <label className="cmp-l" htmlFor="senha">Senha</label>
         <input className="cx" id="senha" type="password" autoComplete="current-password" required
                value={senha} onChange={(e) => setSenha(e.target.value)} />
+        <label className="login-manter">
+          <input type="checkbox" checked={continuar} onChange={(e) => setContinuar(e.target.checked)} />
+          <span>Continuar conectado neste aparelho</span>
+        </label>
+        <p className="obs login-manter-obs">
+          {continuar
+            ? 'Este aparelho entra direto até alguém tocar em Sair. Não marque em computador que outras pessoas usam.'
+            : 'Ao fechar a aba ou o aplicativo, o sistema pede o login de novo.'}
+        </p>
         {erro && <p className="erro" role="alert">{erro}</p>}
         <button className="btn p larga" type="submit" disabled={indo}>
           {indo ? 'Entrando...' : 'Entrar'}

@@ -39,7 +39,7 @@ const OQUEVE: Record<Papel, string> = {
 };
 
 export default function Configuracoes() {
-  const { perfil, usuario } = useSessao();
+  const { perfil, usuario, sair } = useSessao();
   const { tema, setTema } = useTema();
   const gestao = perfil ? ehGestao(perfil.papel) : false;
 
@@ -87,6 +87,7 @@ export default function Configuracoes() {
                        aoMudar={(v) => void salvaAtendimento({ simulacaoLiberada: v })} />
       )}
 
+      {perfil && !modoDemo && <SuaConta nome={perfil.nome} email={perfil.email} papel={NOME_PAPEL[perfil.papel]} aoSair={() => void sair()} />}
       <Atendimento valor={atendimento} podeMexer={gestao} aoSalvar={salvaAtendimento} />
       {perfil && <SuaAssinatura perfil={perfil} ligada={atendimento.assinarMensagens} />}
       {perfil && <SeuBoneco key={perfil.id} perfil={perfil} />}
@@ -104,6 +105,27 @@ export default function Configuracoes() {
         </section>
       )}
     </div>
+  );
+}
+
+/* ================= sua conta (26/11/2026: "opção de sair da conta") ================= */
+function SuaConta({ nome, email, papel, aoSair }: { nome: string; email: string; papel: string; aoSair: () => void }) {
+  return (
+    <section className="bl">
+      <p className="bt">Sua conta</p>
+      <div className="lin">
+        <Ic n="pessoas" />
+        <span className="co">
+          <b>{nome}</b>
+          <small>{papel}{email ? `, ${email}` : ''}</small>
+        </span>
+        <button type="button" className="btn" onClick={aoSair}><Ic n="sair" />Sair da conta</button>
+      </div>
+      <p className="vz">
+        O login vale só enquanto a aba está aberta. Quem marcou Continuar conectado na
+        entrada fica entrando direto neste aparelho até tocar em Sair da conta.
+      </p>
+    </section>
   );
 }
 
