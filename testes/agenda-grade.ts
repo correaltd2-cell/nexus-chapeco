@@ -9,7 +9,7 @@ import {
 import {
   alturaDoCartao, alturaPedida, alturasDasLinhas, arredonda, bloqueiosDaSemana, chaveDaCelula, colunasDaGrade, contaDoPeriodo, continuacoes, encaixa,
   FAIXAS_DIA_UTIL, FAIXAS_SABADO, faixaDe, faixasCom, faixasDoDia, GRADE_FIM, GRADE_INICIO,
-  hhmm, horarioDe, ID_SEM_PROFESSOR, proximaFaixa, isoNoDia, mantemOrdem, montaSemana, MEDIDAS, minutoDoY, minutosNoDia, misturaCor, motivoCompleto, motivoCurto,
+  encaixaSemana, hhmm, horarioDe, ID_SEM_PROFESSOR, larguraDoDia, proximaFaixa, isoNoDia, mantemOrdem, montaSemana, MEDIDAS, minutoDoY, minutosNoDia, misturaCor, motivoCompleto, motivoCurto, SEMANA_ELLO,
   nomeCurtoDaAula, nomesCurtosDosProfessores, nomesQueCabem, rotulosDasLinhas, tintaDoProfessor, topos, yDoMinuto,
 } from '../src/lib/dominio/agenda-grade.ts';
 
@@ -175,24 +175,39 @@ igual('motivo curto do bloqueio', [
 igual('motivo completo para o passar o mouse', [motivoCompleto({ tipo: 'indisponivel', motivo: 'Consulta médica' }), motivoCompleto({ tipo: 'reuniao', motivo: 'Reunião geral' })],
   ['Indisponível: Consulta médica', 'Reunião geral']);
 
-/* ---------------- a tinta ---------------- */
+/* ---------------- a Semana do jeito do ELLO (26/11/2026) ---------------- */
+const elloItens = [aula('b2', 'p1', '18:30', '20:00'), aula('a1', 'p2', '18:30', '19:30'), aula('a2', 'p3', '19:30', '20:30'), aula('cedo', 'p1', '08:00', '09:00', 1, 'agendado', '2026-11-24')];
+const ello = encaixaSemana(elloItens, SEMANA_DIAS, FAIXAS_DIA_UTIL);
+const sextaE = ello.get('2026-11-27') || [];
+const deE = (id: string) => sextaE.find((e) => e.id === id);
+igual('cada dia tem o encaixe dele, e o dia sem aula fica vazio', [sextaE.length, ello.get('2026-11-24')?.length, ello.get('2026-11-23')?.length], [3, 1, 0]);
+igual('o B2 desce até as 20h: pega a faixa das 18h30 e metade da das 19h30', [deE('b2')?.ini, deE('b2')?.fim], [1110, 1200]);
+igual('quem se sobrepõe fica lado a lado, na mesma linha de três', [deE('b2')?.faixa, deE('a1')?.faixa, deE('a2')?.faixa, deE('b2')?.faixas], [0, 1, 1, 2]);
+igual('o B2 ocupa na tela a altura de uma faixa e meia',
+  yDoMinuto(1200, U, U.map(() => SEMANA_ELLO.alturaDaFaixa)) - yDoMinuto(1110, U, U.map(() => SEMANA_ELLO.alturaDaFaixa)), SEMANA_ELLO.alturaDaFaixa * 1.5);
+igual('o dia cresce para caber os blocos lado a lado; dia calmo fica no mínimo',
+  [larguraDoDia(sextaE), larguraDoDia([]), larguraDoDia(encaixaSemana(oito, SEMANA_DIAS, U).get('2026-11-27') || [])],
+  [SEMANA_ELLO.larguraMinima, SEMANA_ELLO.larguraMinima, 8 * SEMANA_ELLO.larguraPorBloco]);
+igual('aula de domingo não entra (o dia não está aberto) e nada se perde',
+  [...encaixaSemana([...oito, aula('dom', 'p1', '10:00', '11:00', 1, 'agendado', '2026-11-29')], SEMANA_DIAS, U).values()].flat().length, 8);
+
+/* ---------------- a tinta: a cor cheia, como no ELLO (26/11/2026) ---------------- */
 igual('mistura de cor', [misturaCor('#000000', '#FFFFFF', 0.5), misturaCor('#8CFF00', '#FFFFFF', 0)], ['#808080', '#FFFFFF']);
-const neon = tintaDoProfessor('#8cff00');
-igual('neon entra suave no fundo claro, com texto escuro', [neon.fundoClaro, neon.textoClaro], [misturaCor('#8cff00', '#FFFFFF', 0.16), '#141414']);
-igual('no escuro, o fundo suave pede texto claro', tintaDoProfessor('#faa0eb').textoEscuro, '#FFFFFF');
-igual('texto sempre pelo textoSobre', [neon.sobreACheia, tintaDoProfessor('#2E67B1').sobreACheia], [textoSobre('#8cff00'), textoSobre('#2E67B1')]);
+const natan = tintaDoProfessor('#1F3D2B');
+const bruna = tintaDoProfessor('#8CD866');
+igual('o bloco é a cor cheia nos dois temas', [natan.fundoClaro, natan.fundoEscuro, bruna.fundoClaro], ['#1F3D2B', '#1F3D2B', '#8CD866']);
+igual('branco no verde escuro, preto no verde claro', [natan.textoClaro, natan.textoEscuro, bruna.textoClaro], ['#FFFFFF', '#FFFFFF', '#141414']);
+igual('texto sempre pelo textoSobre', [natan.sobreACheia, tintaDoProfessor('#2E67B1').sobreACheia], [textoSobre('#1F3D2B'), textoSobre('#2E67B1')]);
 igual('cor inválida vira cinza', tintaDoProfessor('verde').cheia, '#8E8E88');
-/* o texto em cima do fundo suave tem contraste de leitura (4,5:1) nos dois temas */
+/* o texto em cima da cor cheia tem contraste de leitura (4,5:1), qualquer que seja a cor */
 const lum = (c: string) => {
   const v = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4));
   return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 };
 const contraste = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-const CORES = ['#8cff00', '#faa0eb', '#F6C28B', '#9FD3A8', '#A9C6EC', '#E7B3D8', '#F2DD8A', '#B9A7E8', '#8FD6D1', '#F4A9A0', '#2E67B1', '#141414', '#FFFFFF', '#FF0000', '#00FFFF', '#FFFF00'];
-igual('contraste de 4,5:1 no fundo suave, claro e escuro', CORES.filter((c) => {
-  const x = tintaDoProfessor(c);
-  return contraste(x.fundoClaro, x.textoClaro) < 4.5 || contraste(x.fundoEscuro, x.textoEscuro) < 4.5;
-}), []);
+const CORES = ['#8cff00', '#faa0eb', '#F6C28B', '#9FD3A8', '#A9C6EC', '#E7B3D8', '#F2DD8A', '#B9A7E8', '#8FD6D1', '#F4A9A0', '#2E67B1', '#141414', '#FFFFFF', '#FF0000', '#00FFFF', '#FFFF00',
+  '#1F3D2B', '#8CD866', '#2D5C9E', '#E79BE3', '#F08A3E', '#8E5BC6', '#2F9C8B', '#F2D33C', '#A8707A', '#808080'];
+igual('contraste de 4,5:1 em cima da cor cheia', CORES.filter((c) => contraste(tintaDoProfessor(c).cheia, tintaDoProfessor(c).sobreACheia) < 4.5), []);
 
 if (falhas) {
   console.log(`agenda (grade): ${falhas} falha(s)`);

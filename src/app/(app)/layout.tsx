@@ -16,6 +16,9 @@ import { FaixaDeSaude } from '@/componentes/saude';
 import Festa from '@/componentes/festa';
 import { AvisoDeMensagem } from '@/componentes/avisos';
 import Logo from '@/componentes/logo';
+import { BonecoNoCirculo } from '@/componentes/avatar';
+import Tchau from '@/componentes/tchau';
+import { leAvatar } from '@/lib/dominio/avatar';
 import { useCorDoMenu, useLarguraDoMenu } from '@/componentes/preferencias';
 
 const ROTA: Record<Modulo, string> = {
@@ -127,7 +130,7 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
 
           <div className="rail-foot">
             <button className="me" onClick={() => void sair()} title={`${perfil.nome}. Sair`}>
-              <span className="eu-foto" aria-hidden="true">{perfil.nome.slice(0, 1).toUpperCase()}</span>
+              <BonecoNoCirculo a={leAvatar(perfil.avatar, perfil.nome)} tamanho={34} />
               <div>
                 <b>{perfil.nome}</b>
                 <small>{NOME_PAPEL[perfil.papel]}</small>
@@ -170,6 +173,7 @@ export default function CascaDoSistema({ children }: { children: React.ReactNode
       </div>
       <div className="toast" id="toast" role="status" aria-live="polite" />
       <Festa />
+      <Tchau perfil={perfil} />
       <AvisoDeMensagem />
     </>
   );

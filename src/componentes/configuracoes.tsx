@@ -16,6 +16,7 @@ import AtendimentoAutomatico from '@/componentes/config-automatico';
 import { SaudeDoSistema } from '@/componentes/saude';
 import { ModelosDeMensagem } from '@/componentes/modelos';
 import { AvisosNoAparelho } from '@/componentes/avisos';
+import SeuBoneco from '@/componentes/seu-boneco';
 import {
   useAnimacao, useCorDoMenu, useLarguraDoMenu, type CorDoMenu, type LarguraDoMenu,
 } from '@/componentes/preferencias';
@@ -88,6 +89,7 @@ export default function Configuracoes() {
 
       <Atendimento valor={atendimento} podeMexer={gestao} aoSalvar={salvaAtendimento} />
       {perfil && <SuaAssinatura perfil={perfil} ligada={atendimento.assinarMensagens} />}
+      {perfil && <SeuBoneco key={perfil.id} perfil={perfil} />}
       <AtendimentoAutomatico salva={automatico} podeMexer={gestao} chama={chama} perfis={perfis} />
       <ModelosDeMensagem gestao={gestao} chama={chama} />
       <Aparencia tema={tema} setTema={setTema} />

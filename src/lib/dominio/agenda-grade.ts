@@ -422,12 +422,15 @@ export function motivoCompleto(b: Pick<Bloqueio, 'tipo' | 'motivo'>): string {
   return normaliza(curto).startsWith(normaliza(tipo)) ? curto : `${tipo}: ${curto}`;
 }
 
-/* ================= a cor do professor, suave ================= */
+/* ================= a cor do professor, cheia ================= */
+
+/* 26/11/2026, pedido do cliente com a foto do ELLO: "quero copiar exatamente as mesmas
+   cores". O bloco é pintado com a cor CHEIA do professor, nos dois temas, e o texto sai
+   do textoSobre (branco no verde escuro do Natan, preto no verde claro da Bruna).
+   Substitui a cor suave no fundo de 24/11. misturaCor segue aqui para quem precisar. */
 
 /** O fundo do cartão nos dois temas: o --surface de cada um (globals.css). */
 export const SUPERFICIE = { claro: '#FFFFFF', escuro: '#484844' } as const;
-/** Quanto da cor do professor entra no fundo: pouco, para cor neon não cansar a vista. */
-export const PESO_DA_TINTA = { claro: 0.16, escuro: 0.22 } as const;
 
 const rgb = (cor: string) => {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec((cor || '').trim());
@@ -441,15 +444,42 @@ export function misturaCor(cor: string, fundo: string, peso: number): string {
   return `#${c.map((x, i) => Math.round(x * peso + f[i] * (1 - peso)).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
 }
 
-/** As cores do cartão de um professor: a cheia (borda) e o fundo suave de cada tema,
-    cada um com o texto que lê melhor em cima dele (textoSobre). */
+/** As cores do cartão de um professor: a cor cheia no fundo, nos dois temas, com o
+    texto que lê melhor em cima dela (textoSobre). */
 export function tintaDoProfessor(cor: string) {
   const cheia = rgb(cor) ? cor : '#8E8E88';
-  const fundoClaro = misturaCor(cheia, SUPERFICIE.claro, PESO_DA_TINTA.claro);
-  const fundoEscuro = misturaCor(cheia, SUPERFICIE.escuro, PESO_DA_TINTA.escuro);
+  const sobre = textoSobre(cheia);
   return {
-    cheia, sobreACheia: textoSobre(cheia),
-    fundoClaro, textoClaro: textoSobre(fundoClaro),
-    fundoEscuro, textoEscuro: textoSobre(fundoEscuro),
+    cheia, sobreACheia: sobre,
+    fundoClaro: cheia, textoClaro: sobre,
+    fundoEscuro: cheia, textoEscuro: sobre,
   };
 }
+
+/* ================= a Semana do jeito do ELLO ================= */
+
+/* 26/11/2026, pedido do cliente com a foto do ELLO: "quero a agenda nesse mesmo formato,
+   porque eu preciso saber quando preenche 2 horários". Cada dia é uma coluna com a régua
+   das faixas; cada aula é um bloco na altura do horário dela, que desce até onde ela
+   acaba (o B2 das 18h30 às 20h ocupa a faixa das 18h30 e metade da das 19h30), e as que
+   se sobrepõem ficam lado a lado, cada uma com a cor cheia do professor. Substitui as
+   células com lista e a continuação tracejada (que seguem só no celular). */
+
+export const SEMANA_ELLO = {
+  alturaDaFaixa: 92,    // px de cada faixa (a do almoço também)
+  larguraPorBloco: 62,  // px de cada bloco lado a lado, para o nome caber em duas ou três linhas
+  larguraMinima: 180,   // px de um dia com pouca coisa
+} as const;
+
+/** O encaixe das aulas (e dos bloqueios de professor, quando pedidos) de cada dia na
+    régua da Semana: todos os professores na mesma coluna, lado a lado quando se
+    sobrepõem. */
+export function encaixaSemana(itens: { id: string; inicio: string; fim: string }[], dias: string[], faixas: Faixa[]): Map<string, Encaixe[]> {
+  const porDia = new Map<string, { id: string; inicio: string; fim: string }[]>(dias.map((d) => [d, []]));
+  for (const x of itens) porDia.get(diaLocal(x.inicio))?.push(x);
+  return new Map(dias.map((d) => [d, encaixa(porDia.get(d) || [], d, faixas)]));
+}
+
+/** A largura de um dia: cabe o grupo com mais blocos lado a lado, e nunca menos que o mínimo. */
+export const larguraDoDia = (encaixes: Encaixe[], m: { larguraPorBloco: number; larguraMinima: number } = SEMANA_ELLO) =>
+  Math.max(m.larguraMinima, Math.max(1, ...encaixes.map((e) => e.faixas)) * m.larguraPorBloco);

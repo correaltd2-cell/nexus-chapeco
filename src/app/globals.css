@@ -194,6 +194,9 @@ a{color:inherit;text-decoration:none}
   width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;
   background:var(--solar);color:#141414;font-family:var(--fonte-dados);font-size:11px;font-weight:700;
 }
+/* o bonequinho de cada um (26/11/2026): pequeno no círculo, embaixo do menu */
+.boneco-circulo{display:inline-grid;place-items:center;flex:none;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.14)}
+.boneco-circulo svg{display:block}
 .rail .ib{color:var(--ink-dim)}
 .rail .ib:hover{background:var(--ink-2);color:var(--ink-text)}
 .rail{--rail-linha:var(--ink-line)}
@@ -1535,6 +1538,40 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 .ag-sem-linha{display:flex;gap:8px;padding:8px 0;border-top:2px solid var(--line-2)}
 .ag-sem-linha:first-of-type{border-top:0}
 .ag-sem-hora-l{flex:0 0 44px;padding-top:6px;font-size:12px;color:var(--muted)}
+
+/* ----- a Semana do jeito do ELLO (26/11/2026): régua por dia, blocos na altura do
+   horário, lado a lado quando se sobrepõem, cor cheia do professor ----- */
+.ag-sem.ello .ag-g-folha{min-width:100%}
+.ag-sem.ello .ag-sem-cab{flex:1 0 180px;position:static;min-width:0;box-shadow:none;border-bottom:1px solid var(--line);padding:9px 10px 7px}
+.ag-sem.ello .ag-sem-cab b{font-size:18px}
+.ag-s-dia{flex:1 0 180px}
+.ag-s-dia.hoje{background:color-mix(in srgb,var(--solar) 4%,transparent)}
+.ag-s-dia .ag-g-slot:disabled{cursor:default}
+.ag-s-dia .ag-g-slot:disabled:hover{background:none}
+.ag-s-aula{
+  position:absolute;z-index:2;display:flex;flex-direction:column;gap:1px;overflow:hidden;cursor:pointer;text-align:left;
+  border-radius:5px;padding:3px 5px 3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.16);
+  font-size:11.5px;line-height:1.22;overflow-wrap:anywhere;hyphens:auto;
+}
+.ag-s-aula[draggable="true"]{cursor:grab}
+.ag-s-aula:hover{box-shadow:inset 0 0 0 1px rgba(0,0,0,.16),0 2px 8px rgba(20,20,20,.25);z-index:3}
+.ag-s-aula:focus-visible{outline:2px solid var(--solar);outline-offset:1px;z-index:3}
+.ag-s-topo{display:flex;align-items:center;gap:4px;min-height:11px;flex:none}
+.ag-s-topo .ag-st{width:10px;height:10px;box-shadow:0 0 0 1.5px rgba(255,255,255,.75)}
+.ag-s-aula b{font-weight:800;letter-spacing:.01em}
+.ag-s-prof{font-weight:600;opacity:.9}
+.ag-s-aula.fino{padding:3px 3px;font-size:10.5px}
+.ag-s-aula.parado{opacity:.6}
+.ag-s-aula.cancelada{opacity:.3}
+.ag-s-aula.parado b{text-decoration:line-through}
+.ag-s-bl{
+  position:absolute;z-index:2;display:flex;flex-direction:column;gap:1px;overflow:hidden;padding:3px 5px;border:0;border-radius:5px;cursor:pointer;text-align:left;
+  background:var(--surface-2) repeating-linear-gradient(135deg,rgba(128,128,128,.24) 0 5px,transparent 5px 10px);color:var(--muted);
+  box-shadow:inset 3px 0 0 var(--g-cor);font-size:10.5px;font-weight:600;line-height:1.2;overflow-wrap:anywhere;
+}
+.ag-s-bl small{font-weight:500}
+.ag-s-bl:hover{color:var(--text)}
+.ag-s-agora{left:0}
 .ag-sem-itens{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
 .ag-sem-vazio{margin:8px 4px;color:var(--muted);font-size:13px}
 
@@ -2104,3 +2141,43 @@ textarea.alu-g-ed{height:auto;min-height:110px;min-width:260px;padding:8px;resiz
 .fita-demo.fita-sim{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
 .fita-sim .btn{padding:5px 14px;font-size:12.5px}
 
+
+
+/* ----- o bonequinho: editor em Configurações e o tchau ao abrir (26/11/2026) ----- */
+.bnc{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.bnc-previa{position:relative;flex:0 0 190px;height:210px;border-radius:22px;display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.bnc-svg{width:170px;height:170px;margin-top:-18px}
+.bnc-ver{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px;padding:6px 12px;background:var(--surface)}
+.bnc-opcoes{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.bnc-linha{display:flex;flex-direction:column;gap:6px}
+.bnc-rot{font-size:12.5px;font-weight:600;color:var(--muted)}
+.bnc-cores{display:flex;flex-wrap:wrap;gap:8px}
+.bnc-cor{width:30px;height:30px;border-radius:50%;border:0;padding:0;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.bnc-cor[aria-checked="true"]{box-shadow:inset 0 0 0 1px rgba(0,0,0,.18),0 0 0 2px var(--surface),0 0 0 4px var(--solar)}
+.bnc-cabelos{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px}
+.bnc-cab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px 7px;border:0;border-radius:14px;background:var(--surface-2);cursor:pointer;color:var(--text)}
+.bnc-cab svg{width:52px;height:52px}
+.bnc-cab small{font-size:11px;font-weight:600;color:var(--muted)}
+.bnc-cab[aria-checked="true"]{box-shadow:0 0 0 2px var(--solar);background:var(--solar-wash)}
+.bnc-cab[aria-checked="true"] small{color:var(--solar-deep)}
+.bnc-chaves{gap:8px}
+.boneco-braco{transform-box:view-box;transform-origin:92px 104px;animation:boneco-acena .9s ease-in-out infinite alternate}
+@keyframes boneco-acena{from{transform:rotate(-14deg)}to{transform:rotate(16deg)}}
+
+.tchau{position:fixed;inset:0;z-index:120;display:grid;place-items:center;pointer-events:none;
+  background:radial-gradient(circle at 50% 45%,rgba(20,20,20,.28),rgba(20,20,20,0) 62%);animation:tchau-fundo 2.8s ease forwards}
+.tchau-cartao{display:flex;flex-direction:column;align-items:center;gap:4px;padding:22px 34px 26px;border-radius:32px;
+  box-shadow:0 24px 60px rgba(20,20,20,.28),inset 0 0 0 1px rgba(0,0,0,.05);animation:tchau-entra 2.8s cubic-bezier(.2,.9,.25,1.2) forwards}
+.tchau-boneco{width:min(240px,56vw);height:min(240px,56vw);margin-top:-8px}
+.tchau-tx{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;color:#141414}
+.tchau-tx b{font-family:var(--fonte-display);font-size:clamp(26px,5vw,38px);font-weight:800;letter-spacing:-.02em}
+.tchau-tx span{font-size:15px;font-weight:600;opacity:.78}
+@keyframes tchau-entra{
+  0%{opacity:0;transform:translateY(40px) scale(.7)}
+  14%{opacity:1;transform:translateY(0) scale(1.04)}
+  22%{transform:scale(1)}
+  84%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:0;transform:translateY(-16px) scale(.96)}
+}
+@keyframes tchau-fundo{0%{opacity:0}12%{opacity:1}84%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.tchau,.tchau-cartao{animation:none}}

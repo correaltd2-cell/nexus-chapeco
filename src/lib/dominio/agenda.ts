@@ -120,12 +120,14 @@ export const CORES_DE_PROFESSOR = ['#F6C28B', '#9FD3A8', '#A9C6EC', '#E7B3D8', '
 export const corDoProfessor = (p: { cor?: string } | undefined, indice = 0) =>
   p?.cor && /^#[0-9a-f]{6}$/i.test(p.cor) ? p.cor : CORES_DE_PROFESSOR[indice % CORES_DE_PROFESSOR.length];
 
-/** Texto escuro ou claro, o que ler melhor em cima da cor do professor. */
+/** Texto escuro ou claro, o que ler melhor em cima da cor do professor. O corte é onde
+    os dois contrastes empatam com o preto da casa (luminância 0,195): as cores de professor ficam com 4,5:1 ou mais,
+    o que importa desde que o bloco é pintado com a cor cheia (26/11/2026). */
 export function textoSobre(cor: string) {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(cor);
   if (!m) return '#141414';
   const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.36 ? '#141414' : '#FFFFFF';
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.195 ? '#141414' : '#FFFFFF';
 }
 
 /* ================= tempo ================= */

@@ -2,6 +2,7 @@
    Tudo que é dinheiro é inteiro em centavos. Datas gravadas como ISO ou Timestamp do Firestore;
    no cliente a gente lê sempre pelos ajudantes de `datas.ts`. */
 
+import type { Avatar } from './avatar';
 export type Papel = 'admin' | 'gestor' | 'recepcao' | 'coordenacao' | 'professor';
 export type Setor = 'recepcao' | 'financeiro' | 'coordenacao' | 'kids';
 export type Trilha = 'adultos' | 'kids';
@@ -21,6 +22,7 @@ export interface Perfil {
   /* agenda: quem dá aula aparece como professor; a cor pinta os blocos dele */
   daAula?: boolean;        // papel professor já dá aula; coordenação marca se der
   cor?: string;            // #RRGGBB
+  avatar?: Partial<Avatar>; // o bonequinho (lido por leAvatar)
   teste?: boolean;         // professor fictício da semente da agenda
 }
 
