@@ -14,7 +14,8 @@
    As regras (quem recebe, quando) moram em src/lib/dominio/avisos.ts. */
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { User } from 'firebase/auth';
-import { assina, modoDemo } from '@/lib/dados/fonte';
+import { modoDemo } from '@/lib/dados/fonte';
+import { assinaConversas } from '@/lib/dados/conversas';
 import { appFirebase } from '@/lib/firebase/cliente';
 import { useSessao } from '@/componentes/sessao';
 import { somLigado, useAvisos, useSomDoAviso } from '@/componentes/preferencias';
@@ -188,7 +189,8 @@ export function AvisoDeMensagem() {
   useEffect(() => {
     if (!perfil || preferencia !== 'ligados') return;
     antes.current = null;
-    return assina('conversas', (docs) => {
+    /* só as conversas que a pessoa pode ver (a coordenação, as do setor dela) */
+    return assinaConversas(perfil, (docs) => {
       const conversas = docs as unknown as Conversa[];
       const novas = chegaramAgora(antes.current, conversas);
       antes.current = new Map(conversas.map((c) => [c.id, c.naoLidas || 0]));

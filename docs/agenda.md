@@ -133,9 +133,16 @@ pedido; uma aula criada assim existe no banco mas não aparece na agenda.
 ## Permissões (também no firestore.rules)
 
 - Admin, gestão, recepção e coordenação: tudo.
-- Professor: vê a agenda inteira; nas aulas dele, só muda o status e a presença,
-  observação e notas dos alunos. Não cria, não exclui, não remarca, não troca aluno. As
-  regras do Firestore recusam o resto, mesmo vindo de fora da tela.
+- Professor (desde 26/11/2026): só a agenda, e nela **só as aulas dele**. A tela pede ao
+  banco só as aulas com o `professorId` dele (sem índice composto: o período sai em
+  memória), sem a ficha completa dos alunos (os nomes vêm da própria aula), e os filtros
+  de professor e aluno somem. Nas aulas dele, só muda o status e a presença, observação e
+  notas dos alunos. Não cria, não exclui, não remarca, não troca aluno. As regras do
+  Firestore recusam o resto, mesmo vindo de fora da tela (prova no emulador:
+  `npm run test:regras`).
+- O professor ganha login em Configurações, Equipe, **na linha dele** ("Criar login"):
+  o login nasce com o mesmo id do cadastro, então as aulas que vieram do ELLO continuam
+  dele. Criar pelo "Criar login" do alto faria outra pessoa, com a agenda vazia.
 - Relatório, log e cadastros: quem cuida da agenda. Dados de teste: só a administração.
 
 ## WhatsApp

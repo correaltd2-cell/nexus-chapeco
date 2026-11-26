@@ -137,12 +137,14 @@ exatamente um padrão antigo segue o padrão novo sozinho; texto que a escola es
    (listaId, arquivado, ordem).
 5. **Celular da recepção.** No WhatsApp Business, em Ferramentas comerciais, desligar a
    Mensagem de saudação e a Mensagem de ausência. Senão o aluno recebe duas saudações.
-6. **Modelo do aviso aos coordenadores.** O sistema cria sozinho na Meta o
+6. **Modelo do aviso a quem recebe a conversa.** O sistema cria sozinho na Meta o
    `aviso_demanda_coordenacao`, junto com os outros modelos da escola
    (`docs/modelos-de-mensagem.md`). Espere ele aparecer como aprovado em Configurações,
    Modelos de mensagem. Depois, em Configurações, Equipe, toque em "Aviso no WhatsApp"
-   no Natan e na Karina, preencha o celular e marque o aviso. Por último, marque "Mandar
-   o aviso no celular pessoal" no atendimento automático.
+   no Natan, na Karina e em quem é do Financeiro (desde 26/11/2026), preencha o celular e
+   marque o aviso. Por último, marque "Mandar o aviso no celular pessoal" no atendimento
+   automático. Vale quando a conversa passa para a Coordenação, a Coordenação Kids ou o
+   Financeiro; no Financeiro o texto diz "para a equipe do Financeiro".
 7. **Escrever o conteúdo.** Em Configurações, o jeito de falar da Nexus (com mensagens
    reais da recepção) e as perguntas e respostas do financeiro e do contrato. As de
    trancamento e multa vêm vazias de propósito: o sistema não inventa regra da escola.

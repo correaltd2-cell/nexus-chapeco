@@ -20,10 +20,10 @@ import { aulasDoContato } from '@/lib/agenda-servidor';
 import { descreveErro, falhou } from '@/lib/saude';
 import { comReserva } from '@/lib/firebase/indice';
 import {
-  BOTOES_DEPOIS_DA_DUVIDA, BOTOES_MAIS, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, avisaForaDoHorario, comNome,
+  BOTOES_DEPOIS_DA_DUVIDA, BOTOES_MAIS, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, avisaForaDoHorario, avisaNoWhatsDoSetor, comNome,
   depoisDoMenuConfuso, destinoDoAssunto, deveVoltarParaRecepcao, escolhaDoMenu, idDaPergunta, idDoBotao, leAutomatico,
   menorEspera, pareceDespedida, primeiro, promptMensagem, recomecaAtendimento, reservaDo, respostaDoAlgoMais,
-  semAulaMarcada, setorDoPassa, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
+  semAulaMarcada, setorDoPassa, setorNoAviso, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
   type ConfigAutomatico, type ContextoDaConversa, type Destino, type Linha, type Momento, type SituacaoDoHorario,
 } from '@/lib/dominio/automatico';
 import type { Conversa, Mensagem, Perfil, QuemEncerrou, Setor } from '@/lib/dominio/tipos';
@@ -545,14 +545,14 @@ export async function transfere(
       await fala(bd, ref, c, { texto, relogio: 'nao' });
     }
   }
-  if ((setor === 'coordenacao' || setor === 'kids') && cfg.avisoLigado && temConfig()) {
+  if (avisaNoWhatsDoSetor(setor) && cfg.avisoLigado && temConfig()) {
     const ps = await bd.collection('perfis').where('ativo', '==', true).get();
     for (const d of ps.docs) {
       const p = d.data() as Perfil;
       const fone = (p.telefone || '').replace(/\D/g, '');
       if (!p.avisaNoWhats || !fone || !(p.setores || []).includes(setor)) continue;
       const r = await mandaTemplate(fone, cfg.avisoModelo, cfg.avisoIdioma,
-        [primeiro(p.nome), NOME_SETOR[setor], c.nome || c.waId], ref.id);
+        [primeiro(p.nome), setorNoAviso(setor), c.nome || c.waId], ref.id);
       const linha = r.ok
         ? `Aviso enviado no WhatsApp de ${p.nome}.`
         : `O aviso para ${p.nome} não saiu: ${r.erro || 'a Meta recusou'}.`;

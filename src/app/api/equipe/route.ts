@@ -4,7 +4,12 @@
    e nao fica guardada em lugar nenhum.
 
    Quem tem historico nao é apagado, é desativado: conversa, cartao e correcao de
-   prova apontam para o uid, e apagar deixaria buraco no registro do aluno. */
+   prova apontam para o uid, e apagar deixaria buraco no registro do aluno.
+
+   Quem já está na equipe sem login (os professores que vieram do ELLO, por exemplo)
+   ganha o login com o MESMO id do cadastro (acao 'login', 26/11/2026): as aulas dele
+   apontam para esse id, e um login com id novo duplicaria o professor e deixaria a
+   agenda dele vazia. GET diz quem já tem login. */
 import { NextResponse } from 'next/server';
 import { adminAuth, adminBd, quemChamou } from '@/lib/firebase/admin';
 import { MODULOS_POR_PAPEL_OK } from '@/lib/dominio/equipe';
@@ -18,6 +23,23 @@ const senhaProvisoria = () =>
 
 const erro = (texto: string, status = 400) =>
   NextResponse.json({ ok: false, erro: texto }, { status });
+
+const semLogin = (e: unknown) => String((e as { code?: string }).code || '').includes('user-not-found');
+
+/** Quem da equipe já tem login, e se está bloqueado. Só a gestão pergunta. */
+export async function GET(req: Request) {
+  const quem = await quemChamou(req);
+  if (!quem) return erro('Faça login de novo.', 401);
+  if (quem.papel !== 'admin' && quem.papel !== 'gestor') return erro('Só a administração mexe na equipe.', 403);
+  /* id de login do Firebase: até 128 caracteres, sem barra */
+  const ids = (await adminBd().collection('perfis').select().get()).docs.map((d) => d.id).filter((id) => id.length <= 128 && !id.includes('/'));
+  const logins: Record<string, { email: string; bloqueado: boolean }> = {};
+  for (let i = 0; i < ids.length; i += 100) {
+    const r = await adminAuth().getUsers(ids.slice(i, i + 100).map((uid) => ({ uid })));
+    for (const u of r.users) logins[u.uid] = { email: u.email || '', bloqueado: u.disabled };
+  }
+  return NextResponse.json({ ok: true, logins });
+}
 
 export async function POST(req: Request) {
   const quem = await quemChamou(req);
@@ -77,15 +99,51 @@ export async function POST(req: Request) {
 
   if (!corpo.uid) return erro('Falta dizer de quem é o acesso.');
 
+  /* login para quem já está na equipe, com o mesmo id do cadastro */
+  if (corpo.acao === 'login') {
+    const email = (corpo.email || '').trim().toLowerCase();
+    const ref = bd.doc(`perfis/${corpo.uid}`);
+    const perfil = await ref.get();
+    if (!perfil.exists) return erro('Essa pessoa não está na equipe.');
+    if (!email) return erro('Falta o e-mail.');
+    const dados = perfil.data() as { nome?: string; papel?: Papel; setores?: Setor[] };
+    const papel = corpo.papel || dados.papel || 'professor';
+    if (!MODULOS_POR_PAPEL_OK.includes(papel)) return erro('Papel desconhecido.');
+    if (papel === 'admin' && quem.papel !== 'admin') return erro('Só um administrador cria ou promove outro administrador.', 403);
+    try {
+      await auth.getUser(corpo.uid);
+      return erro('Essa pessoa já tem login. Use Senha nova se ela esqueceu a senha.');
+    } catch (e) {
+      if (!semLogin(e)) return erro('Não consegui conferir o login. Tente de novo.');
+    }
+    const senha = senhaProvisoria();
+    try {
+      await auth.createUser({ uid: corpo.uid, email, password: senha, displayName: dados.nome || email });
+      await auth.setCustomUserClaims(corpo.uid, { papel });
+      await ref.update({ email, papel, setores: corpo.setores ?? dados.setores ?? [], ativo: true });
+      return NextResponse.json({ ok: true, uid: corpo.uid, senha });
+    } catch (e) {
+      const codigo = (e as { code?: string }).code || '';
+      if (codigo.includes('email-already-exists')) return erro('Esse e-mail já tem login.');
+      if (codigo.includes('invalid-email')) return erro('Esse e-mail não é válido.');
+      return erro('Não consegui criar o login. Tente de novo.');
+    }
+  }
+
   if (corpo.acao === 'senha') {
     const senha = senhaProvisoria();
-    await auth.updateUser(corpo.uid, { password: senha });
+    try {
+      await auth.updateUser(corpo.uid, { password: senha });
+    } catch (e) {
+      if (semLogin(e)) return erro('Essa pessoa ainda não tem login. Use Criar login na linha dela.');
+      return erro('Não consegui gerar a senha. Tente de novo.');
+    }
     return NextResponse.json({ ok: true, senha });
   }
 
   if (corpo.acao === 'acesso') {
     const ativo = corpo.ativo !== false;
-    await auth.updateUser(corpo.uid, { disabled: !ativo });
+    try { await auth.updateUser(corpo.uid, { disabled: !ativo }); } catch (e) { if (!semLogin(e)) return erro('Não consegui mudar o acesso. Tente de novo.'); }
     await bd.doc(`perfis/${corpo.uid}`).update({ ativo });
     return NextResponse.json({ ok: true });
   }
@@ -93,8 +151,8 @@ export async function POST(req: Request) {
   if (corpo.acao === 'papel') {
     const papel = corpo.papel;
     if (!papel || !MODULOS_POR_PAPEL_OK.includes(papel)) return erro('Papel desconhecido.');
-    await auth.setCustomUserClaims(corpo.uid, { papel });
-    await bd.doc(`perfis/${corpo.uid}`).update({ papel, setores: corpo.setores || [] });
+    try { await auth.setCustomUserClaims(corpo.uid, { papel }); } catch (e) { if (!semLogin(e)) return erro('Não consegui mudar o papel. Tente de novo.'); }
+    await bd.doc(`perfis/${corpo.uid}`).update({ papel, setores: papel === 'coordenacao' ? corpo.setores || [] : [] });
     return NextResponse.json({ ok: true });
   }
 

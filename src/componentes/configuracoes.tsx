@@ -28,6 +28,14 @@ interface Conferencia {
 }
 
 const PAPEIS: Papel[] = ['admin', 'gestor', 'recepcao', 'coordenacao', 'professor'];
+/* o que cada papel vê, em uma frase, para quem cria o login saber o que está dando */
+const OQUEVE: Record<Papel, string> = {
+  admin: 'Vê e mexe em tudo, inclusive configurações e equipe.',
+  gestor: 'Vê e mexe em tudo da operação, inclusive configurações e equipe.',
+  recepcao: 'Vê todas as conversas, a agenda inteira, alunos, quadros e relatórios.',
+  coordenacao: 'Vê só as conversas dos setores marcados, e a agenda inteira, alunos e quadros.',
+  professor: 'Vê só a agenda, e nela só as aulas dele; lança status e presença. Não vê conversas.',
+};
 
 export default function Configuracoes() {
   const { perfil, usuario } = useSessao();
@@ -339,6 +347,32 @@ function Equipe({ perfis, eu, chama }: {
   const [avisoDe, setAvisoDe] = useState<string | null>(null);
   const [fone, setFone] = useState('');
   const [avisar, setAvisar] = useState(false);
+  /* quem já tem login (o servidor confere no Firebase): quem está na equipe sem login,
+     como os professores que vieram do ELLO, ganha o login pela própria linha, com o
+     mesmo id, para as aulas continuarem dele */
+  const [logins, setLogins] = useState<Record<string, { email: string; bloqueado: boolean }> | null>(null);
+  const [rodada, setRodada] = useState(0);
+  const [editando, setEditando] = useState<{ id: string; tipo: 'login' | 'papel' } | null>(null);
+  const [emailDaLinha, setEmailDaLinha] = useState('');
+  const [papelDaLinha, setPapelDaLinha] = useState<Papel>('professor');
+  const [setoresDaLinha, setSetoresDaLinha] = useState<Setor[]>([]);
+  const qtos = perfis.length;
+  useEffect(() => {
+    if (modoDemo) return;
+    let vale = true;
+    chama('/api/equipe').then((r) => { if (vale && r.ok) setLogins(r.logins as Record<string, { email: string; bloqueado: boolean }>); }).catch(() => undefined);
+    return () => { vale = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qtos, rodada]);
+
+  function abreLinha(p: Perfil, tipo: 'login' | 'papel') {
+    if (editando?.id === p.id && editando.tipo === tipo) { setEditando(null); return; }
+    setEditando({ id: p.id, tipo });
+    setEmailDaLinha(p.email || '');
+    setPapelDaLinha(p.papel);
+    setSetoresDaLinha(p.setores || []);
+    setErro('');
+  }
 
   function abreAviso(p: Perfil) {
     if (avisoDe === p.id) { setAvisoDe(null); return; }
@@ -366,6 +400,8 @@ function Equipe({ perfis, eu, chama }: {
       if (r.senha) { setSenha(String(r.senha)); setDeQuem(String(corpo.nome || corpo.uid || '')); }
       avisa(feito);
       if (corpo.acao === 'criar') { setAbrindo(false); setNome(''); setEmail(''); setSetores([]); }
+      setEditando(null);
+      setRodada((n) => n + 1);
     } catch {
       setErro('Não consegui falar com o servidor.');
     } finally {
@@ -394,9 +430,10 @@ function Equipe({ perfis, eu, chama }: {
               {PAPEIS.map((p) => <option key={p} value={p}>{NOME_PAPEL[p]}</option>)}
             </select>
           </div>
+          <p className="obs">{OQUEVE[papel]}</p>
           {papel === 'coordenacao' && (
             <div>
-              <label>Setores que essa pessoa atende</label>
+              <label>Setores que essa pessoa atende (ela vê só as conversas deles)</label>
               <div className="tags">
                 {SETORES.map((s) => (
                   <button key={s} className="tag" aria-pressed={setores.includes(s)}
@@ -409,6 +446,8 @@ function Equipe({ perfis, eu, chama }: {
           )}
           <p className="obs">
             A senha provisória aparece aqui uma vez, para você passar à pessoa. Ela não fica guardada.
+            Quem já está na lista abaixo (como os professores que vieram do ELLO) ganha o login
+            pela própria linha, para não ficar em dobro.
           </p>
           <div className="acoes">
             <button className="btn p" disabled={indo || !nome.trim() || !email.trim()}
@@ -436,7 +475,8 @@ function Equipe({ perfis, eu, chama }: {
             <b>{p.nome}{p.id === eu?.id ? ' (você)' : ''}</b>
             <small>
               {NOME_PAPEL[p.papel]}
-              {p.setores.length ? `, ${p.setores.map((s) => NOME_SETOR[s]).join(', ')}` : ''}
+              {(p.setores || []).length ? `, ${(p.setores || []).map((s) => NOME_SETOR[s]).join(', ')}` : ''}
+              {logins && !logins[p.id] ? ', sem login' : ''}
               {p.ativo ? '' : ', sem acesso'}
               {p.criadoEm ? `, desde ${dataBR(p.criadoEm)}` : ''}
               {p.avisaNoWhats && p.telefone ? `, aviso no WhatsApp ${telefoneLegivel(p.telefone)}` : ''}
@@ -447,10 +487,19 @@ function Equipe({ perfis, eu, chama }: {
           </button>
           {p.id !== eu?.id && (
             <>
-              <button className="tx-btn" disabled={indo}
-                      onClick={() => void acao({ acao: 'senha', uid: p.id, nome: p.nome }, 'Senha nova gerada')}>
-                Senha nova
+              <button className="tx-btn" aria-expanded={editando?.id === p.id && editando.tipo === 'papel'} onClick={() => abreLinha(p, 'papel')}>
+                Papel
               </button>
+              {logins && !logins[p.id] ? (
+                <button className="tx-btn" aria-expanded={editando?.id === p.id && editando.tipo === 'login'} onClick={() => abreLinha(p, 'login')}>
+                  Criar login
+                </button>
+              ) : (
+                <button className="tx-btn" disabled={indo}
+                        onClick={() => void acao({ acao: 'senha', uid: p.id, nome: p.nome }, 'Senha nova gerada')}>
+                  Senha nova
+                </button>
+              )}
               <button className="tx-btn" disabled={indo}
                       onClick={() => void acao({ acao: 'acesso', uid: p.id, ativo: !p.ativo }, p.ativo ? 'Acesso retirado' : 'Acesso devolvido')}>
                 {p.ativo ? 'Tirar acesso' : 'Devolver acesso'}
@@ -458,12 +507,62 @@ function Equipe({ perfis, eu, chama }: {
             </>
           )}
         </div>
+        {editando?.id === p.id && (
+          <div className="frm">
+            {editando.tipo === 'login' && (
+              <>
+                <p className="obs forte">
+                  {p.nome.split(' ')[0]} já está na equipe{p.papel === 'professor' ? ' e as aulas apontam para este cadastro' : ''}.
+                  O login nasce no mesmo cadastro, sem criar outra pessoa.
+                </p>
+                <div className="ln">
+                  <input className="cx" type="email" placeholder="E-mail" aria-label={`E-mail de ${p.nome}`}
+                         value={emailDaLinha} onChange={(e) => setEmailDaLinha(e.target.value)} />
+                </div>
+              </>
+            )}
+            <div>
+              <label htmlFor={`papel-${p.id}`}>Papel</label>
+              <select id={`papel-${p.id}`} className="cx" value={papelDaLinha} onChange={(e) => setPapelDaLinha(e.target.value as Papel)}>
+                {PAPEIS.map((x) => <option key={x} value={x}>{NOME_PAPEL[x]}</option>)}
+              </select>
+            </div>
+            {papelDaLinha === 'coordenacao' && (
+              <div>
+                <label>Setores que essa pessoa atende (ela vê só as conversas deles)</label>
+                <div className="tags">
+                  {SETORES.map((s) => (
+                    <button key={s} className="tag" aria-pressed={setoresDaLinha.includes(s)}
+                            onClick={() => setSetoresDaLinha(setoresDaLinha.includes(s) ? setoresDaLinha.filter((x) => x !== s) : [...setoresDaLinha, s])}>
+                      {NOME_SETOR[s]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="obs">{OQUEVE[papelDaLinha]}</p>
+            <div className="acoes">
+              <button className="btn" onClick={() => setEditando(null)}>Cancelar</button>
+              {editando.tipo === 'login' ? (
+                <button className="btn p" disabled={indo || !emailDaLinha.trim()}
+                        onClick={() => void acao({ acao: 'login', uid: p.id, nome: p.nome, email: emailDaLinha, papel: papelDaLinha, setores: papelDaLinha === 'coordenacao' ? setoresDaLinha : [] }, 'Login criado')}>
+                  Criar login
+                </button>
+              ) : (
+                <button className="btn p" disabled={indo}
+                        onClick={() => void acao({ acao: 'papel', uid: p.id, papel: papelDaLinha, setores: papelDaLinha === 'coordenacao' ? setoresDaLinha : [] }, 'Papel salvo')}>
+                  Salvar papel
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {avisoDe === p.id && (
           <div className="frm">
             <p className="obs forte">
               Quando alguém passa uma conversa para o setor de {p.nome.split(' ')[0]}, chega neste
-              celular um aviso com o botão que abre a conversa no sistema. Vale para Coordenação e
-              Coordenação Kids, com o aviso ligado no atendimento automático.
+              celular um aviso com o botão que abre a conversa no sistema. Vale para Coordenação,
+              Coordenação Kids e Financeiro, com o aviso ligado no atendimento automático.
             </p>
             <div className="ln">
               <input className="cx" inputMode="tel" aria-label={`Celular de ${p.nome}`} placeholder="49 99123-4567"

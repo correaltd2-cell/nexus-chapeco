@@ -11,8 +11,15 @@ service cloud.firestore {
     function gestao() { return papel() in ['admin', 'gestor']; }
     function equipe() { return papel() in ['admin', 'gestor', 'recepcao', 'coordenacao', 'professor']; }
     function veTudo() { return papel() in ['admin', 'gestor', 'recepcao']; }
-    function meusSetores() { return ativo() ? perfil().setores : []; }
-    function veSetor(setor) { return veTudo() || setor in meusSetores(); }
+    /* quem atende (26/11/2026): todos menos o professor, que só tem a agenda dele */
+    function atende() { return papel() in ['admin', 'gestor', 'recepcao', 'coordenacao']; }
+    function meusSetores() { return ativo() ? perfil().get('setores', []) : []; }
+    function veSetor(setor) { return veTudo() || (papel() == 'coordenacao' && setor in meusSetores()); }
+    /* a conversa de uma mensagem: a coordenação só lê mensagem de conversa do setor dela */
+    function veConversa(conversaId) {
+      return veTudo() || (papel() == 'coordenacao'
+        && get(/databases/$(database)/documents/conversas/$(conversaId)).data.setor in meusSetores());
+    }
 
     /* Equipe: cada um lê o próprio perfil; a gestão lê e escreve todos.
        Ninguém muda o próprio papel, setores ou ativo pela API. */
@@ -32,7 +39,9 @@ service cloud.firestore {
        quem fez: o navegador não grava esses campos, nem ao criar nem ao mudar. */
     function camposDoPortal() { return ['portalStudentId', 'portalNome', 'portalVinculadoPor', 'portalVinculadoEm']; }
     match /alunos/{id} {
-      allow read: if equipe();
+      /* a ficha do aluno (telefone, contrato) é de quem atende; o professor vê os nomes
+         dentro das aulas dele */
+      allow read: if atende();
       allow create: if (veTudo() || papel() == 'coordenacao')
         && !request.resource.data.keys().hasAny(camposDoPortal());
       allow update: if (veTudo() || papel() == 'coordenacao')
@@ -48,26 +57,30 @@ service cloud.firestore {
     match /provas_portal/{id}     { allow read: if veTudo() || papel() == 'coordenacao'; allow write: if false; }
     match /provas_portal_log/{id} { allow read: if gestao(); allow write: if false; }
 
+    /* a coordenação vê só as conversas do setor dela (Natan, Coordenação; Karina,
+       Coordenação Kids) e por isso pede já filtrado (dados/conversas.ts); o professor
+       não vê conversa nenhuma */
     match /conversas/{id} {
-      allow read: if equipe() && veSetor(resource.data.setor);
+      allow read: if atende() && veSetor(resource.data.setor);
       allow create: if veTudo();
-      allow update: if equipe() && veSetor(resource.data.setor);
+      allow update: if atende() && veSetor(resource.data.setor);
       allow delete: if gestao();
     }
 
     match /mensagens/{id} {
-      allow read: if equipe();
+      /* a tela pede as mensagens de uma conversa (conversaId ==) ou uma mensagem pelo id */
+      allow read: if atende() && veConversa(resource.data.conversaId);
       /* mensagem que sai pelo painel é gravada pela rota de API, com a chave de servico;
          o navegador só lê. Nota interna é a exceção e vem marcada. */
-      allow create: if equipe()
+      allow create: if atende() && veConversa(request.resource.data.conversaId)
         && request.resource.data.autor in ['humano', 'sistema']
         && !('waMessageId' in request.resource.data);
       allow update, delete: if gestao();
     }
 
-    match /quadros/{id} { allow read: if equipe(); allow write: if equipe(); }
-    match /listas/{id}  { allow read: if equipe(); allow write: if equipe(); }
-    match /cartoes/{id} { allow read: if equipe(); allow write: if equipe(); }
+    match /quadros/{id} { allow read: if atende(); allow write: if atende(); }
+    match /listas/{id}  { allow read: if atende(); allow write: if atende(); }
+    match /cartoes/{id} { allow read: if atende(); allow write: if atende(); }
 
     match /provas/{id} {
       allow read: if equipe();
@@ -91,19 +104,20 @@ service cloud.firestore {
     /* Mensagem escrita agora para sair depois. Quem envia de verdade é a rota do
        cron, com a chave de servico; aqui o time so programa e cancela. */
     match /agendadas/{id} {
-      allow read: if equipe();
-      allow create, update: if equipe();
+      allow read: if atende();
+      allow create, update: if atende();
       allow delete: if gestao();
     }
 
-    match /templates/{id} { allow read: if equipe(); allow write: if gestao(); }
-    match /envios/{id}    { allow read: if equipe(); allow write: if gestao(); }
+    match /templates/{id} { allow read: if atende(); allow write: if gestao(); }
+    match /envios/{id}    { allow read: if atende(); allow write: if gestao(); }
 
     /* ---------- agenda ----------
-       Admin, gestão, recepção e coordenação cuidam da agenda. O professor lê tudo e,
-       nas aulas DELE, só muda o status e o que é de cada aluno (presença, obs e notas):
-       não cria, não exclui, não remarca e não troca aluno. A mesma regra está em
-       src/lib/dominio/agenda.ts (permissoesDe), que só decide o que a tela mostra. */
+       Admin, gestão, recepção e coordenação cuidam da agenda. O professor lê só as aulas
+       DELE (26/11/2026; a tela pede por professorId) e, nelas, só muda o status e o que
+       é de cada aluno (presença, obs e notas): não cria, não exclui, não remarca e não
+       troca aluno. A mesma regra está em src/lib/dominio/agenda.ts (permissoesDe), que só
+       decide o que a tela mostra. */
     function cuidaDaAgenda() { return papel() in ['admin', 'gestor', 'recepcao', 'coordenacao']; }
     function statusDaAula(s) { return s in ['agendado', 'confirmado', 'realizado', 'cancelado', 'remarcado']; }
     function aulaValida(d) {
@@ -114,7 +128,7 @@ service cloud.firestore {
     function professorDaAula(dados) { return papel() == 'professor' && dados.professorId == request.auth.uid; }
 
     match /agendamentos/{id} {
-      allow read: if equipe();
+      allow read: if cuidaDaAgenda() || (papel() == 'professor' && resource.data.professorId == request.auth.uid);
       allow create, delete: if cuidaDaAgenda();
       allow update: if (cuidaDaAgenda() && aulaValida(request.resource.data))
         || (professorDaAula(resource.data)
@@ -126,7 +140,7 @@ service cloud.firestore {
 
       /* o que é de cada aluno na aula */
       match /alunos/{alunoId} {
-        allow read: if equipe();
+        allow read: if cuidaDaAgenda() || professorDaAula(get(/databases/$(database)/documents/agendamentos/$(id)).data);
         allow create, delete: if cuidaDaAgenda();
         allow update: if cuidaDaAgenda()
           || (professorDaAula(get(/databases/$(database)/documents/agendamentos/$(id)).data)

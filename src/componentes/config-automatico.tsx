@@ -9,7 +9,7 @@ import { assina, define, modoDemo } from '@/lib/dados/fonte';
 import { avisa } from '@/componentes/aviso';
 import { NOME_SETOR } from '@/lib/dominio/acessos';
 import {
-  LIMITE, leAutomatico, situacaoDoHorario, type ConfigAutomatico, type Destino, type Momento,
+  LIMITE, avisaNoWhatsDoSetor, leAutomatico, situacaoDoHorario, type ConfigAutomatico, type Destino, type Momento,
 } from '@/lib/dominio/automatico';
 import { DIAS, faixasDoTexto, horarioEmTexto, textoDoDia } from '@/lib/dominio/horario';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
@@ -394,10 +394,10 @@ function Assistente({ rasc, muda, setRasc }: {
 
 /* ---------------- aviso aos coordenadores ---------------- */
 function Aviso({ rasc, muda, perfis }: { rasc: ConfigAutomatico; muda: Muda; perfis: Perfil[] }) {
-  const quem = perfis.filter((p) => p.ativo && (p.setores.includes('coordenacao') || p.setores.includes('kids')));
+  const quem = perfis.filter((p) => p.ativo && (p.setores || []).some(avisaNoWhatsDoSetor));
   return (
     <section className="bl">
-      <p className="bt">Aviso aos coordenadores</p>
+      <p className="bt">Aviso a quem recebe a conversa</p>
       <div className="frm">
         <label className="lig">
           <input type="checkbox" checked={rasc.avisoLigado} onChange={(e) => muda('avisoLigado', e.target.checked)} />
@@ -418,20 +418,20 @@ function Aviso({ rasc, muda, perfis }: { rasc: ConfigAutomatico; muda: Muda; per
           {'\n'}[botão de link: abrir conversa → /conversas?conversa=<code>{'{{1}}'}</code>]
         </p>
         <div>
-          <span className="obs" style={{ padding: 0 }}>Quem recebe (Equipe: setor da coordenação e &quot;avisar no WhatsApp&quot; marcado)</span>
+          <span className="obs" style={{ padding: 0 }}>Quem recebe (Equipe: setor da Coordenação, da Coordenação Kids ou do Financeiro, e &quot;Receber o aviso no WhatsApp&quot; marcado)</span>
           {quem.length ? (
             <ul className="quem-avisa">
               {quem.map((p) => (
                 <li key={p.id}>
                   <b>{p.nome}</b>{' '}
                   <span className="obs" style={{ padding: 0 }}>
-                    {p.setores.filter((s) => s === 'coordenacao' || s === 'kids').map((s) => NOME_SETOR[s]).join(', ')}
+                    {(p.setores || []).filter(avisaNoWhatsDoSetor).map((s) => NOME_SETOR[s]).join(', ')}
                     {p.avisaNoWhats && p.telefone ? ', recebe o aviso' : ', sem telefone ou sem o aviso marcado'}
                   </span>
                 </li>
               ))}
             </ul>
-          ) : <p className="obs">Ninguém da equipe está nos setores da coordenação ainda.</p>}
+          ) : <p className="obs">Ninguém da equipe está na Coordenação, na Coordenação Kids ou no Financeiro ainda.</p>}
         </div>
       </div>
     </section>

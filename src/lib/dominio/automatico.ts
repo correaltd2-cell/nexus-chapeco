@@ -245,6 +245,23 @@ export function situacaoDoHorario(cfg: ConfigAutomatico, agora: Date): SituacaoD
 /** A conversa já está com a equipe e o contato escreveu fora do horário: avisa uma vez
     por fechamento, e só se ninguém da equipe falou com ele depois que fechou (quem fica
     até mais tarde respondendo não precisa de aviso por cima). */
+/* ---------- o aviso no WhatsApp de quem recebe a conversa ----------
+   Quando a conversa passa para a Coordenação, a Coordenação Kids ou o Financeiro
+   (26/11/2026, pedido do cliente: o Jaziel, do Financeiro), quem é daquele setor e
+   marcou "Receber o aviso no WhatsApp" recebe o modelo aprovado com o botão que abre a
+   conversa. A Recepção não recebe: é ela que passa. */
+export const SETORES_COM_AVISO: readonly Setor[] = ['coordenacao', 'kids', 'financeiro'];
+export const avisaNoWhatsDoSetor = (setor: Setor) => SETORES_COM_AVISO.includes(setor);
+
+/** O {{2}} do modelo "Chegou uma conversa para a {{2}}": o texto aprovado diz "para a",
+    então o Financeiro vai como "equipe do Financeiro". */
+export function setorNoAviso(setor: Setor): string {
+  if (setor === 'financeiro') return 'equipe do Financeiro';
+  if (setor === 'kids') return 'Coordenação Kids';
+  if (setor === 'recepcao') return 'Recepção';
+  return 'Coordenação';
+}
+
 export function avisaForaDoHorario(
   c: { avisoForaEm?: string | null; ultimaDaEquipeEm?: string | null },
   cfg: ConfigAutomatico, agora: Date,

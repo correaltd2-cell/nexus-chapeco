@@ -3,6 +3,7 @@
    a Coordenação nunca recebe direto do aluno.
    Rodar:  node --experimental-strip-types testes/automatico.ts  */
 import {
+  avisaNoWhatsDoSetor, setorNoAviso,
   AUTOMATICO_PADRAO, acaoDoRelogio, avisaForaDoHorario, comNome, depoisDoMenuConfuso, destinoDoAssunto,
   deveVoltarParaRecepcao, escolhaDoMenu, leAutomatico, pareceDespedida, promptMensagem, recomecaAtendimento,
   regrasDoAssistente, reservaDo, respostaDoAlgoMais, semAulaMarcada, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
@@ -191,6 +192,10 @@ const turnos = turnosDoAssistente(cfg, { nome: 'Marina', ehAluno: true, linhas: 
 ] });
 igual('turnos começam no contato', turnos[0].role, 'user');
 igual('turnos terminam no contato', turnos[turnos.length - 1].role, 'user');
+
+/* o aviso no WhatsApp de quem recebe a conversa (26/11/2026: o Financeiro também) */
+igual('setores que avisam no WhatsApp', (['recepcao', 'financeiro', 'coordenacao', 'kids'] as const).map(avisaNoWhatsDoSetor), [false, true, true, true]);
+igual('o setor dentro do texto aprovado ("para a ...")', (['coordenacao', 'kids', 'financeiro'] as const).map(setorNoAviso), ['Coordenação', 'Coordenação Kids', 'equipe do Financeiro']);
 
 if (falhas) {
   console.log(`atendimento automático: ${falhas} caso(s) falharam`);

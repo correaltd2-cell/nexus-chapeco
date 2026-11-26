@@ -6,7 +6,7 @@
    Enquanto a ligação com o portal não estiver configurada, a aba diz isso e não mostra
    nada inventado. Regras: dominio/provas-portal.ts e provas-portal/fluxo.ts. */
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { assinaFiltro, modoDemo } from '@/lib/dados/fonte';
+import { assinaFiltro, assinaUm, modoDemo } from '@/lib/dados/fonte';
 import { useSessao } from '@/componentes/sessao';
 import { avisa } from '@/componentes/aviso';
 import { Ic } from '@/componentes/icones';
@@ -244,16 +244,16 @@ function AndamentoDaCentral({ op }: { op: OperacaoDaProva }) {
   return (
     <div className={`pp-andamento${alerta ? ' alerta' : ''}`}>
       <p><Ic n="check" />{texto}</p>
-      {op.envios.map((e) => <LinhaDoEnvio key={e.chave} opId={op.id} envio={e} />)}
+      {op.envios.map((e) => <LinhaDoEnvio key={e.chave} envio={e} />)}
     </div>
   );
 }
 
-function LinhaDoEnvio({ opId, envio }: { opId: string; envio: OperacaoDaProva['envios'][number] }) {
+function LinhaDoEnvio({ envio }: { envio: OperacaoDaProva['envios'][number] }) {
   const [mensagem, setMensagem] = useState<Mensagem | null>(null);
   /* o status de entrega vem dos eventos do WhatsApp na mensagem gravada (webhook) */
-  useEffect(() => (envio.mensagemId ? assinaFiltro('mensagens', [{ campo: 'provaEnvio', op: '==', valor: opId }],
-    (d) => setMensagem((d as unknown as Mensagem[]).find((m) => m.id === envio.mensagemId) || null)) : undefined), [opId, envio.mensagemId]);
+  useEffect(() => (envio.mensagemId ? assinaUm('mensagens', envio.mensagemId,
+    (d) => setMensagem((d as unknown as Mensagem | null) || null)) : undefined), [envio.mensagemId]);
   const s = situacaoDaMensagem(envio, mensagem);
   const quando = s === 'lida' ? mensagem?.lidoEm : s === 'entregue' ? mensagem?.entregueEm : envio.em;
   return (

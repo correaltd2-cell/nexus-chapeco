@@ -67,7 +67,11 @@ interface Arraste { alvo: Agendamento; novo: NovoLugar; desfaz: () => void; esco
 
 export default function Agenda() {
   const { perfil } = useSessao();
-  const cad = useCadastros();
+  /* o professor vê só as aulas dele (26/11/2026): pede só elas ao banco, sem a ficha
+     completa dos alunos, e os filtros de professor e de aluno somem */
+  const professor = perfil?.papel === 'professor';
+  const souEu = professor && perfil ? perfil.id : '';
+  const cad = useCadastros({ semAlunos: !perfil || professor });
   const estreita = useEstreita();
   const agora = useAgora();
   const calRef = useRef<CalendarRef | null>(null);
@@ -104,9 +108,10 @@ export default function Agenda() {
     : visao === 'semana'
       ? (diasDaSemana.length ? { de: inicioDoDia(diasDaSemana[0]), ate: inicioDoDia(somaDias(diasDaSemana[diasDaSemana.length - 1], 1)), titulo: tituloDaSemana(diasDaSemana) } : vazio)
       : periodoDoCalendario;
-  const { agendamentos } = useAgendamentos(periodo.de, periodo.ate);
+  const { agendamentos } = useAgendamentos(periodo.de, periodo.ate, souEu);
 
-  const [professorIds, setProfessorIds] = useState<string[]>([]);
+  const [professorIdsEscolhidos, setProfessorIds] = useState<string[]>([]);
+  const professorIds = useMemo(() => (souEu ? [souEu] : professorIdsEscolhidos), [souEu, professorIdsEscolhidos]);
   const [alunoIds, setAlunoIds] = useState<string[]>(alunoPedido ? [alunoPedido] : []);
   const [alunoVisto, setAlunoVisto] = useState(alunoPedido);
   if (alunoPedido !== alunoVisto) {
@@ -144,7 +149,7 @@ export default function Agenda() {
   /* na Semana e no Dia, o bloqueio de professor só aparece se pedir; o da escola sempre */
   const bloqueiosNoCalendario = useMemo(() => doFiltro.filter((b) => !b.professorId || bloqueiosNaAgenda === 'mostrados'),
     [doFiltro, bloqueiosNaAgenda]);
-  const filtrando = professorIds.length + alunoIds.length + moduloIds.length + aulaIds.length + (modalidade ? 1 : 0) > 0;
+  const filtrando = (souEu ? 0 : professorIdsEscolhidos.length) + alunoIds.length + moduloIds.length + aulaIds.length + (modalidade ? 1 : 0) > 0;
 
   const aoMudarPeriodo = useCallback((de: Date, ate: Date, v: Visao) => {
     setPeriodoDoCalendario({ de: de.toISOString(), ate: ate.toISOString(), titulo: tituloDoPeriodo(de, v) });
@@ -288,10 +293,14 @@ export default function Agenda() {
       )}
 
       <div className="ag-filtros">
-        <Multi rotulo="Professor" valor={professorIds} aoMudar={setProfessorIds}
-               opcoes={cad.professores.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor }))} comBusca={cad.professores.length > 6} />
-        <Multi rotulo="Aluno" valor={alunoIds} aoMudar={setAlunoIds}
-               opcoes={cad.alunos.map((a) => ({ id: a.id, nome: a.nome, codigo: a.codigo, detalhe: a.ativo ? a.nivel : 'inativo' }))} />
+        {!professor && (
+          <>
+            <Multi rotulo="Professor" valor={professorIds} aoMudar={setProfessorIds}
+                   opcoes={cad.professores.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor }))} comBusca={cad.professores.length > 6} />
+            <Multi rotulo="Aluno" valor={alunoIds} aoMudar={setAlunoIds}
+                   opcoes={cad.alunos.map((a) => ({ id: a.id, nome: a.nome, codigo: a.codigo, detalhe: a.ativo ? a.nivel : 'inativo' }))} />
+          </>
+        )}
         <Multi rotulo="Módulo" valor={moduloIds} aoMudar={(v) => { setModuloIds(v); setAulaIds([]); }}
                opcoes={cad.modulos.map((m) => ({ id: m.id, nome: m.nome }))} comBusca={false} />
         <Multi rotulo="Aula" valor={aulaIds} aoMudar={setAulaIds} opcoes={opAulas} />

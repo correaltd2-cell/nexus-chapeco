@@ -267,7 +267,7 @@ No aniversário do aluno.
 ### Equipe
 
 **Aviso à coordenação** (`aviso_demanda_coordenacao`, Utilidade)  
-Sai sozinho para o Natan ou a Karina quando a conversa passa para a coordenação.
+Sai sozinho para o Natan, a Karina ou o Financeiro quando a conversa passa para o setor deles (no Financeiro, o [setor] vai como "equipe do Financeiro").
 
 > Oi, [nome de quem recebe]! Chegou uma conversa para a [setor] no sistema da Nexus: [contato]. Responda pelo sistema.
 >

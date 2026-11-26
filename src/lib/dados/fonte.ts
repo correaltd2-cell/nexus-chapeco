@@ -185,15 +185,17 @@ export async function grava(ops: OpGravacao[]): Promise<void> {
   }
 }
 
-/** Filtro simples que vale nos dois mundos: igual, contém (array) e faixa. */
+/** Filtro simples que vale nos dois mundos: igual, um entre vários, contém (array) e faixa. */
 export type Filtro =
   | { campo: string; op: '=='; valor: unknown }
+  | { campo: string; op: 'in'; valor: unknown[] }
   | { campo: string; op: 'contem'; valor: unknown }
   | { campo: string; op: '>=' | '<'; valor: string };
 
 function passa(d: Doc, f: Filtro) {
   const v = d[f.campo];
   if (f.op === '==') return v === f.valor;
+  if (f.op === 'in') return f.valor.includes(v);
   if (f.op === 'contem') return Array.isArray(v) && v.includes(f.valor);
   if (typeof v !== 'string') return false;
   return f.op === '>=' ? v >= f.valor : v < f.valor;
@@ -217,6 +219,13 @@ export function assinaFiltro(nome: string, filtros: Filtro[], cb: (docs: Doc[]) 
 }
 
 /** Lê uma vez (conferir conflito numa série inteira, montar o relatório). */
+/** Ouve um documento só (null quando não existe ou some). Para quem não pode ler a
+    coleção inteira, como a mensagem de uma prova vista pela coordenação. */
+export function assinaUm(nome: string, id: string, cb: (d: Doc | null) => void): () => void {
+  if (modoDemo) return assina(nome, (docs) => cb(docs.find((d) => d.id === id) || null));
+  return onSnapshot(doc(bd(), nome, id), (s) => cb(s.exists() ? ({ id: s.id, ...s.data() } as Doc) : null));
+}
+
 export async function busca(nome: string, filtros: Filtro[], ordem?: string): Promise<Doc[]> {
   if (modoDemo) {
     const docs = [...tabela(nome).values()].filter((d) => filtros.every((f) => passa(d, f))).map((d) => ({ ...d }));

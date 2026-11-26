@@ -4,7 +4,8 @@
    tem o segredo. */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { assina, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
+import { assina, assinaFiltro, atualiza, cria, modoDemo } from '@/lib/dados/fonte';
+import { assinaConversas } from '@/lib/dados/conversas';
 import { useSessao } from '@/componentes/sessao';
 import { Ic } from '@/componentes/icones';
 import PainelContato from '@/componentes/painel-contato';
@@ -67,7 +68,7 @@ export default function Inbox() {
   const pedida = useSearchParams().get('conversa');
   const [pedidaVista, setPedidaVista] = useState(pedida);
   const [conversas, setConversas] = useState<Conversa[]>([]);
-  const [todasMensagens, setTodasMensagens] = useState<Mensagem[]>([]);
+  const [daConversa, setDaConversa] = useState<{ conversa: string; itens: Mensagem[] }>({ conversa: '', itens: [] });
   const [abertaId, setAbertaId] = useState<string | null>(pedida);
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [etiqueta, setEtiqueta] = useState<string | null>(null);
@@ -124,16 +125,25 @@ export default function Inbox() {
     if (pedida) { setAbertaId(pedida); setNaConversa(true); setPainel(false); }
   }
 
-  /* lista de conversas, em tempo real */
-  useEffect(() => assina('conversas', (docs) => {
-    setConversas((docs as unknown as Conversa[]).slice()
-      .sort((a, b) => (b.ultimaEm || '').localeCompare(a.ultimaEm || '')));
-  }), []);
+  /* lista de conversas, em tempo real: gestão e recepção pedem todas; a coordenação,
+     só as dos setores dela (o banco recusa a consulta que poderia trazer as outras) */
+  const papel = perfil?.papel;
+  const setoresDoPerfil = (perfil?.setores || []).join();
+  useEffect(() => {
+    const setores = setoresDoPerfil ? (setoresDoPerfil.split(',') as Setor[]) : [];
+    return assinaConversas(papel ? { papel, setores } : null, (docs) => {
+      setConversas((docs as unknown as Conversa[]).slice()
+        .sort((a, b) => (b.ultimaEm || '').localeCompare(a.ultimaEm || '')));
+    });
+  }, [papel, setoresDoPerfil]);
 
-  /* mensagens de todas as conversas; a aberta filtra em memoria */
-  useEffect(() => assina('mensagens', (docs) => {
-    setTodasMensagens(docs as unknown as Mensagem[]);
-  }), []);
+  /* só as mensagens da conversa aberta (antes vinham as de todas, de todos os setores) */
+  useEffect(() => {
+    if (!abertaId) return;
+    return assinaFiltro('mensagens', [{ campo: 'conversaId', op: '==', valor: abertaId }], (docs) => {
+      setDaConversa({ conversa: abertaId, itens: docs as unknown as Mensagem[] });
+    });
+  }, [abertaId]);
 
   /* o que foi escrito agora para sair depois */
   useEffect(() => assina('agendadas', (docs) => {
@@ -141,10 +151,10 @@ export default function Inbox() {
   }), []);
 
   const mensagens = useMemo(
-    () => todasMensagens
-      .filter((m) => m.conversaId === abertaId)
+    () => (daConversa.conversa === abertaId ? daConversa.itens : [])
+      .slice()
       .sort((a, b) => a.criadaEm.localeCompare(b.criadaEm)),
-    [todasMensagens, abertaId],
+    [daConversa, abertaId],
   );
 
   useEffect(() => {

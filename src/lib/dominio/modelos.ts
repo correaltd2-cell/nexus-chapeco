@@ -277,7 +277,7 @@ export const BIBLIOTECA: ModeloDaEscola[] = [
   /* ---------------- equipe ---------------- */
   {
     nome: 'aviso_demanda_coordenacao', titulo: 'Aviso à coordenação', grupo: 'Equipe', categoria: 'UTILITY',
-    quando: 'Sai sozinho para o Natan ou a Karina quando a conversa passa para a coordenação.',
+    quando: 'Sai sozinho para o Natan, a Karina ou o Financeiro quando a conversa passa para o setor deles.',
     corpo: 'Oi, {{1}}! Chegou uma conversa para a {{2}} no sistema da Nexus: {{3}}. Responda pelo sistema.',
     campos: [
       { rotulo: 'nome de quem recebe', exemplo: 'Karina' },

@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# o emulador do Firestore (npm run test:regras)
+firestore-debug.log
+*-debug.log

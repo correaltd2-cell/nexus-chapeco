@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:regras": "npx -y firebase-tools@15.37.0 emulators:exec --only firestore --project demo-nexus \"node testes/regras-firestore.mjs\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
