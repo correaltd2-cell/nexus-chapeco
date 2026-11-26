@@ -9,7 +9,7 @@ import { assina, define, modoDemo } from '@/lib/dados/fonte';
 import { avisa } from '@/componentes/aviso';
 import { NOME_SETOR } from '@/lib/dominio/acessos';
 import {
-  LIMITE, avisaNoWhatsDoSetor, leAutomatico, situacaoDoHorario, type ConfigAutomatico, type Destino, type Momento,
+  LIMITE, avisaNoWhatsDoSetor, leAutomatico, PAPEIS_SEM_AVISO, recebeOAviso, SETORES_COM_AVISO, situacaoDoHorario, type ConfigAutomatico, type Destino, type Momento,
 } from '@/lib/dominio/automatico';
 import { DIAS, faixasDoTexto, horarioEmTexto, textoDoDia } from '@/lib/dominio/horario';
 import { horaConhecida, useAgora } from '@/componentes/relogio';
@@ -394,7 +394,8 @@ function Assistente({ rasc, muda, setRasc }: {
 
 /* ---------------- aviso aos coordenadores ---------------- */
 function Aviso({ rasc, muda, perfis }: { rasc: ConfigAutomatico; muda: Muda; perfis: Perfil[] }) {
-  const quem = perfis.filter((p) => p.ativo && (p.setores || []).some(avisaNoWhatsDoSetor));
+  /* a administração e a gestão veem os setores mas não recebem o aviso */
+  const quem = perfis.filter((p) => p.ativo && !PAPEIS_SEM_AVISO.includes(p.papel) && (p.setores || []).some(avisaNoWhatsDoSetor));
   return (
     <section className="bl">
       <p className="bt">Aviso a quem recebe a conversa</p>
@@ -403,8 +404,9 @@ function Aviso({ rasc, muda, perfis }: { rasc: ConfigAutomatico; muda: Muda; per
           <input type="checkbox" checked={rasc.avisoLigado} onChange={(e) => muda('avisoLigado', e.target.checked)} />
           <span>
             <b>Mandar o aviso no celular pessoal</b>
-            Quando alguém passa a conversa para a Coordenação ou a Coordenação Kids, quem é
-            daquele setor recebe um modelo aprovado com o botão que abre a conversa no sistema.
+            Quando alguém passa a conversa para a Coordenação, a Coordenação Kids ou o Financeiro, quem é
+            daquele setor recebe um modelo aprovado com o botão que abre a conversa no sistema. A
+            administração e a gestão não recebem, mesmo marcadas em todos os setores.
             Ligue só depois que a Meta aprovar o modelo. É a única mensagem paga do fluxo.
           </span>
         </label>
@@ -426,7 +428,7 @@ function Aviso({ rasc, muda, perfis }: { rasc: ConfigAutomatico; muda: Muda; per
                   <b>{p.nome}</b>{' '}
                   <span className="obs" style={{ padding: 0 }}>
                     {(p.setores || []).filter(avisaNoWhatsDoSetor).map((s) => NOME_SETOR[s]).join(', ')}
-                    {p.avisaNoWhats && p.telefone ? ', recebe o aviso' : ', sem telefone ou sem o aviso marcado'}
+                    {SETORES_COM_AVISO.some((s) => recebeOAviso(p, s)) ? ', recebe o aviso' : ', sem telefone ou sem o aviso marcado'}
                   </span>
                 </li>
               ))}

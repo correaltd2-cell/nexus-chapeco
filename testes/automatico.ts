@@ -6,7 +6,7 @@ import {
   avisaNoWhatsDoSetor, BOTOES_DEPOIS_DA_DUVIDA, BOTOES_MAIS, depoisDaIa, entradaDoFinanceiro, setorNoAviso, vezDoAssistente,
   AUTOMATICO_PADRAO, acaoDoRelogio, avisaForaDoHorario, comNome, depoisDoMenuConfuso, destinoDoAssunto,
   deveVoltarParaRecepcao, escolhaDoMenu, leAutomatico, pareceDespedida, promptMensagem, recomecaAtendimento,
-  regrasDoAssistente, reservaDo, respostaDoAlgoMais, semAulaMarcada, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
+  recebeOAviso, regrasDoAssistente, reservaDo, respostaDoAlgoMais, semAulaMarcada, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
   type ConfigAutomatico,
 } from '../src/lib/dominio/automatico.ts';
 import { leAssunto } from '../src/lib/dominio/triagem.ts';
@@ -225,6 +225,19 @@ igual('turnos terminam no contato', turnos[turnos.length - 1].role, 'user');
 /* o aviso no WhatsApp de quem recebe a conversa (26/11/2026: o Financeiro também) */
 igual('setores que avisam no WhatsApp', (['recepcao', 'financeiro', 'coordenacao', 'kids'] as const).map(avisaNoWhatsDoSetor), [false, true, true, true]);
 igual('o setor dentro do texto aprovado ("para a ...")', (['coordenacao', 'kids', 'financeiro'] as const).map(setorNoAviso), ['Coordenação', 'Coordenação Kids', 'equipe do Financeiro']);
+/* o aviso vai para a pessoa do setor, nunca para a administração (26/11/2026) */
+const eq = (papel: 'admin' | 'gestor' | 'coordenacao', setores: ('financeiro' | 'coordenacao' | 'kids' | 'recepcao')[], extra: Record<string, unknown> = {}) =>
+  ({ ativo: true, papel, setores, avisaNoWhats: true, telefone: '5554996663575', ...extra });
+igual('Financeiro avisa o Jaziel, não o administrador com todos os setores',
+  [recebeOAviso(eq('coordenacao', ['financeiro']), 'financeiro'), recebeOAviso(eq('admin', ['recepcao', 'financeiro', 'coordenacao', 'kids']), 'financeiro'), recebeOAviso(eq('gestor', ['financeiro']), 'financeiro')],
+  [true, false, false]);
+igual('cada coordenação só recebe o dela',
+  [recebeOAviso(eq('coordenacao', ['coordenacao']), 'coordenacao'), recebeOAviso(eq('coordenacao', ['coordenacao']), 'kids'), recebeOAviso(eq('coordenacao', ['kids']), 'kids')],
+  [true, false, true]);
+igual('sem o aviso marcado, sem telefone, sem acesso ou na Recepção, ninguém recebe',
+  [recebeOAviso(eq('coordenacao', ['kids'], { avisaNoWhats: false }), 'kids'), recebeOAviso(eq('coordenacao', ['kids'], { telefone: '' }), 'kids'),
+    recebeOAviso(eq('coordenacao', ['kids'], { ativo: false }), 'kids'), recebeOAviso(eq('coordenacao', ['recepcao']), 'recepcao')],
+  [false, false, false, false]);
 
 if (falhas) {
   console.log(`atendimento automático: ${falhas} caso(s) falharam`);

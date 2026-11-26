@@ -20,7 +20,7 @@ import { aulasDoContato } from '@/lib/agenda-servidor';
 import { descreveErro, falhou } from '@/lib/saude';
 import { comReserva } from '@/lib/firebase/indice';
 import {
-  BOTOES_DEPOIS_DA_DUVIDA, BOTOES_MAIS, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, avisaForaDoHorario, avisaNoWhatsDoSetor, comNome,
+  BOTOES_DEPOIS_DA_DUVIDA, BOTOES_MAIS, ID_AJUDOU, ID_PESSOA, acaoDoRelogio, avisaForaDoHorario, avisaNoWhatsDoSetor, comNome, recebeOAviso,
   depoisDoMenuConfuso, destinoDoAssunto, deveVoltarParaRecepcao, escolhaDoMenu, idDaPergunta, idDoBotao, leAutomatico,
   menorEspera, pareceDespedida, primeiro, promptMensagem, recomecaAtendimento, reservaDo, respostaDoAlgoMais,
   semAulaMarcada, setorDoPassa, setorNoAviso, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
@@ -597,7 +597,7 @@ export async function transfere(
     for (const d of ps.docs) {
       const p = d.data() as Perfil;
       const fone = (p.telefone || '').replace(/\D/g, '');
-      if (!p.avisaNoWhats || !fone || !(p.setores || []).includes(setor)) continue;
+      if (!recebeOAviso(p, setor)) continue;
       const r = await mandaTemplate(fone, cfg.avisoModelo, cfg.avisoIdioma,
         [primeiro(p.nome), setorNoAviso(setor), c.nome || c.waId], ref.id);
       const linha = r.ok

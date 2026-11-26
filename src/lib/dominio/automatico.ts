@@ -15,7 +15,7 @@
    E o que foi pedido em 21/11/2026: horário de atendimento (segunda a sexta, 8h às 12h e
    13h30 às 21h30; sábado, 9h às 12h). Fora dele os botões funcionam igual, e a IA avisa
    que a equipe está fora, diz quando volta e pede para a pessoa já explicar o que precisa. */
-import type { Setor } from './tipos';
+import type { Papel, Setor } from './tipos';
 import type { Assunto } from './triagem';
 import {
   HORARIO_PADRAO, estaAberto, horarioEmTexto, leFaixas, minutosUteis, proximaAbertura, ultimoFechamento,
@@ -253,6 +253,21 @@ export function situacaoDoHorario(cfg: ConfigAutomatico, agora: Date): SituacaoD
    conversa. A Recepção não recebe: é ela que passa. */
 export const SETORES_COM_AVISO: readonly Setor[] = ['coordenacao', 'kids', 'financeiro'];
 export const avisaNoWhatsDoSetor = (setor: Setor) => SETORES_COM_AVISO.includes(setor);
+
+/* 26/11/2026, pedido do cliente: "quando é encaminhado pro financeiro, vem pro meu
+   número. Eu quero que vá pro número do Jaziel". A administração e a gestão marcam todos
+   os setores para VER as conversas, não para receber o aviso: quem recebe é a pessoa do
+   setor (Natan, Coordenação; Karina, Coordenação Kids; Jaziel, Financeiro). */
+export const PAPEIS_SEM_AVISO: readonly Papel[] = ['admin', 'gestor'];
+
+/** Quem recebe o aviso no WhatsApp quando a conversa passa para o setor: ativo, do
+    setor, com o aviso marcado e telefone, e que não seja da administração nem da gestão. */
+export function recebeOAviso(
+  p: { ativo?: boolean; papel?: Papel; setores?: Setor[]; avisaNoWhats?: boolean; telefone?: string }, setor: Setor,
+): boolean {
+  return Boolean(p.ativo) && avisaNoWhatsDoSetor(setor) && !PAPEIS_SEM_AVISO.includes(p.papel as Papel)
+    && (p.setores || []).includes(setor) && Boolean(p.avisaNoWhats) && (p.telefone || '').replace(/\D/g, '').length >= 12;
+}
 
 /** O {{2}} do modelo "Chegou uma conversa para a {{2}}": o texto aprovado diz "para a",
     então o Financeiro vai como "equipe do Financeiro". */
