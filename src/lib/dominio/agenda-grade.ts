@@ -103,7 +103,9 @@ export function nomesCurtosDosProfessores(nomes: string[]): string[] {
   return partes.map((p, i) => {
     if (!p.length) return '';
     const repetido = primeiros.filter((x) => x === primeiros[i]).length > 1;
-    return repetido && p.length > 1 ? `${p[0]} ${p[p.length - 1][0]}.` : p[0];
+    /* a inicial do último nome, só letra: "Karina (Junior)" vira "Karina J." */
+    const inicial = (p[p.length - 1].match(/\p{L}/u) || [''])[0];
+    return repetido && p.length > 1 && inicial ? `${p[0]} ${inicial.toUpperCase()}.` : p[0];
   });
 }
 

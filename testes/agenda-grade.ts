@@ -175,6 +175,8 @@ igual('motivo curto do bloqueio', [
 igual('motivo completo para o passar o mouse', [motivoCompleto({ tipo: 'indisponivel', motivo: 'Consulta médica' }), motivoCompleto({ tipo: 'reuniao', motivo: 'Reunião geral' })],
   ['Indisponível: Consulta médica', 'Reunião geral']);
 
+igual('nome entre parênteses vira a inicial certa', nomesCurtosDosProfessores(['Karina (Junior)', 'Karina Ribas Manduca', 'Nathan Luvisetto']), ['Karina J.', 'Karina M.', 'Nathan']);
+
 /* ---------------- a Semana do jeito do ELLO (26/11/2026) ---------------- */
 const elloItens = [aula('b2', 'p1', '18:30', '20:00'), aula('a1', 'p2', '18:30', '19:30'), aula('a2', 'p3', '19:30', '20:30'), aula('cedo', 'p1', '08:00', '09:00', 1, 'agendado', '2026-11-24')];
 const ello = encaixaSemana(elloItens, SEMANA_DIAS, FAIXAS_DIA_UTIL);
