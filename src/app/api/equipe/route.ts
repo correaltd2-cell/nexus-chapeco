@@ -12,7 +12,8 @@
    agenda dele vazia. GET diz quem já tem login. */
 import { NextResponse } from 'next/server';
 import { adminAuth, adminBd, quemChamou } from '@/lib/firebase/admin';
-import { MODULOS_POR_PAPEL_OK } from '@/lib/dominio/equipe';
+import { MODULOS_POR_PAPEL_OK, explicaErroDoLogin } from '@/lib/dominio/equipe';
+import { falhou } from '@/lib/saude';
 import type { Papel, Setor } from '@/lib/dominio/tipos';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,15 @@ const erro = (texto: string, status = 400) =>
 
 const semLogin = (e: unknown) => String((e as { code?: string }).code || '').includes('user-not-found');
 
+/* Recusa que não é do dia a dia (e-mail repetido, e-mail inválido): anota na Saúde do
+   sistema e devolve o motivo de verdade, nunca só "tente de novo". */
+async function recusa(e: unknown, oQue: string) {
+  const texto = explicaErroDoLogin(e, oQue);
+  const err = (e || {}) as { code?: unknown; message?: unknown };
+  await falhou('equipe', `${String(err.code || '')} ${String(err.message || e || '')}`.trim().slice(0, 300));
+  return erro(texto, 500);
+}
+
 /** Quem da equipe já tem login, e se está bloqueado. Só a gestão pergunta. */
 export async function GET(req: Request) {
   const quem = await quemChamou(req);
@@ -34,9 +44,13 @@ export async function GET(req: Request) {
   /* id de login do Firebase: até 128 caracteres, sem barra */
   const ids = (await adminBd().collection('perfis').select().get()).docs.map((d) => d.id).filter((id) => id.length <= 128 && !id.includes('/'));
   const logins: Record<string, { email: string; bloqueado: boolean }> = {};
-  for (let i = 0; i < ids.length; i += 100) {
-    const r = await adminAuth().getUsers(ids.slice(i, i + 100).map((uid) => ({ uid })));
-    for (const u of r.users) logins[u.uid] = { email: u.email || '', bloqueado: u.disabled };
+  try {
+    for (let i = 0; i < ids.length; i += 100) {
+      const r = await adminAuth().getUsers(ids.slice(i, i + 100).map((uid) => ({ uid })));
+      for (const u of r.users) logins[u.uid] = { email: u.email || '', bloqueado: u.disabled };
+    }
+  } catch (e) {
+    return recusa(e, 'conferir quem já tem login');
   }
   return NextResponse.json({ ok: true, logins });
 }
@@ -93,7 +107,7 @@ export async function POST(req: Request) {
       const codigo = (e as { code?: string }).code || '';
       if (codigo.includes('email-already-exists')) return erro('Esse e-mail já tem login.');
       if (codigo.includes('invalid-email')) return erro('Esse e-mail não é válido.');
-      return erro('Não consegui criar o login. Tente de novo.');
+      return recusa(e, 'criar o login');
     }
   }
 
@@ -114,7 +128,7 @@ export async function POST(req: Request) {
       await auth.getUser(corpo.uid);
       return erro('Essa pessoa já tem login. Use Senha nova se ela esqueceu a senha.');
     } catch (e) {
-      if (!semLogin(e)) return erro('Não consegui conferir o login. Tente de novo.');
+      if (!semLogin(e)) return recusa(e, 'conferir o login');
     }
     const senha = senhaProvisoria();
     try {
@@ -126,7 +140,7 @@ export async function POST(req: Request) {
       const codigo = (e as { code?: string }).code || '';
       if (codigo.includes('email-already-exists')) return erro('Esse e-mail já tem login.');
       if (codigo.includes('invalid-email')) return erro('Esse e-mail não é válido.');
-      return erro('Não consegui criar o login. Tente de novo.');
+      return recusa(e, 'criar o login');
     }
   }
 
@@ -136,14 +150,14 @@ export async function POST(req: Request) {
       await auth.updateUser(corpo.uid, { password: senha });
     } catch (e) {
       if (semLogin(e)) return erro('Essa pessoa ainda não tem login. Use Criar login na linha dela.');
-      return erro('Não consegui gerar a senha. Tente de novo.');
+      return recusa(e, 'gerar a senha');
     }
     return NextResponse.json({ ok: true, senha });
   }
 
   if (corpo.acao === 'acesso') {
     const ativo = corpo.ativo !== false;
-    try { await auth.updateUser(corpo.uid, { disabled: !ativo }); } catch (e) { if (!semLogin(e)) return erro('Não consegui mudar o acesso. Tente de novo.'); }
+    try { await auth.updateUser(corpo.uid, { disabled: !ativo }); } catch (e) { if (!semLogin(e)) return recusa(e, 'mudar o acesso'); }
     await bd.doc(`perfis/${corpo.uid}`).update({ ativo });
     return NextResponse.json({ ok: true });
   }
@@ -151,7 +165,7 @@ export async function POST(req: Request) {
   if (corpo.acao === 'papel') {
     const papel = corpo.papel;
     if (!papel || !MODULOS_POR_PAPEL_OK.includes(papel)) return erro('Papel desconhecido.');
-    try { await auth.setCustomUserClaims(corpo.uid, { papel }); } catch (e) { if (!semLogin(e)) return erro('Não consegui mudar o papel. Tente de novo.'); }
+    try { await auth.setCustomUserClaims(corpo.uid, { papel }); } catch (e) { if (!semLogin(e)) return recusa(e, 'mudar o papel'); }
     await bd.doc(`perfis/${corpo.uid}`).update({ papel, setores: papel === 'coordenacao' ? corpo.setores || [] : [] });
     return NextResponse.json({ ok: true });
   }

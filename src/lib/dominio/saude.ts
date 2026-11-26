@@ -7,7 +7,7 @@
    Prova: node --experimental-strip-types testes/saude.ts */
 import { duracao } from './formato.ts';
 
-export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'midia' | 'agenda' | 'ia' | 'relogio' | 'agendadas' | 'planilha' | 'alunos' | 'iaConta' | 'portal';
+export type OndeFalha = 'webhook' | 'assinatura' | 'envio' | 'modelo' | 'modelos' | 'midia' | 'agenda' | 'ia' | 'relogio' | 'agendadas' | 'planilha' | 'alunos' | 'iaConta' | 'portal' | 'equipe';
 export type Batida = 'webhookEm' | 'entradaEm' | 'saidaEm' | 'relogioEm' | 'agendadasEm';
 
 export interface Falha { motivo: string; em: string; vezes: number }
@@ -96,6 +96,11 @@ const SOBRE_FALHA: Record<OndeFalha, { titulo: string; conserto: string; grave: 
   alunos: {
     titulo: 'A marcação da semana nova não começou',
     conserto: 'A coluna Marcou ficou como estava. Em Alunos, toque de novo em Começar a semana nova; se repetir, os registros da Vercel em /api/alunos/semana dizem o porquê.',
+    grave: false,
+  },
+  equipe: {
+    titulo: 'O Firebase recusou mexer nos logins da equipe',
+    conserto: 'Criar login, trocar papel e dar senha nova ficam parados enquanto isso. O motivo acima diz o que falta, quase sempre permissão da conta de serviço (FIREBASE_SERVICE_ACCOUNT) no Google Cloud.',
     grave: false,
   },
   portal: {

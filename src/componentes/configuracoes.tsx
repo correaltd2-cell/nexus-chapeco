@@ -351,6 +351,9 @@ function Equipe({ perfis, eu, chama }: {
      como os professores que vieram do ELLO, ganha o login pela própria linha, com o
      mesmo id, para as aulas continuarem dele */
   const [logins, setLogins] = useState<Record<string, { email: string; bloqueado: boolean }> | null>(null);
+  /* sem a conferência a tela não sabe quem está sem login: diz o porquê em vez de
+     mostrar todo mundo como se tivesse */
+  const [erroLogins, setErroLogins] = useState('');
   const [rodada, setRodada] = useState(0);
   const [editando, setEditando] = useState<{ id: string; tipo: 'login' | 'papel' } | null>(null);
   const [emailDaLinha, setEmailDaLinha] = useState('');
@@ -360,7 +363,11 @@ function Equipe({ perfis, eu, chama }: {
   useEffect(() => {
     if (modoDemo) return;
     let vale = true;
-    chama('/api/equipe').then((r) => { if (vale && r.ok) setLogins(r.logins as Record<string, { email: string; bloqueado: boolean }>); }).catch(() => undefined);
+    chama('/api/equipe').then((r) => {
+      if (!vale) return;
+      if (r.ok) { setLogins(r.logins as Record<string, { email: string; bloqueado: boolean }>); setErroLogins(''); }
+      else setErroLogins(String(r.erro || 'Não consegui conferir quem já tem login.'));
+    }).catch(() => { if (vale) setErroLogins('Não consegui falar com o servidor para conferir quem já tem login.'); });
     return () => { vale = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qtos, rodada]);
@@ -466,6 +473,7 @@ function Equipe({ perfis, eu, chama }: {
         </div>
       )}
       {erro && <p className="erro" style={{ padding: '0 18px 10px' }}>{erro}</p>}
+      {erroLogins && !erro && <p className="erro" style={{ padding: '0 18px 10px' }}>{erroLogins}</p>}
 
       {lista.map((p) => (
         <div key={p.id}>
