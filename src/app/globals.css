@@ -904,20 +904,29 @@ a.mid-doc:hover{background:rgba(128,128,128,.2)}
 .qd-atrasados{display:inline-flex;align-items:center;gap:5px;background:var(--alert-wash);color:var(--alert);border-color:transparent;font-weight:600}
 .qd-atrasados .ic{width:14px;height:14px}
 .qd-atrasados[aria-pressed="true"]{background:var(--alert);color:#fff}
-/* plano de fundo: o quadro inteiro, com o cabeçalho transparente em cima */
+/* plano de fundo: o quadro inteiro, com o cabeçalho transparente em cima. Desde 26/11/2026
+   o texto direto no fundo tem a cor que o contraste manda (qd-escuro, branco; qd-claro,
+   quase preto, nos dois temas), e o que é pequeno (abas, botões, busca, nova lista) ganha
+   fundo próprio, para ler em cima de qualquer cor. Imagem ganha uma faixa escura no topo. */
 .qd-com-fundo{background-attachment:local}
 .qd-com-fundo .vh{background:transparent}
 .qd-com-fundo .kl:not(.nova):not(.kl-arq){box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.qd-com-fundo .qd-abas .chip[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface)}
+.qd-com-fundo .qd-abas>.tx-btn,.qd-com-fundo .qd-abas form .tx-btn{background:var(--surface);color:var(--text)}
+.qd-com-fundo .qd-abas>.tx-btn:hover,.qd-com-fundo .qd-abas form .tx-btn:hover{background:var(--surface-2)}
+.qd-com-fundo .kl.nova{background:color-mix(in srgb,var(--coluna) 92%,transparent);border-color:transparent}
+.qd-com-fundo .kl.nova .kl-add{color:var(--text)}
+.qd-claro .vh h1{color:#141414}
 .qd-escuro .vh h1{color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.25)}
-.qd-escuro .qd-abas .chip:not([aria-pressed="true"]){background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
-.qd-escuro .qd-abas>.tx-btn{color:#fff}
-.qd-escuro .qd-fim>.btn,.qd-escuro .qd-fim>.ib{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
-.qd-escuro .qd-busca{background:rgba(255,255,255,.2);border-color:transparent}
-.qd-escuro .qd-busca input,.qd-escuro .qd-busca .ic{color:#fff}
-.qd-escuro .qd-busca input::placeholder{color:rgba(255,255,255,.82)}
-.qd-escuro .kl.nova{background:rgba(255,255,255,.16);border-color:transparent}
-.qd-escuro .kl.nova .kl-add{color:#fff}
+.qd-escuro .qd-abas .chip:not([aria-pressed="true"]),.qd-escuro .qd-abas>.tx-btn,.qd-escuro .qd-abas form .tx-btn,
+.qd-escuro .qd-fim>.btn,.qd-escuro .qd-fim>.ib,.qd-escuro .qd-busca,.qd-escuro .kl.nova{
+  background:rgba(0,0,0,.4);color:#fff;border-color:transparent;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.qd-escuro .qd-abas .chip:not([aria-pressed="true"]):hover,.qd-escuro .qd-abas>.tx-btn:hover,.qd-escuro .qd-abas form .tx-btn:hover,
+.qd-escuro .qd-fim>.btn:hover,.qd-escuro .qd-fim>.ib:hover{background:rgba(0,0,0,.55);color:#fff}
+.qd-escuro .qd-busca input,.qd-escuro .qd-busca .ic,.qd-escuro .kl.nova .kl-add{color:#fff}
+.qd-escuro .qd-busca input::placeholder{color:rgba(255,255,255,.85)}
 .qd-escuro .kl.nova .kl-add:hover{background:rgba(255,255,255,.14)}
+.qd-imagem .vh{background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 /* arrastar a lista: o cabeçalho pega, e uma barra laranja mostra onde ela cai */
 .kl-h[draggable="true"]{cursor:grab}
 .kl-alvo-antes{box-shadow:-7px 0 0 -2px var(--solar)}
@@ -1411,12 +1420,10 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 .ag-g-cab.fila b{color:var(--solar-deep)}
 .ag-g-corpo{display:flex;position:relative}
 .ag-g-horas{position:sticky;left:0;z-index:3;flex:0 0 56px;background:var(--surface);box-shadow:1px 0 0 var(--line)}
-.ag-g-horas span{position:absolute;left:0;right:0;padding:3px 8px 0 0;text-align:right;font-family:var(--fonte-dados);font-variant-numeric:tabular-nums;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
-.ag-g-horas span.meia{color:var(--muted-2);font-size:10px;border-top-color:transparent}
+.ag-g-horas span{position:absolute;left:0;right:0;padding:4px 8px 0 0;text-align:right;font-family:var(--fonte-dados);font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:600;color:var(--muted);border-top:2px solid var(--line-2)}
 .ag-g-col{flex:1 0 150px;position:relative;border-left:1px solid var(--line)}
 .ag-g-col.fila{background:color-mix(in srgb,var(--solar) 4%,transparent)}
-.ag-g-slot{position:absolute;left:0;right:0;padding:0;border:0;border-top:1px solid var(--line);background:none;cursor:pointer}
-.ag-g-slot.meia{border-top-color:color-mix(in srgb,var(--line) 45%,transparent)}
+.ag-g-slot{position:absolute;left:0;right:0;padding:0;border:0;border-top:2px solid var(--line-2);background:none;cursor:pointer}
 .ag-g-slot:hover{background:color-mix(in srgb,var(--solar) 7%,transparent)}
 .ag-g-aula{
   position:absolute;z-index:2;display:flex;flex-direction:column;overflow:hidden;cursor:pointer;text-align:left;
@@ -1475,9 +1482,11 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 .ag-sem-cab.hoje,.ag-sem-cab.hoje b{color:var(--solar-deep)}
 .ag-sem-hora{
   position:sticky;left:0;z-index:2;background:var(--surface);padding:7px 9px 0 0;text-align:right;min-height:72px;
-  font-family:var(--fonte-dados);font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted);border-top:1px solid var(--line);
+  font-family:var(--fonte-dados);font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:600;color:var(--muted);border-top:2px solid var(--line-2);
 }
-.ag-sem-cel{min-height:72px;padding:5px 5px 12px;border-top:1px solid var(--line);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:5px;cursor:pointer;min-width:0}
+/* faixas separadas por uma borda mais grossa e mais respiro (26/11/2026: "uma divisão
+   maior entre os horários para não amontoar tudo") */
+.ag-sem-cel{min-height:72px;padding:8px 6px 14px;border-top:2px solid var(--line-2);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:6px;cursor:pointer;min-width:0}
 .ag-sem-hora.vazia,.ag-sem-cel.vazia{min-height:30px}
 .ag-sem-cel:hover{background:color-mix(in srgb,var(--solar) 5%,transparent)}
 .ag-sem-cel.hoje{background:color-mix(in srgb,var(--solar) 4%,transparent)}
@@ -1498,6 +1507,12 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 .ag-sem-aula.parado{opacity:.55}
 .ag-sem-aula.cancelada{opacity:.32}
 .ag-sem-aula.parado b{text-decoration:line-through}
+/* a aula de mais de uma hora: a de cima "segue" (canto de baixo reto) e a de baixo é a
+   continuação (canto de cima reto, borda tracejada), como um bloco que passa a linha */
+.ag-sem-aula.segue{border-bottom-left-radius:3px;border-bottom-right-radius:3px}
+.ag-sem-aula.continua{border-top-left-radius:3px;border-top-right-radius:3px;border-left-style:dashed;box-shadow:none;opacity:.88}
+.ag-sem-aula.continua .ag-sem-l2{font-style:italic}
+.ag-sem-seta{flex:none;font-weight:700;opacity:.7;line-height:1}
 .ag-sem-bl{
   display:flex;flex-direction:column;align-items:flex-start;padding:3px 8px;border:0;border-radius:8px;text-align:left;cursor:pointer;
   color:var(--muted);font-size:11px;font-weight:600;line-height:1.3;
@@ -1517,7 +1532,7 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 .ag-sem-dia b::first-letter{text-transform:uppercase}
 .ag-sem-dia small{margin-left:auto;color:var(--muted);font-size:12px}
 .ag-sem.lista section.hoje .ag-sem-dia b{color:var(--solar-deep)}
-.ag-sem-linha{display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.ag-sem-linha{display:flex;gap:8px;padding:8px 0;border-top:2px solid var(--line-2)}
 .ag-sem-linha:first-of-type{border-top:0}
 .ag-sem-hora-l{flex:0 0 44px;padding-top:6px;font-size:12px;color:var(--muted)}
 .ag-sem-itens{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}

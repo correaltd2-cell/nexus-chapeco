@@ -1,5 +1,5 @@
 'use client';
-/* A tela da agenda. Junta a Semana (a visão padrão: hora cheia, todas as aulas à vista),
+/* A tela da agenda. Junta a Semana (a visão padrão: as faixas da escola, todas as aulas à vista),
    a Grade (um dia, uma coluna por professor), o calendário (Mês e Dia), os filtros, o
    modal da aula e o do bloqueio, e decide o que fazer quando alguém arrasta uma aula:
    pergunta "só esta ou esta e as próximas" quando é de uma série, e confere conflito
@@ -19,7 +19,7 @@ import {
   diaAbertoDesde, diaDaSemana, diaLocal, diasAbertosDaSemana, filtra, horaLocal, inicioDoDia, LISTA_STATUS, passaDia,
   permissoesDe, somaDias, sobrepoe, STATUS, type Agendamento, type Conflito, type Escopo, type Modalidade,
 } from '@/lib/dominio/agenda';
-import { contaDoPeriodo, GRADE_FIM, GRADE_INICIO, isoNoDia, minutosNoDia } from '@/lib/dominio/agenda-grade';
+import { contaDoPeriodo, faixasDoDia, GRADE_FIM, GRADE_INICIO, isoNoDia, minutosNoDia, proximaFaixa } from '@/lib/dominio/agenda-grade';
 import { useAgendamentos, useCadastros } from './dados';
 import { Multi } from './escolha';
 import ModalDaAula, { type Abertura } from './aula';
@@ -232,8 +232,12 @@ export default function Agenda() {
     setAberta({ tipo: 'nova', inicio: inicio.toISOString(), fim: fim.toISOString(), ...(professorId ? { professorId } : {}) });
   }
   function novaAulaDoBotao() {
-    /* a próxima hora cheia; na Semana ou na Grade de outro dia, nesse dia, no mesmo horário */
-    const ini = new Date(); ini.setMinutes(60, 0, 0);
+    /* o começo da próxima faixa (de manhã a próxima hora cheia, de tarde 14h30, 15h30...);
+       na Semana ou na Grade de outro dia, nesse dia, no mesmo horário */
+    const agoraJa = new Date();
+    const diaJa = diaLocal(agoraJa);
+    const proxima = proximaFaixa(faixasDoDia(diaDaSemana(diaJa)), minutosNoDia(agoraJa.toISOString(), diaJa));
+    const ini = proxima !== null ? new Date(isoNoDia(diaJa, proxima)) : new Date(new Date().setMinutes(60, 0, 0));
     const naTela = visao === 'semana' ? (diasDaSemana.includes(diaLocal(ini)) ? diaLocal(ini) : diasDaSemana[0]) : dia;
     if (!doCalendario(visao) && naTela && naTela !== diaLocal(ini)) {
       const min = Math.min(Math.max(minutosNoDia(ini.toISOString(), diaLocal(ini)), GRADE_INICIO), GRADE_FIM - 60);

@@ -343,7 +343,7 @@ export default function Quadros() {
   const termoArq = buscaArquivo.trim().toLowerCase();
 
   return (
-    <div className={`qd${fundo ? ' qd-com-fundo' : ''}${fundo?.escuro ? ' qd-escuro' : ''}`} style={estiloDoFundo}>
+    <div className={`qd${fundo ? ` qd-com-fundo ${fundo.escuro ? 'qd-escuro' : 'qd-claro'}${fundo.imagem ? ' qd-imagem' : ''}` : ''}`} style={estiloDoFundo}>
       <header className="vh qd-h">
         {renomeiaQuadro && quadro ? (
           <input className="cx qd-nome" autoFocus defaultValue={quadro.nome} maxLength={30} aria-label="Nome do quadro"

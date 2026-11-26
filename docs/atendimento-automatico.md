@@ -18,8 +18,10 @@ contato escreve, sem atendimento aberto
           │                           ├─ Confirmar presença → aula confirmada, atendimento encerrado
           │                           ├─ Remarcar → pendência no quadro e conversa na Recepção
           │                           └─ Falar com a recepção, ou sem aula marcada → Recepção
-          ├─ Financeiro/contrato .. assistente (botões ou IA)
-          │                           └─ não resolveu ou pediu pessoa → Financeiro, com resumo
+          ├─ Financeiro/contrato .. a lista das dúvidas, sempre, e o assistente atende
+          │                           ├─ dúvida com resposta escrita → a resposta e "algo mais?"
+          │                           ├─ escreveu → a IA responde, ou pergunta o que falta (até 2 vezes)
+          │                           └─ precisa de gente ou pediu pessoa → Financeiro, com resumo
           └─ Outro assunto ........ Recepção
 ```
 
@@ -34,6 +36,18 @@ contato escreve, sem atendimento aberto
   ela diz também quando a equipe volta. Só com a janela de 24 horas aberta. O texto se
   muda e o aviso se desliga em Configurações, Atendimento. (Foi testada uma figurinha
   no lugar do texto; o cliente preferiu a mensagem, mais profissional.)
+- **O financeiro atende, filtra, qualifica e só então passa** (26/11/2026, pedido do
+  cliente: "quando entra no fluxo financeiro e pede os botões, tem que botar e atender").
+  Tocou em Financeiro/contrato: vai sempre a lista com as dúvidas e "Falar com uma
+  pessoa", com ou sem IA. Tocou numa dúvida com resposta escrita: a resposta, com Era só
+  isso, valeu, Outra dúvida (volta à lista do financeiro) e Falar com uma pessoa. Escreveu
+  a dúvida: com a IA ligada, o assistente responde o que está nas perguntas e respostas;
+  quando precisa de alguém do time, primeiro pergunta o que falta para resolver de
+  primeira (de qual aluno, qual parcela ou mês, o que aconteceu), no máximo 2 vezes, e só
+  então passa para o Financeiro com o resumo no recado. Dúvida da lista sem resposta
+  escrita também passa pela IA antes. Sem IA, o que a pessoa escrever depois da lista vai
+  para gente. As decisões são puras (`vezDoAssistente`, `depoisDaIa` e
+  `entradaDoFinanceiro` em `dominio/automatico.ts`) e provadas em `testes/automatico.ts`.
 - **A Coordenação nunca é botão.** Ela só recebe conversa quando alguém do time passa
   pelo painel do contato. Quem é do setor recebe o aviso no celular pessoal.
 - **Relógio do follow-up**: só corre quando a escola falou por último. Aos 15 minutos sem

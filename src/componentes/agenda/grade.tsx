@@ -3,8 +3,10 @@
    recepção trabalha ("quem está livre às 18h30?"). Feita aqui, sem plugin do calendário.
    - Colunas: "A definir" sempre primeiro (a fila sem professor), depois quem tem mais aula
      no dia; cabeçalho e coluna de horas presos ao rolar; nada se espreme (rola de lado).
-   - Linhas de 30 em 30 minutos, das 7h30 às 21h30; a linha cresce para o cartão mostrar
-     todos os alunos.
+   - Linhas nas faixas da escola (26/11/2026): de manhã hora cheia, 8h ao meio-dia; de
+     tarde e de noite hora quebrada, 13h30 às 21h30; sábado em hora cheia. Aula fora disso
+     abre a linha dela; a linha cresce para o cartão mostrar todos os alunos. A aula de
+     mais de uma hora ocupa as linhas dela, como na agenda antiga.
    - Cartão: a cor do professor suave no fundo e a cheia na borda, bolinha de status, nome
      da aula e os alunos, um por linha, quem faltou riscado.
    - Bloqueio do professor só na coluna dele; o da escola atravessa todas.
@@ -14,10 +16,10 @@
    As contas moram em src/lib/dominio/agenda-grade.ts. */
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { Ic } from '@/componentes/icones';
-import { diaLocal, faltaPresenca, horaLocal, inicioDoDia, somaDias, sobrepoe, STATUS, type Agendamento, type Bloqueio, type Professor } from '@/lib/dominio/agenda';
+import { diaDaSemana, diaLocal, faltaPresenca, horaLocal, inicioDoDia, somaDias, sobrepoe, STATUS, type Agendamento, type Bloqueio, type Professor } from '@/lib/dominio/agenda';
 import {
-  alturaDoCartao, alturasDasLinhas, arredonda, colunaDaAula, colunasDaGrade, encaixa, GRADE_FIM, GRADE_INICIO, ID_SEM_PROFESSOR, idDaFila,
-  isoNoDia, mantemOrdem, minutoDoY, minutosNoDia, motivoCompleto, motivoCurto, nomesQueCabem, PASSO, rotulosDasLinhas, tintaDoProfessor,
+  alturaDoCartao, alturasDasLinhas, arredonda, colunaDaAula, colunasDaGrade, encaixa, faixasCom, faixasDoDia, ID_SEM_PROFESSOR, idDaFila,
+  isoNoDia, mantemOrdem, minutoDoY, minutosNoDia, motivoCompleto, motivoCurto, nomesQueCabem, rotulosDasLinhas, tintaDoProfessor,
   topos, yDoMinuto, type ColunaDaGrade, type Encaixe,
 } from '@/lib/dominio/agenda-grade';
 
@@ -97,26 +99,31 @@ export default function Grade(p: Props) {
   }, [bloqueios, dia]);
   const daEscola = doDia.filter((b) => !b.professorId);
 
-  const encaixes = useMemo(() => new Map(colunas.map((c) => [c.id, encaixa(porColuna.get(c.id) || [], dia)])), [colunas, porColuna, dia]);
+  /* as faixas do dia (sábado em hora cheia), abertas para caber as aulas que estão na tela */
+  const faixas = useMemo(() => faixasCom(faixasDoDia(diaDaSemana(dia)),
+    agendamentos.flatMap((a) => [minutosNoDia(a.inicio, dia), minutosNoDia(a.fim, dia)])), [agendamentos, dia]);
+  const comeco = faixas[0].ini;
+  const final = faixas[faixas.length - 1].fim;
+  const encaixes = useMemo(() => new Map(colunas.map((c) => [c.id, encaixa(porColuna.get(c.id) || [], dia, faixas)])), [colunas, porColuna, dia, faixas]);
   const porId = useMemo(() => new Map(agendamentos.map((a) => [a.id, a])), [agendamentos]);
 
   /* as linhas crescem só pelo que está na tela */
   const alturas = useMemo(() => alturasDasLinhas([...encaixes.values()].flat().map((e) => ({
     ini: e.ini, fim: e.fim, alunos: porId.get(e.id)?.alunos.length || 0,
-  }))), [encaixes, porId]);
+  })), faixas), [encaixes, porId, faixas]);
   const t = useMemo(() => topos(alturas), [alturas]);
   const altura = t[t.length - 1];
-  const rotulos = useMemo(() => rotulosDasLinhas(), []);
-  const y = (min: number) => yDoMinuto(min, alturas, t);
+  const rotulos = useMemo(() => rotulosDasLinhas(faixas), [faixas]);
+  const y = (min: number) => yDoMinuto(min, faixas, alturas, t);
 
   /* abre perto da hora pedida; hoje, uma hora antes de agora; senão, no começo */
   const conhecida = agora.getTime() > 0;
   const hojeAqui = conhecida && diaLocal(agora) === dia;
   const minutoAgora = hojeAqui ? minutosNoDia(agora.toISOString(), dia) : -1;
   const alvo = p.rolarAte
-    ? Number(p.rolarAte.slice(0, 2)) * 60 + Number(p.rolarAte.slice(3, 5)) - PASSO
-    : hojeAqui ? minutoAgora - 60 : GRADE_INICIO;
-  const yDoAlvo = yDoMinuto(alvo, alturas, t);
+    ? Number(p.rolarAte.slice(0, 2)) * 60 + Number(p.rolarAte.slice(3, 5)) - 60
+    : hojeAqui ? minutoAgora - 60 : comeco;
+  const yDoAlvo = yDoMinuto(alvo, faixas, alturas, t);
   /* rola ao trocar de dia ou de hora pedida, e de novo quando as aulas do dia chegam
      (as linhas crescem); depois, quem rola é a pessoa */
   const chegou = agendamentos.length > 0;
@@ -132,17 +139,17 @@ export default function Grade(p: Props) {
   }
 
   function novaEm(c: ColunaDaGrade, linha: number) {
-    const ini = GRADE_INICIO + linha * PASSO;
-    p.aoNova(c.id, new Date(isoNoDia(dia, ini)), new Date(isoNoDia(dia, Math.min(ini + 60, GRADE_FIM))));
+    const ini = faixas[linha].ini;
+    p.aoNova(c.id, new Date(isoNoDia(dia, ini)), new Date(isoNoDia(dia, Math.min(ini + 60, 24 * 60))));
   }
 
   /* ---------------- arrastar ---------------- */
   function comeca(e: DragEvent<HTMLDivElement>, a: Agendamento, enc: Encaixe, coluna: string) {
     const r = e.currentTarget.getBoundingClientRect();
-    const noCartao = minutoDoY(y(enc.ini) + (e.clientY - r.top), alturas, t) - enc.ini;
+    const noCartao = minutoDoY(y(enc.ini) + (e.clientY - r.top), faixas, alturas, t) - enc.ini;
     arrasto.current = {
       id: a.id, colunaDeOrigem: coluna, deslocamento: Math.max(0, noCartao),
-      duracao: Math.max(PASSO / 2, minutosNoDia(a.fim, dia) - minutosNoDia(a.inicio, dia)),
+      duracao: Math.max(30, minutosNoDia(a.fim, dia) - minutosNoDia(a.inicio, dia)),
     };
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', a.id);
@@ -151,8 +158,8 @@ export default function Grade(p: Props) {
     const a = arrasto.current;
     if (!a) return null;
     const topo = e.currentTarget.getBoundingClientRect().top;
-    const ini = arredonda(minutoDoY(e.clientY - topo, alturas, t) - a.deslocamento);
-    const cabe = Math.min(Math.max(ini, GRADE_INICIO), GRADE_FIM - Math.min(a.duracao, GRADE_FIM - GRADE_INICIO));
+    const ini = arredonda(minutoDoY(e.clientY - topo, faixas, alturas, t) - a.deslocamento);
+    const cabe = Math.min(Math.max(ini, comeco), final - Math.min(a.duracao, final - comeco));
     return { ini: cabe, fim: cabe + a.duracao };
   }
   function passa(e: DragEvent<HTMLDivElement>, c: ColunaDaGrade) {
@@ -225,7 +232,7 @@ export default function Grade(p: Props) {
           <div className="ag-g-corpo" style={{ height: altura }}>
             <div className="ag-g-horas" aria-hidden="true">
               {rotulos.map((r, i) => (
-                <span key={r} className={r.endsWith(':30') ? 'meia' : undefined} style={{ top: t[i], height: alturas[i] }}>{r}</span>
+                <span key={r} style={{ top: t[i], height: alturas[i] }}>{r}</span>
               ))}
             </div>
 
@@ -234,14 +241,14 @@ export default function Grade(p: Props) {
                    onDragOver={(e) => passa(e, c)} onDrop={(e) => solta(e, c)}
                    onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSombra((s) => (s?.col === c.id ? null : s)); }}>
                 {alturas.map((h, i) => (
-                  <button key={i} type="button" tabIndex={-1} className={`ag-g-slot${rotulos[i].endsWith(':30') ? ' meia' : ''}`}
+                  <button key={i} type="button" tabIndex={-1} className="ag-g-slot"
                           style={{ top: t[i], height: h }} aria-label={`Nova aula com ${c.curto} às ${rotulos[i]}`}
                           onClick={() => novaEm(c, i)} />
                 ))}
 
                 {doDia.filter((b) => b.professorId && b.professorId === c.id).map((b) => {
-                  const ini = Math.max(GRADE_INICIO, minutosNoDia(b.inicio, dia));
-                  const fim = Math.min(GRADE_FIM, minutosNoDia(b.fim, dia));
+                  const ini = Math.max(comeco, minutosNoDia(b.inicio, dia));
+                  const fim = Math.min(final, minutosNoDia(b.fim, dia));
                   if (fim <= ini) return null;
                   return (
                     <div key={b.id} className="ag-g-bl" style={{ top: y(ini), height: y(fim) - y(ini) }} title={motivoCompleto(b)}>
@@ -290,8 +297,8 @@ export default function Grade(p: Props) {
             ))}
 
             {daEscola.map((b) => {
-              const ini = Math.max(GRADE_INICIO, minutosNoDia(b.inicio, dia));
-              const fim = Math.min(GRADE_FIM, minutosNoDia(b.fim, dia));
+              const ini = Math.max(comeco, minutosNoDia(b.inicio, dia));
+              const fim = Math.min(final, minutosNoDia(b.fim, dia));
               if (fim <= ini) return null;
               return (
                 <div key={b.id} className="ag-g-bl escola" style={{ top: y(ini), height: y(fim) - y(ini) }} title={motivoCompleto(b)}>
@@ -300,7 +307,7 @@ export default function Grade(p: Props) {
               );
             })}
 
-            {minutoAgora >= GRADE_INICIO && minutoAgora <= GRADE_FIM && <div className="ag-g-agora" style={{ top: y(minutoAgora) }} aria-hidden="true" />}
+            {minutoAgora >= comeco && minutoAgora <= final && <div className="ag-g-agora" style={{ top: y(minutoAgora) }} aria-hidden="true" />}
           </div>
         </div>
       </div>

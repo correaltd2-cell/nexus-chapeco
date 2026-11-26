@@ -24,6 +24,7 @@ import {
   depoisDoMenuConfuso, destinoDoAssunto, deveVoltarParaRecepcao, escolhaDoMenu, idDaPergunta, idDoBotao, leAutomatico,
   menorEspera, pareceDespedida, primeiro, promptMensagem, recomecaAtendimento, reservaDo, respostaDoAlgoMais,
   semAulaMarcada, setorDoPassa, setorNoAviso, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
+  depoisDaIa, entradaDoFinanceiro, vezDoAssistente,
   type ConfigAutomatico, type ContextoDaConversa, type Destino, type Linha, type Momento, type SituacaoDoHorario,
 } from '@/lib/dominio/automatico';
 import type { Conversa, Mensagem, Perfil, QuemEncerrou, Setor } from '@/lib/dominio/tipos';
@@ -229,7 +230,14 @@ export async function atendeAoVivo(
     const escolha = respostaDoAlgoMais(r.resposta, texto);
     if (escolha === 'nao') return fechaResolvido(r, 'O contato disse que era só isso. Atendimento encerrado.');
     if (escolha === 'sim') return mandaMenu(r, 'mais');
+    if (escolha === 'duvida') return abreFinanceiro(r);
     if (escolha === 'pessoa') return passaParaGente(r, 'Pediu para falar com uma pessoa.', true);
+    /* o assistente do financeiro estava atendendo: o que a pessoa escreveu é com ele */
+    if (antes.setor === 'financeiro' && antes.agenteAtivo === true) {
+      await ref.update({ etapa: 'assistente', tentativasMenu: 0 });
+      r.c = { ...r.c, etapa: 'assistente', tentativasMenu: 0 };
+      return assistente(r);
+    }
     const destino = destinoDoAssunto(leAssunto(texto).assunto, cfg);
     if (destino) return segue(r, destino);
     return voltaParaGente(r);
@@ -377,20 +385,59 @@ async function passaParaGente(r: Rodada, resumo: string, avisa: boolean) {
   if (!r.horario.aberto) await r.ref.update({ avisoForaEm: agoraIso() });
 }
 
+/** O financeiro (26/11/2026): atende, filtra, qualifica e só então passa para gente.
+    As decisões são puras (dominio/automatico.ts: vezDoAssistente e depoisDaIa). */
 async function assistente(r: Rodada) {
   const { cfg } = r;
-  if (cfg.modo === 'ia' && iaLigada()) {
+  const comIa = cfg.modo === 'ia' && iaLigada();
+  const vez = vezDoAssistente({ cfg, id: r.resposta.id || '', entrando: r.c.etapa !== 'assistente', iaLigada: comIa });
+  if (vez.tipo === 'pessoa') return passaParaGente(r, 'Pediu para falar com uma pessoa.', true);
+  if (vez.tipo === 'ajudou') return fechaResolvido(r, 'Resolvido pelo assistente. Atendimento encerrado.');
+  if (vez.tipo === 'resposta') {
+    const q = cfg.faq[vez.pergunta];
+    /* a resposta já pergunta se precisa de mais alguma coisa: Era só isso encerra na hora */
+    await r.ref.update({ etapa: 'mais', tentativasMenu: 0 });
+    return fala(r.bd, r.ref, r.c, {
+      texto: `${q.r}\n\nPosso te ajudar em mais alguma coisa?`, botoes: BOTOES_DEPOIS_DA_DUVIDA, relogio: 'liga',
+    });
+  }
+  /* entrou pelo botão: a lista das opções vai sempre, com ou sem IA */
+  if (vez.tipo === 'entrada') return abreFinanceiro(r);
+  if (vez.tipo === 'ia') {
+    const perguntas = r.c.etapa === 'assistente' ? r.c.tentativasMenu || 0 : 0;
     const linhas = await linhasDoAtendimento(r.bd, r.ref.id, r.c.atendimentoDesde || r.quando);
     const resposta = await respondeComoAssistente(turnosDoAssistente(cfg, { ...contextoDe(r.c, linhas, r.horario), jaAvisouFora: jaAvisouFora(r.c) }));
     if (resposta) {
-      const passa = resposta.acao === 'passar';
-      await fala(r.bd, r.ref, r.c, { texto: resposta.mensagem, relogio: passa ? 'nao' : 'liga' });
-      if (passa) await passaParaGente(r, resposta.resumo || 'O assistente não soube responder.', false);
-      return;
+      const depois = depoisDaIa(resposta.acao, perguntas);
+      if (depois === 'respondeu') {
+        await r.ref.update({ etapa: 'mais', tentativasMenu: 0 });
+        return fala(r.bd, r.ref, r.c, {
+          texto: `${resposta.mensagem}\n\nPosso te ajudar em mais alguma coisa?`, botoes: BOTOES_DEPOIS_DA_DUVIDA, relogio: 'liga',
+        });
+      }
+      if (depois === 'pergunta') {
+        await r.ref.update({ etapa: 'assistente', tentativasMenu: perguntas + 1 });
+        return fala(r.bd, r.ref, r.c, { texto: resposta.mensagem, relogio: 'liga' });
+      }
+      /* passa: com a mensagem da IA, ou, se ela queria perguntar de novo, com o aviso padrão */
+      if (resposta.acao === 'passar') {
+        await fala(r.bd, r.ref, r.c, { texto: resposta.mensagem, relogio: 'nao' });
+        return passaParaGente(r, resposta.resumo || 'O assistente não soube responder.', false);
+      }
+      return passaParaGente(r, resposta.resumo || `Conversou com o assistente. Última mensagem: "${r.texto.slice(0, 200)}".`, true);
     }
     /* a IA não respondeu: segue no modo botões, que não depende dela */
   }
   return assistenteEmBotoes(r);
+}
+
+/** A entrada do financeiro: a lista das dúvidas e "Falar com uma pessoa". Sem IA, o que
+    a pessoa escrever depois da lista vai para gente; com IA, o assistente atende. */
+async function abreFinanceiro(r: Rodada) {
+  const comIa = r.cfg.modo === 'ia' && iaLigada();
+  const { texto, lista } = entradaDoFinanceiro(r.cfg, r.c.nome || '');
+  await r.ref.update({ etapa: 'assistente', tentativasMenu: comIa ? 0 : 1 });
+  return fala(r.bd, r.ref, r.c, { texto, lista, relogio: 'liga' });
 }
 
 async function assistenteEmBotoes(r: Rodada) {

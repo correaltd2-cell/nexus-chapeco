@@ -32,7 +32,7 @@ const LeituraSchema = z.object({
 export type Leitura = z.infer<typeof LeituraSchema>;
 
 const RespostaSchema = z.object({
-  acao: z.enum(['responder', 'passar']),
+  acao: z.enum(['responder', 'perguntar', 'passar']),
   mensagem: z.string(),
   resumo: z.string(),
 });

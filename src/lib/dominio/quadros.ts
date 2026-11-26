@@ -214,32 +214,59 @@ export function apagaEtiqueta(lista: Etiqueta[], cartoes: Cartao[], nome: string
 
 export interface Fundo { id: string; nome: string; css: string; escuro: boolean }
 
+/** O contraste (conta da WCAG, de 1 a 21) entre duas cores #rrggbb. */
+export function contraste(a: string, b: string): number {
+  const lum = (h: string) => {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h);
+    if (!m) return 0;
+    const [r, g, bl] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
+/** As cores de um fundo: os #rrggbb do CSS. */
+export const coresDoFundo = (css: string) => css.match(/#[0-9a-f]{6}\b/gi) || [];
+
+/** O texto direto em cima do fundo é branco? É o que tiver mais contraste com a cor do
+    fundo que pior combina com ele (24/11/2026: no Laranja e no Pôr do sol o branco sumia). */
+export function textoBrancoNoFundo(css: string): boolean {
+  const cores = coresDoFundo(css);
+  if (!cores.length) return false;
+  const pior = (t: string) => Math.min(...cores.map((c) => contraste(t, c)));
+  return pior('#FFFFFF') > pior('#141414');
+}
+
+const fundo = (id: string, nome: string, css: string): Fundo => ({ id, nome, css, escuro: textoBrancoNoFundo(css) });
+
 /** Os planos de fundo prontos (pedido do cliente, 24/11/2026). Desenho nosso, sem foto
-    de banco de imagem; "escuro" diz se o texto em cima é branco. */
+    de banco de imagem; "escuro" diz se o texto em cima é branco, e sai da conta do contraste. */
 export const FUNDOS: Fundo[] = [
-  { id: 'padrao', nome: 'Sem fundo', css: '', escuro: false },
-  { id: 'laranja', nome: 'Laranja Nexus', css: 'linear-gradient(135deg,#F6821F 0%,#D4500A 100%)', escuro: true },
-  { id: 'por-do-sol', nome: 'Pôr do sol', css: 'linear-gradient(135deg,#FFB067 0%,#F0645A 55%,#B8446E 100%)', escuro: true },
-  { id: 'oceano', nome: 'Oceano', css: 'linear-gradient(135deg,#3A8DDE 0%,#1F4E8C 100%)', escuro: true },
-  { id: 'floresta', nome: 'Floresta', css: 'linear-gradient(135deg,#3E9B72 0%,#1E5A45 100%)', escuro: true },
-  { id: 'uva', nome: 'Uva', css: 'linear-gradient(135deg,#8E6BD8 0%,#4C2F8F 100%)', escuro: true },
-  { id: 'noite', nome: 'Noite', css: 'linear-gradient(135deg,#45453F 0%,#181817 100%)', escuro: true },
-  { id: 'lousa', nome: 'Lousa', css: 'radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.07),transparent 55%),radial-gradient(ellipse at 80% 90%,rgba(255,255,255,.05),transparent 50%),#2F4A3F', escuro: true },
-  { id: 'ceu', nome: 'Céu', css: 'linear-gradient(180deg,#DDEEFF 0%,#B9D7F5 100%)', escuro: false },
-  { id: 'areia', nome: 'Areia', css: 'linear-gradient(135deg,#F6EBDD 0%,#E8D3B8 100%)', escuro: false },
-  { id: 'caderno', nome: 'Caderno', css: 'linear-gradient(90deg,transparent 56px,#EFA9A0 56px,#EFA9A0 58px,transparent 58px),repeating-linear-gradient(180deg,#FBF8F1 0,#FBF8F1 27px,#D5E1EC 27px,#D5E1EC 28px)', escuro: false },
-  { id: 'pontinhos', nome: 'Pontilhado', css: 'radial-gradient(#C9C9C2 1.4px,transparent 1.6px) 0 0/18px 18px,#EEEEEA', escuro: false },
+  fundo('padrao', 'Sem fundo', ''),
+  fundo('laranja', 'Laranja Nexus', 'linear-gradient(135deg,#F6821F 0%,#D4500A 100%)'),
+  fundo('por-do-sol', 'Pôr do sol', 'linear-gradient(135deg,#FFB067 0%,#F0645A 55%,#B8446E 100%)'),
+  fundo('oceano', 'Oceano', 'linear-gradient(135deg,#3A8DDE 0%,#1F4E8C 100%)'),
+  fundo('floresta', 'Floresta', 'linear-gradient(135deg,#3E9B72 0%,#1E5A45 100%)'),
+  fundo('uva', 'Uva', 'linear-gradient(135deg,#8E6BD8 0%,#4C2F8F 100%)'),
+  fundo('noite', 'Noite', 'linear-gradient(135deg,#45453F 0%,#181817 100%)'),
+  fundo('lousa', 'Lousa', 'radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.07),transparent 55%),radial-gradient(ellipse at 80% 90%,rgba(255,255,255,.05),transparent 50%),#2F4A3F'),
+  fundo('ceu', 'Céu', 'linear-gradient(180deg,#DDEEFF 0%,#B9D7F5 100%)'),
+  fundo('areia', 'Areia', 'linear-gradient(135deg,#F6EBDD 0%,#E8D3B8 100%)'),
+  fundo('caderno', 'Caderno', 'linear-gradient(90deg,transparent 56px,#EFA9A0 56px,#EFA9A0 58px,transparent 58px),repeating-linear-gradient(180deg,#FBF8F1 0,#FBF8F1 27px,#D5E1EC 27px,#D5E1EC 28px)'),
+  fundo('pontinhos', 'Pontilhado', 'radial-gradient(#C9C9C2 1.4px,transparent 1.6px) 0 0/18px 18px,#EEEEEA'),
 ];
 
 /** O fundo do quadro para a tela: o CSS e se o texto em cima é branco. Null é sem fundo. */
-export function fundoDoQuadro(q?: Pick<Quadro, 'fundo' | 'fundoImagem'> | null): { css: string; escuro: boolean } | null {
+export function fundoDoQuadro(q?: Pick<Quadro, 'fundo' | 'fundoImagem'> | null): { css: string; escuro: boolean; imagem: boolean } | null {
   if (!q?.fundo || q.fundo === 'padrao') return null;
   if (q.fundo === 'imagem') {
     if (!q.fundoImagem || !/^https:\/\//.test(q.fundoImagem)) return null;
-    return { css: `center / cover no-repeat url("${q.fundoImagem.replace(/["\\\n]/g, '')}"), #2B2B28`, escuro: true };
+    /* a cor da imagem não se sabe: o texto é branco e o topo ganha uma faixa escura */
+    return { css: `center / cover no-repeat url("${q.fundoImagem.replace(/["\\\n]/g, '')}"), #2B2B28`, escuro: true, imagem: true };
   }
   const f = FUNDOS.find((x) => x.id === q.fundo);
-  return f && f.css ? { css: f.css, escuro: f.escuro } : null;
+  return f && f.css ? { css: f.css, escuro: f.escuro, imagem: false } : null;
 }
 
 /* ---------------- listas e cartões ---------------- */

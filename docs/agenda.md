@@ -11,7 +11,7 @@ observação e notas são de cada aluno.
 | Regras puras (status, conflito, recorrência, "este e os próximos", permissões, indicadores, CSV, lembrete, resumo) | `src/lib/dominio/agenda.ts`, prova em `testes/agenda.ts` |
 | Dados fictícios (3 professores, 15 alunos, 2 semanas, séries, bloqueios, log) | `src/lib/dominio/agenda-exemplo.ts` |
 | Gravação pelo navegador (lote único com log) | `src/lib/dados/agenda.ts` |
-| Semana (visão padrão, hora cheia, todas as aulas), feita aqui | `src/componentes/agenda/semana.tsx` |
+| Semana (visão padrão, faixas da escola, todas as aulas), feita aqui | `src/componentes/agenda/semana.tsx` |
 | Grade por professor, feita aqui | `src/componentes/agenda/grade.tsx` |
 | Contas da Semana e da Grade (células da Semana, colunas, encaixe, altura das linhas, contador, nomes curtos, tinta do professor) | `src/lib/dominio/agenda-grade.ts`, prova em `testes/agenda-grade.ts` |
 | Dia fechado (domingo) | `DIAS_FECHADOS` em `src/lib/dominio/agenda.ts` |
@@ -65,25 +65,43 @@ pediu a **Semana como padrão**, em **hora cheia**, com **todas as aulas sempre 
 poluída. As regras de conflito, recorrência e permissão e o formato dos dados não mudaram:
 isto é só tela.
 
+**As faixas da escola** (26/11/2026, no lugar da hora cheia o dia todo). Pedido do
+cliente: "a partir da tarde, a nossa agenda é com horário quebrado, da 1h30 até as 9h30.
+De manhã é horário cheio, das 8 ao meio-dia. O sábado também é horário cheio"; "a aula de
+B2 ocupa mais de 1 hora, tem que parecer que está em 2 horários, como era no ELLO"; "uma
+divisão maior entre os horários para não amontoar tudo".
+- Segunda a sexta: 8h, 9h, 10h e 11h (hora cheia), o almoço (12h às 13h30) e 13h30,
+  14h30 ... 20h30 (hora quebrada, até 21h30). Sábado: hora cheia, 8h ao meio-dia. Aula
+  fora disso abre a linha dela (antes, de hora em hora para trás; depois, para frente).
+- As faixas são `FAIXAS_DIA_UTIL` e `FAIXAS_SABADO` em `dominio/agenda-grade.ts`.
+- Linha separada da seguinte por borda de 2px, com mais respiro dentro da célula.
+- Aula de mais de uma hora aparece também na faixa seguinte em que fica pelo menos meia
+  hora (B2 das 18h30 às 20h: na das 18h30 e, como continuação, na das 19h30). Na Grade e
+  no Dia ela é um bloco só que ocupa as duas linhas.
+
 **Semana** (padrão), feita aqui, sem o calendário
 - Colunas = os dias abertos (segunda a sábado), com quantas aulas tem cada um; o nome do
   dia abre a Grade daquele dia. Setas andam uma semana; Hoje volta para a semana de hoje.
-- Linhas = horas cheias, das 7h às 21h (aula fora disso abre a linha dela). A aula das
-  18:30 fica na linha das 18h, com o horário escrito nela.
-- **Cada célula lista todas as aulas que começam naquela hora, uma embaixo da outra**:
+- Linhas = as faixas do dia útil (o sábado de manhã é igual; aula de sábado à tarde cai
+  na faixa em que começa, com o horário escrito nela). Aula fora delas abre a linha dela.
+- **Cada célula lista todas as aulas que começam naquela faixa, uma embaixo da outra**:
   bolinha de status, horário, aula curta ("A2 L11"), professor e quantos alunos. Os nomes
   dos alunos ficam no passar o mouse e no modal. **Nunca há "+N"**: a linha cresce o que
-  precisar, e hora sem nada fica baixinha. No mesmo horário, a ordem é pelo professor.
+  precisar, e faixa sem nada fica baixinha. No mesmo horário, a ordem é pelo professor.
+- **Aula de mais de uma hora**: na faixa em que começa diz "até 20:00"; na seguinte
+  aparece de novo em cima, com borda tracejada, "↳" e "continuação". Conta uma vez só no
+  dia. Arrastar é pela de cima.
 - Cor do professor suave no fundo e cheia na borda; cancelada bem apagada.
 - Bloqueio da escola pinta as células que cobre, com o nome na primeira. O do professor
   só aparece com a chave **Mostrar bloqueios** (desligada; fica no aparelho; mostra
-  quantos há na semana), como item listrado pequeno na hora em que começa.
-- Clique no espaço vazio da célula: aula nova naquele dia e hora (uma hora). Arrastar a
-  aula para outra célula: outro dia e hora com os mesmos minutos, pela mesma
+  quantos há na semana), como item listrado pequeno na faixa em que começa.
+- Clique no espaço vazio da célula: aula nova naquele dia, no começo da faixa (uma hora).
+  Arrastar a aula para outra célula: outro dia e faixa, com a mesma distância do começo
+  da faixa (a das 18h30 arrastada para a faixa das 14h30 vai para 14h30), pela mesma
   conferência de conflito; aula de série pergunta "só esta ou esta e as próximas".
 - Abre perto da hora pedida (o "Ver na agenda" da conversa) ou, na semana de hoje, uma
   hora antes de agora.
-- No celular, os dias um embaixo do outro, só com as horas que têm aula.
+- No celular, os dias um embaixo do outro, só com as faixas que têm aula.
 
 **Grade** (um dia, uma coluna por professor)
 - Setas de dia anterior e próximo, **Hoje** e os atalhos Seg a Sáb.
@@ -92,7 +110,7 @@ isto é só tela.
   está na equipe também cai nela). Depois, quem tem mais aula no dia; empate pelo nome.
   A ordem é calculada ao abrir o dia e fica parada enquanto a pessoa está nele, para a
   coluna não pular quando alguém arrasta uma aula. O filtro de professor escolhe as colunas.
-- Linhas de **hora cheia**, das 7h às 22h, com o cabeçalho e as horas presos ao rolar.
+- Linhas nas **faixas da escola** (sábado em hora cheia), com o cabeçalho e as horas presos ao rolar.
   Coluna com no mínimo 150px e rolagem de lado. A linha cresce para o cartão mostrar
   **todos os alunos** (até 8; acima disso, 7 e "+N alunos" no próprio cartão).
 - Cartão: a cor do professor suave no fundo e cheia na borda de 4px, bolinha de status,
@@ -107,7 +125,8 @@ isto é só tela.
 **Mês**: cada dia mostra quantas aulas e quantos alunos tem, sem "+N" escondendo aula; o
 dia abre a Grade daquele dia.
 
-**Dia**: o calendário em hora cheia (7h às 22h), com os nomes dos alunos no bloco e o
+**Dia**: o calendário de meia em meia hora (7h às 22h), para a hora cheia da manhã e a
+quebrada da tarde caberem certas, com os nomes dos alunos no bloco e o
 bloqueio de professor só com a chave.
 
 **Esconder canceladas** (fica no aparelho) vale para todas as visões. A legenda fica

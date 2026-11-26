@@ -1,8 +1,11 @@
 /* A Grade e a Semana da agenda: contas puras, sem banco e sem tela.
-   Grade (24/11/2026) = um dia por vez, uma coluna por professor, linhas de hora cheia
-   das 7h às 22h. Semana (refeita em 24/11/2026, a visão padrão) = os dias abertos lado a
-   lado e as horas cheias de cima para baixo; cada célula lista TODAS as aulas que começam
-   naquela hora, uma embaixo da outra, sem "+N". Mora aqui:
+   As linhas são as faixas da escola (26/11/2026): de manhã hora cheia (8h às 12h), o
+   almoço, e de tarde e de noite hora quebrada (13h30 às 21h30); o sábado é hora cheia.
+   Grade (24/11/2026) = um dia por vez, uma coluna por professor. Semana (a visão padrão)
+   = os dias abertos lado a lado e as faixas de cima para baixo; cada célula lista TODAS
+   as aulas que começam naquela faixa, uma embaixo da outra, sem "+N", e a aula de mais
+   de uma hora aparece também na faixa seguinte, como na agenda antiga do ELLO. Mora aqui:
+   - as faixas de cada dia e as que se abrem para caber o que cai fora;
    - a ordem das colunas da Grade ("A definir" sempre primeiro, depois quem tem mais aula);
    - o encaixe das aulas na coluna (lado a lado só quando duas se sobrepõem);
    - a altura de cada linha da Grade, que cresce para o cartão mostrar todos os alunos;
@@ -13,13 +16,60 @@
    Prova: node --experimental-strip-types testes/agenda-grade.ts */
 import { BLOQUEIOS, diaLocal, inicioDoDia, textoSobre, type Agendamento, type Bloqueio, type Professor } from './agenda.ts';
 
-/* ================= a régua do dia ================= */
+/* ================= a régua do dia: as faixas da escola ================= */
 
-/* hora cheia (pedido do cliente: "pode ser hora cheia, não precisa ser hora quebrada") */
-export const GRADE_INICIO = 7 * 60;   // minutos desde a meia-noite
-export const GRADE_FIM = 22 * 60;
-export const PASSO = 60;
-export const LINHAS = (GRADE_FIM - GRADE_INICIO) / PASSO;
+/* Pedido do cliente (26/11/2026): "a partir da tarde, a nossa agenda é com horário
+   quebrado, da 1h30 até as 9h30. De manhã é horário cheio, das 8 ao meio-dia. O sábado
+   também é horário cheio." Substitui a hora cheia o dia todo de 24/11. */
+
+/** Uma linha da agenda: de ini até fim (sem incluir), em minutos desde a meia-noite. */
+export interface Faixa { ini: number; fim: number }
+
+const deHora = (de: number, ate: number): Faixa[] => {
+  const l: Faixa[] = [];
+  for (let m = de; m < ate; m += 60) l.push({ ini: m, fim: Math.min(m + 60, ate) });
+  return l;
+};
+
+/** Segunda a sexta: 8h às 12h em hora cheia, o almoço (12h às 13h30) e 13h30 às 21h30
+    em hora quebrada. */
+export const FAIXAS_DIA_UTIL: Faixa[] = [...deHora(8 * 60, 12 * 60), { ini: 12 * 60, fim: 13 * 60 + 30 }, ...deHora(13 * 60 + 30, 21 * 60 + 30)];
+/** Sábado: hora cheia, 8h ao meio-dia; aula depois disso abre as linhas dela, de hora em hora. */
+export const FAIXAS_SABADO: Faixa[] = deHora(8 * 60, 12 * 60);
+
+/** O começo e o fim do dia útil (a régua que vale quando não há aula fora dela). */
+export const GRADE_INICIO = FAIXAS_DIA_UTIL[0].ini;
+export const GRADE_FIM = FAIXAS_DIA_UTIL[FAIXAS_DIA_UTIL.length - 1].fim;
+
+/** As faixas de um dia (o sábado tem as dele). */
+export const faixasDoDia = (diaDaSemana: number) => (diaDaSemana === 6 ? FAIXAS_SABADO : FAIXAS_DIA_UTIL);
+
+/** As faixas abertas para caber cada minuto dado: antes do começo, de hora em hora para
+    trás; depois do fim, de hora em hora para frente. Nada some da tela. */
+export function faixasCom(base: Faixa[], minutos: number[]): Faixa[] {
+  const l = [...base];
+  const validos = minutos.filter((m) => Number.isFinite(m)).map((m) => Math.min(Math.max(m, 0), 24 * 60));
+  if (!validos.length) return l;
+  const menor = Math.min(...validos);
+  const maior = Math.max(...validos);
+  while (menor < l[0].ini && l[0].ini > 0) l.unshift({ ini: Math.max(0, l[0].ini - 60), fim: l[0].ini });
+  while (maior > l[l.length - 1].fim && l[l.length - 1].fim < 24 * 60) {
+    const f = l[l.length - 1].fim;
+    l.push({ ini: f, fim: Math.min(24 * 60, f + 60) });
+  }
+  return l;
+}
+
+/** A faixa em que um minuto cai (antes da primeira, a primeira; depois da última, a última). */
+export function faixaDe(faixas: Faixa[], min: number): number {
+  if (min < faixas[0].ini) return 0;
+  const i = faixas.findIndex((f) => min >= f.ini && min < f.fim);
+  return i < 0 ? faixas.length - 1 : i;
+}
+
+/** O começo da próxima faixa depois de um minuto (a aula nova do botão: às 14h10, 14h30);
+    null quando o dia já acabou. */
+export const proximaFaixa = (faixas: Faixa[], min: number) => faixas.find((f) => f.ini > min)?.ini ?? null;
 
 export const hhmm = (min: number) => {
   const m = Math.round(min);
@@ -33,8 +83,8 @@ export const minutosNoDia = (iso: string, dia: string) =>
 /** O instante (ISO) de um minuto num dia de Chapecó. */
 export const isoNoDia = (dia: string, min: number) => new Date(new Date(inicioDoDia(dia)).getTime() + min * 60_000).toISOString();
 
-/** "07:00", "08:00" ... "21:00": o começo de cada linha. */
-export const rotulosDasLinhas = () => Array.from({ length: LINHAS }, (_, i) => hhmm(GRADE_INICIO + i * PASSO));
+/** "08:00", "09:00" ... "13:30", "14:30" ... "20:30": o começo de cada linha. */
+export const rotulosDasLinhas = (faixas: Faixa[]) => faixas.map((f) => hhmm(f.ini));
 
 /* ================= as colunas ================= */
 
@@ -124,15 +174,17 @@ export interface Encaixe {
   cortadoDepois: boolean;
 }
 
-/** Os itens de uma coluna no dia: o trecho dentro da grade e a faixa de cada um. Nada
-    some: o que começa antes das 7h30 ou passa das 21h30 aparece cortado na borda. */
-export function encaixa(itens: { id: string; inicio: string; fim: string }[], dia: string): Encaixe[] {
+/** Os itens de uma coluna no dia: o trecho dentro da régua e a faixa (lado a lado) de
+    cada um. Nada some: o que passa da régua aparece cortado na borda. */
+export function encaixa(itens: { id: string; inicio: string; fim: string }[], dia: string, faixas: Faixa[]): Encaixe[] {
+  const comeco = faixas[0].ini;
+  const final = faixas[faixas.length - 1].fim;
   const base = itens.map((x) => {
     const i = minutosNoDia(x.inicio, dia);
     const f = minutosNoDia(x.fim, dia);
-    const ini = Math.min(Math.max(i, GRADE_INICIO), GRADE_FIM - PASSO / 2);
-    const fim = Math.min(Math.max(f, ini + PASSO / 2), GRADE_FIM);
-    return { id: x.id, ini, fim, faixa: 0, faixas: 1, cortadoAntes: i < GRADE_INICIO, cortadoDepois: f > GRADE_FIM };
+    const ini = Math.min(Math.max(i, comeco), final - 30);
+    const fim = Math.min(Math.max(f, ini + 30), final);
+    return { id: x.id, ini, fim, faixa: 0, faixas: 1, cortadoAntes: i < comeco, cortadoDepois: f > final };
   });
   const ordem = [...base].sort((a, b) => a.ini - b.ini || b.fim - a.fim || a.id.localeCompare(b.id));
   let grupo: Encaixe[] = [];
@@ -158,7 +210,7 @@ export function encaixa(itens: { id: string; inicio: string; fim: string }[], di
 /* ================= a altura das linhas ================= */
 
 export interface Medidas {
-  base: number;        // px de cada linha de uma hora
+  base: number;        // px de cada linha (uma faixa)
   vao: number;         // o espaço entre um cartão e o seguinte, que sai da altura dele
   folga: number;       // respiro de cima e de baixo do cartão
   cabecalho: number;   // a linha da bolinha e do nome da aula
@@ -176,27 +228,21 @@ export const alturaPedida = (alunos: number, m: Medidas = MEDIDAS) =>
 /** A altura do cartão desenhado num trecho de tantos px (o trecho menos o vão). */
 export const alturaDoCartao = (trecho: number, m: Medidas = MEDIDAS) => Math.max(18, trecho - m.vao);
 
-/** Quanto do trecho [ini, fim) cai em cada linha (0 a 1). */
-function cobertura(ini: number, fim: number) {
-  const c: number[] = Array(LINHAS).fill(0);
-  for (let r = 0; r < LINHAS; r += 1) {
-    const a = GRADE_INICIO + r * PASSO;
-    const sobra = Math.min(fim, a + PASSO) - Math.max(ini, a);
-    if (sobra > 0) c[r] = sobra / PASSO;
-  }
-  return c;
+/** Quanto do trecho [ini, fim) cai em cada faixa (0 a 1 da faixa). */
+function cobertura(ini: number, fim: number, faixas: Faixa[]) {
+  return faixas.map((f) => Math.max(0, Math.min(fim, f.fim) - Math.max(ini, f.ini)) / (f.fim - f.ini));
 }
 
 /**
- * A altura de cada linha de uma hora. Começa na base e cresce onde um cartão precisa
+ * A altura de cada linha (uma faixa). Começa na base e cresce onde um cartão precisa
  * para mostrar todos os alunos. A linha vale para todas as colunas, como numa planilha.
  */
-export function alturasDasLinhas(cartoes: { ini: number; fim: number; alunos: number }[], m: Medidas = MEDIDAS): number[] {
-  const h: number[] = Array(LINHAS).fill(m.base);
+export function alturasDasLinhas(cartoes: { ini: number; fim: number; alunos: number }[], faixas: Faixa[], m: Medidas = MEDIDAS): number[] {
+  const h: number[] = Array(faixas.length).fill(m.base);
   const ordem = [...cartoes].sort((a, b) => (a.fim - a.ini) - (b.fim - b.ini));
   for (let volta = 0; volta < 2; volta += 1) {
     for (const c of ordem) {
-      const cob = cobertura(c.ini, c.fim);
+      const cob = cobertura(c.ini, c.fim, faixas);
       const soma = cob.reduce((s, x) => s + x, 0);
       if (!soma) continue;
       const tem = cob.reduce((s, x, r) => s + x * h[r], 0);
@@ -216,19 +262,24 @@ export function topos(alturas: number[]): number[] {
   return t;
 }
 
-/** O px de um minuto na grade. */
-export function yDoMinuto(min: number, alturas: number[], t: number[] = topos(alturas)) {
-  const x = Math.min(Math.max((min - GRADE_INICIO) / PASSO, 0), LINHAS);
-  const r = Math.min(LINHAS - 1, Math.floor(x));
-  return t[r] + (x - r) * alturas[r];
+/** O px de um minuto na grade (dentro da faixa, proporcional). */
+export function yDoMinuto(min: number, faixas: Faixa[], alturas: number[], t: number[] = topos(alturas)) {
+  const n = faixas.length;
+  if (min <= faixas[0].ini) return 0;
+  if (min >= faixas[n - 1].fim) return t[n];
+  const r = faixaDe(faixas, min);
+  const f = faixas[r];
+  return t[r] + ((min - f.ini) / (f.fim - f.ini)) * alturas[r];
 }
 
 /** O minuto de um px na grade (a volta de yDoMinuto), para soltar a aula arrastada. */
-export function minutoDoY(y: number, alturas: number[], t: number[] = topos(alturas)) {
-  const yy = Math.min(Math.max(y, 0), t[LINHAS]);
+export function minutoDoY(y: number, faixas: Faixa[], alturas: number[], t: number[] = topos(alturas)) {
+  const n = faixas.length;
+  const yy = Math.min(Math.max(y, 0), t[n]);
   let r = 0;
-  while (r < LINHAS - 1 && t[r + 1] <= yy) r += 1;
-  return GRADE_INICIO + (r + (yy - t[r]) / alturas[r]) * PASSO;
+  while (r < n - 1 && t[r + 1] <= yy) r += 1;
+  const f = faixas[r];
+  return f.ini + ((yy - t[r]) / alturas[r]) * (f.fim - f.ini);
 }
 
 /** Arredonda para o passo do arraste (15 minutos). */
@@ -242,54 +293,70 @@ export function nomesQueCabem(altura: number, alunos: number, m: Medidas = MEDID
   return { nomes, mais: alunos - nomes };
 }
 
-/* ================= a Semana: hora cheia, todas as aulas ================= */
+/* ================= a Semana: as faixas, todas as aulas ================= */
 
-/** As horas que a Semana sempre mostra (7h a 21h); aula fora disso abre a linha dela. */
-export const SEMANA_INICIO = 7;
-export const SEMANA_FIM = 21;
+export const chaveDaCelula = (dia: string, faixaIni: number) => `${dia}|${faixaIni}`;
 
-/** A hora cheia em que a aula começa, no dia dela (18:30 fica na linha das 18h). */
-export const horaDoInicio = (iso: string, dia: string) =>
-  Math.min(23, Math.max(0, Math.floor(minutosNoDia(iso, dia) / 60)));
-
-export const chaveDaCelula = (dia: string, hora: number) => `${dia}|${hora}`;
+/** Uma aula numa célula: onde ela começa, ou a continuação da que começou na faixa de cima. */
+export interface NaCelula<T> { a: T; continua: boolean }
 
 export interface Semana<T> {
-  horas: number[];                       // as linhas, de cima para baixo
-  celulas: Map<string, T[]>;             // dia|hora: as aulas, em ordem de horário
-  porDia: Map<string, number>;           // quantas aulas em cada dia
-  maisCheia: Map<number, number>;        // a célula mais cheia de cada hora (para a altura)
+  faixas: Faixa[];                       // as linhas, de cima para baixo
+  celulas: Map<string, NaCelula<T>[]>;   // dia|início da faixa: as aulas, em ordem de horário
+  porDia: Map<string, number>;           // quantas aulas em cada dia (cada uma conta uma vez)
+  maisCheia: Map<number, number>;        // a célula mais cheia de cada faixa (para a altura)
+}
+
+/** As faixas seguintes que uma aula de mais de uma hora também ocupa: as em que ela fica
+    pelo menos meia hora (B2 das 18h30 às 20h aparece também na faixa das 19h30). */
+export function continuacoes(ini: number, fim: number, faixas: Faixa[]): number[] {
+  if (fim - ini <= 60) return [];
+  const comeca = faixaDe(faixas, ini);
+  const l: number[] = [];
+  for (let r = comeca + 1; r < faixas.length; r += 1) {
+    const f = faixas[r];
+    if (f.ini >= fim) break;
+    if (Math.min(fim, f.fim) - Math.max(ini, f.ini) >= 30) l.push(r);
+  }
+  return l;
 }
 
 /**
- * A Semana: cada aula na célula do dia e da hora cheia em que começa, todas, uma
- * embaixo da outra (por horário e, no mesmo horário, pelo desempate dado, o nome do
- * professor). Nenhuma fica de fora: aula antes das 7h ou depois das 21h abre a linha.
+ * A Semana: cada aula na célula do dia e da faixa em que começa, todas, uma embaixo da
+ * outra (as que continuam de cima primeiro; depois por horário e, no mesmo horário, pelo
+ * desempate dado, o nome do professor). A aula de mais de uma hora aparece de novo nas
+ * faixas seguintes que ocupa, marcada como continuação. As linhas são as do dia útil
+ * (o sábado de manhã é igual); aula fora delas abre a linha dela. Nenhuma fica de fora.
  */
-export function montaSemana<T extends { id: string; inicio: string }>(
+export function montaSemana<T extends { id: string; inicio: string; fim: string }>(
   itens: T[], dias: string[], desempate: (a: T, b: T) => number = () => 0,
 ): Semana<T> {
   const aberto = new Set(dias);
-  const celulas = new Map<string, T[]>();
+  const doPeriodo = itens.filter((a) => aberto.has(diaLocal(a.inicio)));
+  const minutos = doPeriodo.flatMap((a) => {
+    const d = diaLocal(a.inicio);
+    return [minutosNoDia(a.inicio, d), minutosNoDia(a.fim, d)];
+  });
+  const faixas = faixasCom(FAIXAS_DIA_UTIL, minutos);
+  const celulas = new Map<string, NaCelula<T>[]>();
   const porDia = new Map<string, number>(dias.map((d) => [d, 0]));
-  const horas = new Set<number>();
-  for (let h = SEMANA_INICIO; h <= SEMANA_FIM; h += 1) horas.add(h);
-  for (const a of itens) {
+  const poe = (k: string, x: NaCelula<T>) => celulas.set(k, [...(celulas.get(k) || []), x]);
+  for (const a of doPeriodo) {
     const dia = diaLocal(a.inicio);
-    if (!aberto.has(dia)) continue;
-    const h = horaDoInicio(a.inicio, dia);
-    horas.add(h);
-    const k = chaveDaCelula(dia, h);
-    celulas.set(k, [...(celulas.get(k) || []), a]);
+    const ini = minutosNoDia(a.inicio, dia);
+    const fim = minutosNoDia(a.fim, dia);
+    poe(chaveDaCelula(dia, faixas[faixaDe(faixas, ini)].ini), { a, continua: false });
+    for (const r of continuacoes(ini, fim, faixas)) poe(chaveDaCelula(dia, faixas[r].ini), { a, continua: true });
     porDia.set(dia, (porDia.get(dia) || 0) + 1);
   }
   const maisCheia = new Map<number, number>();
   for (const [k, l] of celulas) {
-    l.sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime() || desempate(a, b) || a.id.localeCompare(b.id));
-    const h = Number(k.split('|')[1]);
-    maisCheia.set(h, Math.max(maisCheia.get(h) || 0, l.length));
+    l.sort((x, y) => Number(y.continua) - Number(x.continua)
+      || new Date(x.a.inicio).getTime() - new Date(y.a.inicio).getTime() || desempate(x.a, y.a) || x.a.id.localeCompare(y.a.id));
+    const f = Number(k.split('|')[1]);
+    maisCheia.set(f, Math.max(maisCheia.get(f) || 0, l.length));
   }
-  return { horas: [...horas].sort((a, b) => a - b), celulas, porDia, maisCheia };
+  return { faixas, celulas, porDia, maisCheia };
 }
 
 export interface BloqueioNaCelula { rotulos: Bloqueio[]; daEscola: Bloqueio[] }
@@ -299,7 +366,7 @@ export interface BloqueioNaCelula { rotulos: Bloqueio[]; daEscola: Bloqueio[] }
  * com o nome na primeira; o do professor (quando a pessoa pede para ver) entra como um
  * item pequeno só na primeira célula que cobre, em cada dia.
  */
-export function bloqueiosDaSemana(bloqueios: Bloqueio[], dias: string[], horas: number[]): Map<string, BloqueioNaCelula> {
+export function bloqueiosDaSemana(bloqueios: Bloqueio[], dias: string[], faixas: Faixa[]): Map<string, BloqueioNaCelula> {
   const m = new Map<string, BloqueioNaCelula>();
   const pega = (k: string) => { const c = m.get(k) || { rotulos: [], daEscola: [] }; m.set(k, c); return c; };
   for (const b of bloqueios) {
@@ -307,10 +374,10 @@ export function bloqueiosDaSemana(bloqueios: Bloqueio[], dias: string[], horas: 
       const ini = Math.max(0, minutosNoDia(b.inicio, dia));
       const fim = Math.min(24 * 60, minutosNoDia(b.fim, dia));
       if (fim <= ini) continue;
-      const cobre = horas.filter((h) => h * 60 < fim && (h + 1) * 60 > ini);
+      const cobre = faixas.filter((f) => f.ini < fim && f.fim > ini);
       if (!cobre.length) continue;
-      pega(chaveDaCelula(dia, cobre[0])).rotulos.push(b);
-      if (!b.professorId) for (const h of cobre) pega(chaveDaCelula(dia, h)).daEscola.push(b);
+      pega(chaveDaCelula(dia, cobre[0].ini)).rotulos.push(b);
+      if (!b.professorId) for (const f of cobre) pega(chaveDaCelula(dia, f.ini)).daEscola.push(b);
     }
   }
   return m;

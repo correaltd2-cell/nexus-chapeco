@@ -3,7 +3,7 @@
    a Coordenação nunca recebe direto do aluno.
    Rodar:  node --experimental-strip-types testes/automatico.ts  */
 import {
-  avisaNoWhatsDoSetor, setorNoAviso,
+  avisaNoWhatsDoSetor, BOTOES_DEPOIS_DA_DUVIDA, BOTOES_MAIS, depoisDaIa, entradaDoFinanceiro, setorNoAviso, vezDoAssistente,
   AUTOMATICO_PADRAO, acaoDoRelogio, avisaForaDoHorario, comNome, depoisDoMenuConfuso, destinoDoAssunto,
   deveVoltarParaRecepcao, escolhaDoMenu, leAutomatico, pareceDespedida, promptMensagem, recomecaAtendimento,
   regrasDoAssistente, reservaDo, respostaDoAlgoMais, semAulaMarcada, situacaoDoHorario, sobreOQue, textoDaTransferencia, turnosDoAssistente,
@@ -192,6 +192,35 @@ const turnos = turnosDoAssistente(cfg, { nome: 'Marina', ehAluno: true, linhas: 
 ] });
 igual('turnos começam no contato', turnos[0].role, 'user');
 igual('turnos terminam no contato', turnos[turnos.length - 1].role, 'user');
+
+/* o financeiro: atende, filtra, qualifica e passa (26/11/2026) */
+{
+  const c = AUTOMATICO_PADRAO;
+  const v = (id: string, entrando: boolean, ia = true) => vezDoAssistente({ cfg: c, id, entrando, iaLigada: ia }).tipo;
+  igual('entrou pelo botão do menu: vai a lista, com IA', v('menu-1', true), 'entrada');
+  igual('entrou pelo botão do menu: vai a lista, sem IA', v('menu-1', true, false), 'entrada');
+  igual('entrou escrevendo uma dúvida do financeiro: a IA atende direto', v('', true), 'ia');
+  igual('escreveu depois da lista: a IA atende', v('', false), 'ia');
+  igual('sem IA, escreveu depois da lista: o fluxo de botões (passa para gente)', v('', false, false), 'botoes');
+  const comResposta = c.faq.findIndex((q) => q.r);
+  const semResposta = c.faq.findIndex((q) => !q.r);
+  igual('tocou numa dúvida com resposta escrita: a resposta', vezDoAssistente({ cfg: c, id: `faq-${comResposta}`, entrando: false, iaLigada: true }), { tipo: 'resposta', pergunta: comResposta });
+  igual('dúvida sem resposta escrita: a IA qualifica antes de passar', v(`faq-${semResposta}`, false), 'ia');
+  igual('dúvida sem resposta escrita, sem IA: passa para gente', v(`faq-${semResposta}`, false, false), 'botoes');
+  igual('pediu uma pessoa: passa na hora', [v('pessoa', false), v('pessoa', true)], ['pessoa', 'pessoa']);
+  const e = entradaDoFinanceiro(c, 'Larissa Menegat');
+  igual('a entrada chama pelo nome e não promete botão que não vai', e.texto.startsWith('Beleza, Larissa!'), true);
+  igual('a lista tem as dúvidas e a pessoa', [e.lista.linhas.length, e.lista.linhas[e.lista.linhas.length - 1].id], [c.faq.length + 1, 'pessoa']);
+  igual('títulos da lista cabem no WhatsApp (24)', e.lista.linhas.every((l) => l.titulo.length <= 24), true);
+  igual('"Outra dúvida" depois da resposta do financeiro volta à lista dele', respostaDoAlgoMais({ id: BOTOES_DEPOIS_DA_DUVIDA.ids[1] }, 'Outra dúvida'), 'duvida');
+  igual('"Sim, outra coisa" do algo mais segue indo ao menu', respostaDoAlgoMais({ id: BOTOES_MAIS.ids[1] }, 'Sim, outra coisa'), 'sim');
+  igual('a IA pergunta até o limite e depois passa', [depoisDaIa('perguntar', 0), depoisDaIa('perguntar', 1), depoisDaIa('perguntar', 2), depoisDaIa('passar', 0), depoisDaIa('responder', 5)],
+    ['pergunta', 'pergunta', 'passa', 'passa', 'respondeu']);
+  const regras = regrasDoAssistente(c, { nome: 'Larissa', ehAluno: true, linhas: [] });
+  igual('as regras mandam qualificar e não pedir botão', [regras.includes('primeiro pergunta o que falta'), regras.includes('Não diga para escolher um botão'), regras.includes('"perguntar"')], [true, true, true]);
+  igual('prompt antigo salvo sem mexer vira o novo', leAutomatico({ prompt: 'Tu é o assistente do financeiro e dos contratos da Nexus Chapecó. Responde só com o que está nas perguntas e respostas. Se a resposta não estiver lá, não inventa: avisa que vai chamar alguém do time e passa a conversa.' }).prompt, c.prompt);
+  igual('prompt que a escola escreveu fica', leAutomatico({ prompt: 'Nosso jeito próprio.' }).prompt, 'Nosso jeito próprio.');
+}
 
 /* o aviso no WhatsApp de quem recebe a conversa (26/11/2026: o Financeiro também) */
 igual('setores que avisam no WhatsApp', (['recepcao', 'financeiro', 'coordenacao', 'kids'] as const).map(avisaNoWhatsDoSetor), [false, true, true, true]);

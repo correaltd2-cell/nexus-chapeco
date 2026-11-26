@@ -116,7 +116,7 @@ export const AUTOMATICO_PADRAO: ConfigAutomatico = {
   voltaHoras: 2,
   modo: 'ia',
   passaPara: 'financeiro',
-  prompt: 'Tu é o assistente do financeiro e dos contratos da Nexus Chapecó. Responde só com o que está nas perguntas e respostas. Se a resposta não estiver lá, não inventa: avisa que vai chamar alguém do time e passa a conversa.',
+  prompt: 'Tu é o assistente do financeiro e dos contratos da Nexus Chapecó. Tu atende, entende e qualifica: responde o que está nas perguntas e respostas e, quando precisar de alguém do time, primeiro pergunta o que falta para a pessoa resolver de primeira (de qual aluno se trata, qual parcela ou mês, o que aconteceu) e só então passa a conversa, com um resumo. Não inventa nada que não esteja escrito.',
   passaQuando: 'Quando o aluno pedir para falar com uma pessoa, quando a resposta não estiver nas perguntas e respostas, quando precisar do valor ou do boleto de um aluno específico, e em todo pedido de cancelamento.',
   /* pergunta sem resposta escrita faz o assistente passar para gente: a escola
      escreve as regras de verdade, o sistema nao inventa */
@@ -153,6 +153,7 @@ const PADROES_ANTIGOS: Partial<Record<keyof ConfigAutomatico, string[]>> = {
   fu1Reserva: ['Oi, {primeiro_nome}! Conseguiu ver o que a gente conversou? Se precisar, é só me chamar por aqui.'],
   encInstrucao: ['Avisa com carinho que vai fechar o atendimento por falta de resposta, lembra o que ficou pendente e deixa a porta aberta. Uma mensagem, até duas frases.'],
   encReserva: ['{primeiro_nome}, vou encerrar o atendimento por aqui. Quando quiser retomar, é só mandar uma mensagem 😊'],
+  prompt: ['Tu é o assistente do financeiro e dos contratos da Nexus Chapecó. Responde só com o que está nas perguntas e respostas. Se a resposta não estiver lá, não inventa: avisa que vai chamar alguém do time e passa a conversa.'],
 };
 const atual = (k: keyof ConfigAutomatico, v: unknown, max = 4000) => {
   const padrao = AUTOMATICO_PADRAO[k] as string;
@@ -206,7 +207,7 @@ export function leAutomatico(bruto?: Partial<ConfigAutomatico> | null): ConfigAu
     voltaHoras: inteiro(b.voltaHoras, P.voltaHoras, 1, 72),
     modo: b.modo === 'botoes' ? 'botoes' : 'ia',
     passaPara: b.passaPara === 'recepcao' ? 'recepcao' : 'financeiro',
-    prompt: texto(b.prompt, P.prompt),
+    prompt: atual('prompt', b.prompt),
     passaQuando: texto(b.passaQuando, P.passaQuando),
     faq,
     avisoLigado: b.avisoLigado === true,
@@ -299,13 +300,16 @@ export const ID_MAIS_NAO = 'mais-nao';
 export const ID_MAIS_SIM = 'mais-sim';
 export const BOTOES_MAIS = { titulos: ['Não, era só isso', 'Sim, outra coisa'], ids: [ID_MAIS_NAO, ID_MAIS_SIM] };
 /** Depois da resposta de uma dúvida do financeiro: resolveu, outra dúvida ou gente. */
-export const BOTOES_DEPOIS_DA_DUVIDA = { titulos: ['Era só isso, valeu', 'Outra dúvida', 'Falar com uma pessoa'], ids: [ID_MAIS_NAO, ID_MAIS_SIM, 'pessoa'] };
+/** "Outra dúvida" depois de uma resposta do financeiro: volta à lista do financeiro, não ao menu. */
+export const ID_OUTRA_DUVIDA = 'outra-duvida';
+export const BOTOES_DEPOIS_DA_DUVIDA = { titulos: ['Era só isso, valeu', 'Outra dúvida', 'Falar com uma pessoa'], ids: [ID_MAIS_NAO, ID_OUTRA_DUVIDA, 'pessoa'] };
 
 /** O que o contato respondeu ao "algo mais?": pelo botão ou pelo que escreveu. Texto
     que não é claramente não nem sim é um assunto novo. */
-export function respostaDoAlgoMais(r: { id?: string; titulo?: string }, texto: string): 'nao' | 'sim' | 'pessoa' | 'outra' {
+export function respostaDoAlgoMais(r: { id?: string; titulo?: string }, texto: string): 'nao' | 'sim' | 'duvida' | 'pessoa' | 'outra' {
   if (r.id === ID_MAIS_NAO || r.id === ID_AJUDOU) return 'nao';
   if (r.id === ID_MAIS_SIM) return 'sim';
+  if (r.id === ID_OUTRA_DUVIDA) return 'duvida';
   if (r.id === 'pessoa') return 'pessoa';
   const t = normal(texto).replace(/[!.,;]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (!t || t.length > 40) return 'outra';
@@ -368,6 +372,61 @@ export function destinoDoAssunto(assunto: Assunto | null, cfg: ConfigAutomatico)
 /** O contato digitou e não deu para entender: a primeira vez o menu volta, a segunda vai para gente. */
 export const depoisDoMenuConfuso = (tentativas: number): 'repete' | 'recepcao' =>
   tentativas < 1 ? 'repete' : 'recepcao';
+
+/* ---------- o financeiro: atende, filtra, qualifica e passa (26/11/2026) ----------
+   Pedido do cliente: "o financeiro é o único que vai atender, vai filtrar, vai
+   qualificar e depois vai passar para uma pessoa". Entrou pelo botão: vai a lista das
+   dúvidas, sempre (antes, com a IA ligada, ia só texto e a IA pedia para escolher um
+   botão que não existia). Tocou numa dúvida com resposta escrita: a resposta e "Posso te
+   ajudar em mais alguma coisa?". Escreveu, ou a dúvida não tem resposta escrita: a IA
+   atende; se precisa de gente, pergunta antes o que falta (uma pergunta por vez, no
+   máximo LIMITE_DE_PERGUNTAS) e passa com o resumo. Sem IA, a lista vai uma vez e o
+   texto seguinte passa para gente, como antes. */
+export const LIMITE_DE_PERGUNTAS = 2;
+
+/** O que chega quando a conversa entra no financeiro pelo botão: o texto e a lista. */
+export function entradaDoFinanceiro(cfg: ConfigAutomatico, nome: string) {
+  return {
+    texto: comNome('Beleza, {primeiro_nome}! Sobre o que é? Escolhe aqui embaixo ou me escreve tua dúvida 👇', nome),
+    lista: {
+      botao: 'Ver as opções',
+      linhas: [...cfg.faq.map((q, i) => ({ id: idDaPergunta(i), titulo: q.t.slice(0, 24) })), { id: ID_PESSOA, titulo: 'Falar com uma pessoa' }],
+    },
+  };
+}
+
+export type VezDoAssistente =
+  | { tipo: 'pessoa' }                       // pediu uma pessoa: passa na hora
+  | { tipo: 'ajudou' }                       // "Ajudou, valeu!" antigo: encerra
+  | { tipo: 'resposta'; pergunta: number }   // tocou numa dúvida com resposta escrita
+  | { tipo: 'entrada' }                      // acabou de entrar pelo botão: a lista
+  | { tipo: 'ia' }                           // escreveu, ou a dúvida não tem resposta: a IA atende
+  | { tipo: 'botoes' };                      // sem IA: a lista uma vez, depois gente
+
+/** O que o assistente faz com o que chegou. */
+export function vezDoAssistente(o: {
+  cfg: ConfigAutomatico; id: string; entrando: boolean; iaLigada: boolean;
+}): VezDoAssistente {
+  if (o.id === ID_PESSOA) return { tipo: 'pessoa' };
+  if (o.id === ID_AJUDOU) return { tipo: 'ajudou' };
+  const pela = /^faq-(\d+)$/.exec(o.id);
+  if (pela) {
+    const i = Number(pela[1]);
+    if (o.cfg.faq[i]?.r) return { tipo: 'resposta', pergunta: i };
+    return o.iaLigada ? { tipo: 'ia' } : { tipo: 'botoes' };
+  }
+  /* entrou pelo botão do menu (ou sem nada escrito): primeiro a lista */
+  if (o.entrando && (o.id || !o.iaLigada)) return { tipo: 'entrada' };
+  return o.iaLigada ? { tipo: 'ia' } : { tipo: 'botoes' };
+}
+
+/** O que fazer com a resposta da IA: passar quando ela passa, ou quando já perguntou o
+    bastante e quer perguntar de novo. */
+export function depoisDaIa(acao: 'responder' | 'perguntar' | 'passar', perguntasFeitas: number): 'respondeu' | 'pergunta' | 'passa' {
+  if (acao === 'passar') return 'passa';
+  if (acao === 'perguntar') return perguntasFeitas >= LIMITE_DE_PERGUNTAS ? 'passa' : 'pergunta';
+  return 'respondeu';
+}
 
 /** O setor de gente que o assistente chama quando não resolve. */
 export const setorDoPassa = (cfg: ConfigAutomatico): Setor => (cfg.passaPara === 'recepcao' ? 'recepcao' : 'financeiro');
@@ -585,7 +644,7 @@ export function regrasDoAssistente(cfg: ConfigAutomatico, ctx: ContextoDaConvers
       ? 'A saudação já avisou o contato disso: não repita o horário. Se for passar para uma pessoa, só peça para ele deixar escrito o que precisa.'
       : 'Se for passar para uma pessoa, diga que a equipe está fora do horário, quando volta, e peça para o contato já deixar escrito o que precisa.'}`
     : '';
-  return `Tu é o assistente do financeiro e dos contratos da Nexus English Center, unidade Chapecó, conversando pelo WhatsApp.\n\nCOMPORTAMENTO, ESCRITO PELA ESCOLA:\n${cfg.prompt}\n\n${blocoDoTom(cfg)}\n\nPERGUNTAS E RESPOSTAS DA ESCOLA (a única fonte do que tu pode afirmar):\n${faq}\n\nQUANDO PASSAR PARA UMA PESSOA:\n${cfg.passaQuando}\nQuem assume é ${quem}.${fora}\n\n${REGRAS_FIXAS}\n${blocoDoHorario(ctx)}\n${quemE(ctx)}\n\nEm acao, "responder" quando a resposta está nas perguntas e respostas, e "passar" quando precisa de gente. Em mensagem, o que o contato vai ler. Em resumo, só quando for passar: uma ou duas frases para a pessoa que vai assumir.\n\nA conversa começa agora.`;
+  return `Tu é o assistente do financeiro e dos contratos da Nexus English Center, unidade Chapecó, conversando pelo WhatsApp.\n\nCOMPORTAMENTO, ESCRITO PELA ESCOLA:\n${cfg.prompt}\n\n${blocoDoTom(cfg)}\n\nPERGUNTAS E RESPOSTAS DA ESCOLA (a única fonte do que tu pode afirmar):\n${faq}\n\nQUANDO PASSAR PARA UMA PESSOA:\n${cfg.passaQuando}\nQuem assume é ${quem}.${fora}\n\n${REGRAS_FIXAS}\n${blocoDoHorario(ctx)}\n${quemE(ctx)}\n\nCOMO ATENDER: tu é quem atende o financeiro. Entende o que a pessoa precisa, responde o que está nas perguntas e respostas e, quando precisar de alguém do time, primeiro pergunta o que falta para a pessoa resolver de primeira (de qual aluno se trata, se não estiver claro; qual parcela ou mês; o que aconteceu), uma pergunta por mensagem, no máximo duas perguntas no atendimento. Não peça o que a conversa já disse. Não diga para escolher um botão ou uma opção da lista: quem manda a lista é o sistema.\n\nEm acao: "responder" quando respondeu a dúvida com as perguntas e respostas (não pergunte se pode ajudar em mais alguma coisa: o sistema pergunta com botões); "perguntar" quando precisa de uma informação do contato antes de passar; "passar" quando já sabe o que a pessoa precisa e só alguém do time resolve, ou quando o contato pediu uma pessoa. Em mensagem, o que o contato vai ler. Em resumo, só quando for passar: uma ou duas frases para a pessoa que vai assumir, com o que o contato já contou (aluno, parcela, o que aconteceu).\n\nA conversa começa agora.`;
 }
 
 /** Os turnos para a IA: começa e termina no contato, como a API pede. */

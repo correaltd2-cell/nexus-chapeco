@@ -3,7 +3,7 @@
    ordem das listas e cópia do cartão. Os nomes são inventados.
    Rodar:  node --experimental-strip-types testes/quadros.ts  */
 import {
-  FUNDOS, apagaEtiqueta, arquivadosNaBusca, bateNaBusca, copiaDoCartao, criaEtiqueta, estadoDoPrazo, etiquetasDoQuadro,
+  FUNDOS, apagaEtiqueta, contraste, coresDoFundo, textoBrancoNoFundo, arquivadosNaBusca, bateNaBusca, copiaDoCartao, criaEtiqueta, estadoDoPrazo, etiquetasDoQuadro,
   filtrosVazios, fundoDoQuadro, juntaPrazo, mudaEtiqueta, partesDoPrazo, passaNosFiltros, quantosFiltros, reordenaListas,
   textoDoPrazo, vencido, ETIQUETAS_PADRAO,
 } from '../src/lib/dominio/quadros.ts';
@@ -72,6 +72,28 @@ igual('sem fundo', [fundoDoQuadro({}), fundoDoQuadro({ fundo: 'padrao' })], [nul
 igual('fundo pronto', fundoDoQuadro({ fundo: 'oceano' })?.escuro, true);
 igual('imagem só com https', [fundoDoQuadro({ fundo: 'imagem', fundoImagem: 'javascript:x' }), Boolean(fundoDoQuadro({ fundo: 'imagem', fundoImagem: 'https://x.com/a.jpg' }))], [null, true]);
 igual('ids dos fundos únicos', new Set(FUNDOS.map((f) => f.id)).size, FUNDOS.length);
+
+/* ---- texto legível em cima de qualquer fundo (26/11/2026: no Laranja e no Pôr do sol o
+   branco sumia; no tema escuro, o título sumia nos fundos claros) ---- */
+igual('contraste: preto e branco é 21, e a ordem não importa', [Math.round(contraste('#000000', '#FFFFFF')), contraste('#F6821F', '#141414') === contraste('#141414', '#F6821F')], [21, true]);
+igual('as cores de um fundo saem do CSS', coresDoFundo('linear-gradient(135deg,#F6821F 0%,#D4500A 100%)'), ['#F6821F', '#D4500A']);
+igual('texto escuro no Laranja e no Pôr do sol, branco no Oceano, escuro no Céu',
+  ['laranja', 'por-do-sol', 'oceano', 'ceu'].map((id) => FUNDOS.find((f) => f.id === id)?.escuro), [false, false, true, false]);
+const comTinta = (c: string, preto: number) => {
+  const [r, g, b] = [1, 3, 5].map((i) => Math.round(parseInt(c.slice(i, i + 2), 16) * (1 - preto)));
+  return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('');
+};
+for (const f of FUNDOS.filter((x) => x.css)) {
+  const cores = coresDoFundo(f.css);
+  const tinta = f.escuro ? '#FFFFFF' : '#141414';
+  igual(`${f.nome}: o título (grande) lê em toda cor do fundo`, cores.every((c) => contraste(tinta, c) >= 3.4), true);
+  igual(`${f.nome}: "escuro" bate com a conta`, f.escuro, textoBrancoNoFundo(f.css));
+  /* o que é pequeno no fundo escuro ganha uma tinta preta de 40% (globals.css, .qd-escuro) */
+  if (f.escuro) igual(`${f.nome}: abas e botões leem (texto pequeno)`, cores.every((c) => contraste('#FFFFFF', comTinta(c, 0.4)) >= 4.5), true);
+}
+const daImagem = fundoDoQuadro({ fundo: 'imagem', fundoImagem: 'https://x.com/a.jpg' });
+igual('imagem: texto branco e faixa escura no topo', [daImagem?.escuro, daImagem?.imagem], [true, true]);
+igual('fundo pronto não é imagem', fundoDoQuadro({ fundo: 'ceu' })?.imagem, false);
 
 /* ---- listas e cópia ---- */
 const listas: Lista[] = ['A', 'B', 'C', 'D'].map((n, i) => ({ id: n, quadroId: 'q1', nome: n, ordem: (i + 1) * 1000, arquivada: false }));

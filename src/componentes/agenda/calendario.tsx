@@ -5,7 +5,7 @@
    (semana.tsx e grade.tsx).
    - Mês: cada dia mostra quantas aulas e quantos alunos tem, nunca um "+N" que esconde
      aula; o dia abre a Grade daquele dia.
-   - Dia: linhas de hora cheia, das 7h às 22h; o bloco tem a cor do professor suave no
+   - Dia: linhas de meia em meia hora, das 7h às 22h; o bloco tem a cor do professor suave no
      fundo e cheia na borda, a bolinha de status, o selo do WhatsApp quando o lembrete
      saiu, o ponto de alerta quando passou sem presença, e os alunos (quem faltou riscado).
    Bloqueio da escola é faixa cinza listrada por baixo; o de um professor só aparece no
@@ -123,14 +123,15 @@ export default function Calendario({ calRef, ...p }: Props) {
         hiddenDays={[...DIAS_FECHADOS]}
         height="100%"
         allDaySlot={false}
-        /* hora cheia (pedido do cliente) */
+        /* meia em meia hora (26/11/2026): a manhã é hora cheia e a tarde é hora quebrada
+           (13h30, 14h30...), e as duas cabem sem a aula ficar no meio da linha */
         slotMinTime="07:00:00"
         slotMaxTime="22:00:00"
-        slotDuration="01:00:00"
-        slotHeaderInterval="01:00:00"
+        slotDuration="00:30:00"
+        slotHeaderInterval="00:30:00"
         slotHeaderFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-        slotMinHeight={64}
-        scrollTime={rolarAte || '07:00:00'}
+        slotMinHeight={34}
+        scrollTime={rolarAte || '08:00:00'}
         nowIndicator
         slotEventOverlap={false}
         eventMinHeight={26}
