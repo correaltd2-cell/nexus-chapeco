@@ -79,6 +79,14 @@ divisão maior entre os horários para não amontoar tudo".
   hora (B2 das 18h30 às 20h: na das 18h30 e, como continuação, na das 19h30). Na Grade e
   no Dia ela é um bloco só que ocupa as duas linhas.
 
+**A semana inteira na tela** (27/11/2026: "só consigo ver de segunda a quinta... tem que
+visualizar a semana inteira, adaptativo conforme cada tela"). No computador, segunda a
+sábado sempre cabem: as larguras dos dias encolhem na mesma proporção até caber no espaço
+da tela, medido ao vivo (`largurasQueCabem`), e o dia mais cheio continua o mais largo. O
+bloco que fica estreito mostra menos (`tamanhoDoBloco`): inteiro (aula e professor), fino
+(letra menor) ou mínimo (só a aula; o professor fica na cor, no passar o mouse e no modal).
+Os dias são separados por uma borda de 4px.
+
 **Semana** (padrão), feita aqui, sem o calendário
 - Colunas = os dias abertos (segunda a sábado), com quantas aulas tem cada um; o nome do
   dia abre a Grade daquele dia. Setas andam uma semana; Hoje volta para a semana de hoje.

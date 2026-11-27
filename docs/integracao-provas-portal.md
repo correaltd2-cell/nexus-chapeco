@@ -2,9 +2,13 @@
 
 **Para:** quem desenvolve o portal de alunos (https://nexusenglish.com.br)
 **De:** central de atendimento da Nexus Chapecó (Next.js na Vercel, Firebase)
-**Situação:** proposta de contrato, versão 1. **A API do portal ainda não existe.** A central
-já está pronta do lado dela, com as ações desligadas até esta API ser implementada,
-configurada e validada.
+**Situação** (27/11/2026): contrato versão 1. O portal implementou a API e publicou; as três
+variáveis estão na Vercel da central, e a consulta (só leitura) bateu com este contrato. Por
+enquanto o portal oferece as provas de Starter e A1 e só os alunos marcados como Chapecó (20
+cadastros sem unidade ficam fora até a escola confirmar). **Falta:** a validação de ponta a
+ponta com um aluno de teste (vincular, Liberar e enviar, o link chegar no WhatsApp, Reenviar),
+o modelo `prova_liberada` para fora da janela de 24 horas (seção 7) e, depois de validar,
+trocar o token e o segredo, que passaram por conversa.
 
 ---
 

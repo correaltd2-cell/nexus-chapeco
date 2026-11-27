@@ -7,7 +7,10 @@
      entre elas.
    - Cada aula é um bloco na altura do horário dela, que desce até onde ela acaba: o B2
      das 18h30 às 20h ocupa a faixa das 18h30 e metade da das 19h30. As que se
-     sobrepõem ficam lado a lado, e o dia alarga para caber (rola de lado, nada espreme).
+     sobrepõem ficam lado a lado, e o dia mais cheio é o mais largo.
+   - A semana inteira cabe na tela (27/11/2026): as larguras encolhem na mesma proporção
+     até caber no espaço que cada tela tem (largurasQueCabem), e o bloco que fica estreito
+     mostra menos (tamanhoDoBloco). Os dias são separados por uma borda grossa.
    - O bloco tem a cor cheia do professor e o texto que lê melhor em cima dela: bolinha
      de status, a aula e o professor (alunos no passar o mouse e no modal). Cancelada
      bem apagada.
@@ -23,8 +26,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEven
 import { Ic } from '@/componentes/icones';
 import { diaDaSemana, diaLocal, faltaPresenca, STATUS, type Agendamento, type Bloqueio, type Professor } from '@/lib/dominio/agenda';
 import {
-  arredonda, bloqueiosDaSemana, chaveDaCelula, ehADefinir, encaixaSemana, hhmm, horarioDe, isoNoDia, larguraDoDia, minutoDoY, minutosNoDia,
-  montaSemana, motivoCompleto, motivoCurto, nomeCurtoDaAula, nomesCurtosDosProfessores, SEMANA_ELLO, tintaDoProfessor, topos, yDoMinuto,
+  arredonda, bloqueiosDaSemana, chaveDaCelula, ehADefinir, encaixaSemana, hhmm, horarioDe, isoNoDia, larguraDoDia, largurasQueCabem, minutoDoY, minutosNoDia,
+  montaSemana, motivoCompleto, motivoCurto, nomeCurtoDaAula, nomesCurtosDosProfessores, SEMANA_ELLO, tamanhoDoBloco, tintaDoProfessor, topos, yDoMinuto,
   type Encaixe, type NaCelula,
 } from '@/lib/dominio/agenda-grade';
 import CartaoDaAula, { type Dica } from './cartao-da-aula';
@@ -47,6 +50,9 @@ interface Props {
   aoAbrirDia: (dia: string) => void;
   aoMover: (id: string, inicio: Date, fim: Date) => void;
 }
+
+/** A coluna das horas, à esquerda (a mesma largura do CSS, .ag-g-horas). */
+const COLUNA_DAS_HORAS = 56;
 
 const SIGLA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const NOME_DIA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -95,6 +101,20 @@ export default function Semana(p: Props) {
     ...agendamentos,
     ...doProfessor.map((b) => ({ id: `bl:${b.id}`, inicio: b.inicio, fim: b.fim })),
   ], dias, faixas), [agendamentos, doProfessor, dias, faixas]);
+
+  /* a semana inteira na tela: mede o espaço que a tela dá e encolhe os dias para caber */
+  const [espaco, setEspaco] = useState(0);
+  useEffect(() => {
+    const el = rolagem.current;
+    if (!el || estreita || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setEspaco(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [estreita]);
+  const larguras = useMemo(() => {
+    const naturais = dias.map((d) => larguraDoDia(encaixes.get(d) || []));
+    return espaco ? largurasQueCabem(naturais, espaco - COLUNA_DAS_HORAS) : naturais;
+  }, [dias, encaixes, espaco]);
 
   /* abre perto da hora pedida; na semana de hoje, uma hora antes de agora; senão, no começo */
   const conhecida = agora.getTime() > 0;
@@ -259,7 +279,7 @@ export default function Semana(p: Props) {
   }
 
   /* ---------------- computador: a régua do ELLO ---------------- */
-  function bloco(e: Encaixe, dia: string) {
+  function bloco(e: Encaixe, dia: string, largura: number) {
     const b = blPorId.get(e.id);
     const topo = y(e.ini) + 1;
     const alto = Math.max(18, y(e.fim) - y(e.ini) - 2);
@@ -282,9 +302,10 @@ export default function Semana(p: Props) {
     const parado = a.status === 'cancelado' || a.status === 'remarcado';
     const arrastavel = p.podeRemarcar && a.status !== 'realizado';
     const rotulo = `${horarioDe(a, dia)}, ${p.nomeDaAula(a.aulaId)}, ${nomeDoProf(a.professorId)}, ${n} ${n === 1 ? 'aluno' : 'alunos'}, ${STATUS[a.status].nome}`;
+    const tamanho = tamanhoDoBloco(largura / e.faixas);
     return (
       <div key={a.id} role="button" tabIndex={0} aria-label={rotulo}
-           className={`ag-s-aula ag-tinta st-${a.status}${parado ? ' parado' : ''}${a.status === 'cancelado' ? ' cancelada' : ''}${e.faixas > 2 ? ' fino' : ''}`}
+           className={`ag-s-aula ag-tinta st-${a.status}${parado ? ' parado' : ''}${a.status === 'cancelado' ? ' cancelada' : ''}${tamanho === 'inteiro' ? '' : ` ${tamanho}`}`}
            style={{ top: topo, height: alto, ...lado, ...tinta(cor) }}
            draggable={arrastavel}
            onDragStart={arrastavel ? (ev) => comeca(ev, a, e) : undefined}
@@ -299,7 +320,7 @@ export default function Semana(p: Props) {
           {a.lembreteEnviadoEm && <span className="ag-wa" title="Lembrete enviado no WhatsApp"><Ic n="chat" /></span>}
         </span>
         <b>{nomeCurtoDaAula(p.nomeDaAula(a.aulaId))}</b>
-        <span className="ag-s-prof">{nomeDoProf(a.professorId)}</span>
+        {tamanho !== 'minimo' && <span className="ag-s-prof">{nomeDoProf(a.professorId)}</span>}
       </div>
     );
   }
@@ -309,11 +330,11 @@ export default function Semana(p: Props) {
       <div className="ag-g-folha">
         <div className="ag-g-topo">
           <div className="ag-g-canto" />
-          {dias.map((dia) => {
+          {dias.map((dia, i) => {
             const n = semana.porDia.get(dia) || 0;
             return (
               <button key={dia} type="button" className={`ag-sem-cab${dia === hoje ? ' hoje' : ''}`}
-                      style={{ flexBasis: larguraDoDia(encaixes.get(dia) || []) }}
+                      style={{ flexBasis: larguras[i] }}
                       onClick={() => p.aoAbrirDia(dia)} title="Abrir este dia na Grade, por professor">
                 <span>{SIGLA[diaDaSemana(dia)]}</span>
                 <b className="num">{dia.slice(8, 10)}/{dia.slice(5, 7)}</b>
@@ -330,8 +351,8 @@ export default function Semana(p: Props) {
             ))}
           </div>
 
-          {dias.map((dia) => (
-            <div key={dia} className={`ag-g-col ag-s-dia${dia === hoje ? ' hoje' : ''}`} style={{ flexBasis: larguraDoDia(encaixes.get(dia) || []) }}
+          {dias.map((dia, d) => (
+            <div key={dia} className={`ag-g-col ag-s-dia${dia === hoje ? ' hoje' : ''}`} style={{ flexBasis: larguras[d] }}
                  onDragOver={(e) => passa(e, dia)} onDrop={(e) => solta(e, dia)}
                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSombra((s) => (s?.dia === dia ? null : s)); }}>
               {faixas.map((f, i) => (
@@ -355,7 +376,7 @@ export default function Semana(p: Props) {
 
               {sombra?.dia === dia && <div className="ag-g-sombra" style={{ top: y(sombra.ini), height: y(sombra.fim) - y(sombra.ini) }} />}
 
-              {(encaixes.get(dia) || []).map((e) => bloco(e, dia))}
+              {(encaixes.get(dia) || []).map((e) => bloco(e, dia, larguras[d]))}
 
               {dia === hoje && minutoAgora >= comeco && minutoAgora <= final && <div className="ag-g-agora ag-s-agora" style={{ top: y(minutoAgora) }} aria-hidden="true" />}
             </div>

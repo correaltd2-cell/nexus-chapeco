@@ -58,7 +58,10 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
         return;
       }
       setUsuario(u);
-      if (!u) { setPerfil(null); setEstado('fora'); }
+      /* entrou: até o perfil chegar a sessão está carregando, não "fora". Antes ficava
+         "fora" nesse meio tempo, a casca mandava de volta para a tela de entrar e o
+         primeiro login parecia falhar (27/11/2026: "tem que fazer 2 vezes") */
+      if (!u) { setPerfil(null); setEstado('fora'); } else setEstado('carregando');
     });
   }, []);
 

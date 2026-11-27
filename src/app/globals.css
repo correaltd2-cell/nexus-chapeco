@@ -1549,8 +1549,11 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 
 /* ----- a Semana do jeito do ELLO (26/11/2026): régua por dia, blocos na altura do
    horário, lado a lado quando se sobrepõem, cor cheia do professor ----- */
-.ag-sem.ello .ag-g-folha{min-width:100%}
-.ag-sem.ello .ag-sem-cab{flex:1 0 180px;position:static;min-width:0;box-shadow:none;border-bottom:1px solid var(--line);padding:9px 10px 7px}
+/* a folha tem a largura da tela: os dias já vêm do tamanho que cabe (largurasQueCabem) */
+.ag-sem.ello .ag-g-folha{min-width:100%;width:100%}
+.ag-sem.ello .ag-sem-cab{flex:1 0 180px;position:static;min-width:0;box-shadow:none;border-bottom:1px solid var(--line);padding:9px 10px 7px;flex-wrap:wrap;overflow:hidden}
+/* os dias separados por uma borda grossa (27/11/2026: "uma separação maior entre os dias") */
+.ag-sem.ello .ag-sem-cab,.ag-s-dia{border-left:4px solid var(--line-2)}
 .ag-sem.ello .ag-sem-cab b{font-size:18px}
 .ag-s-dia{flex:1 0 180px}
 .ag-s-dia.hoje{background:color-mix(in srgb,var(--solar) 4%,transparent)}
@@ -1569,6 +1572,9 @@ body.t-escuro .ag-tinta{background:var(--g-fe);color:var(--g-te)}
 .ag-s-aula b{font-weight:800;letter-spacing:.01em}
 .ag-s-prof{font-weight:600;opacity:.9}
 .ag-s-aula.fino{padding:3px 3px;font-size:10.5px}
+.ag-s-aula.minimo{padding:2px 2px;font-size:10px;line-height:1.15;gap:0;overflow-wrap:normal;word-break:normal}
+.ag-s-aula.minimo .ag-s-topo{min-height:9px}
+.ag-s-aula.minimo .ag-s-topo .ag-st{width:8px;height:8px}
 .ag-s-aula.parado{opacity:.6}
 .ag-s-aula.cancelada{opacity:.3}
 .ag-s-aula.parado b{text-decoration:line-through}

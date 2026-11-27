@@ -485,3 +485,22 @@ export function encaixaSemana(itens: { id: string; inicio: string; fim: string }
 /** A largura de um dia: cabe o grupo com mais blocos lado a lado, e nunca menos que o mínimo. */
 export const larguraDoDia = (encaixes: Encaixe[], m: { larguraPorBloco: number; larguraMinima: number } = SEMANA_ELLO) =>
   Math.max(m.larguraMinima, Math.max(1, ...encaixes.map((e) => e.faixas)) * m.larguraPorBloco);
+
+/**
+ * A semana inteira na tela (27/11/2026, pedido do cliente: "só consigo ver de segunda a
+ * quinta na minha tela... tem que ser adaptativo conforme cada tela, mas tem que
+ * visualizar a semana inteira"). As larguras de cada dia (larguraDoDia) encolhem na
+ * mesma proporção até caber no espaço que a tela tem; o dia mais cheio continua o mais
+ * largo. Sobrando espaço, ficam como estão e a tela estica. Nunca passa do disponível.
+ */
+export function largurasQueCabem(naturais: number[], disponivel: number): number[] {
+  const soma = naturais.reduce((s, x) => s + x, 0);
+  if (!soma || disponivel <= 0 || soma <= disponivel) return naturais;
+  const f = disponivel / soma;
+  return naturais.map((w) => Math.floor(w * f));
+}
+
+/** Como o bloco se desenha pela largura que sobrou para ele: inteiro (aula e professor),
+    fino (letra menor) ou mínimo (só a aula, quebrando a linha; o professor fica na cor,
+    no passar o mouse e no modal). */
+export const tamanhoDoBloco = (px: number): 'inteiro' | 'fino' | 'minimo' => (px >= 64 ? 'inteiro' : px >= 40 ? 'fino' : 'minimo');

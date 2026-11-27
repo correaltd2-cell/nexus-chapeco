@@ -9,7 +9,7 @@ import {
 import {
   alturaDoCartao, alturaPedida, alturasDasLinhas, arredonda, bloqueiosDaSemana, chaveDaCelula, colunasDaGrade, contaDoPeriodo, continuacoes, encaixa,
   FAIXAS_DIA_UTIL, FAIXAS_SABADO, faixaDe, faixasCom, faixasDoDia, GRADE_FIM, GRADE_INICIO,
-  encaixaSemana, hhmm, horarioDe, ID_SEM_PROFESSOR, larguraDoDia, proximaFaixa, isoNoDia, mantemOrdem, montaSemana, MEDIDAS, minutoDoY, minutosNoDia, misturaCor, motivoCompleto, motivoCurto, SEMANA_ELLO,
+  encaixaSemana, hhmm, horarioDe, ID_SEM_PROFESSOR, larguraDoDia, largurasQueCabem, proximaFaixa, tamanhoDoBloco, isoNoDia, mantemOrdem, montaSemana, MEDIDAS, minutoDoY, minutosNoDia, misturaCor, motivoCompleto, motivoCurto, SEMANA_ELLO,
   nomeCurtoDaAula, nomesCurtosDosProfessores, nomesQueCabem, rotulosDasLinhas, tintaDoProfessor, topos, yDoMinuto,
 } from '../src/lib/dominio/agenda-grade.ts';
 
@@ -192,6 +192,21 @@ igual('o dia cresce para caber os blocos lado a lado; dia calmo fica no mínimo'
   [SEMANA_ELLO.larguraMinima, SEMANA_ELLO.larguraMinima, 8 * SEMANA_ELLO.larguraPorBloco]);
 igual('aula de domingo não entra (o dia não está aberto) e nada se perde',
   [...encaixaSemana([...oito, aula('dom', 'p1', '10:00', '11:00', 1, 'agendado', '2026-11-29')], SEMANA_DIAS, U).values()].flat().length, 8);
+
+/* a semana inteira na tela (27/11/2026: "só consigo ver de segunda a quinta") */
+const naturais = [180, 496, 248, 180, 434, 180];
+const cabe = largurasQueCabem(naturais, 1150);
+igual('em tela menor, a semana inteira cabe: a soma não passa do espaço', cabe.reduce((s, x) => s + x, 0) <= 1150, true);
+igual('o dia mais cheio continua o mais largo, e a ordem dos tamanhos não muda', [cabe.indexOf(Math.max(...cabe)), cabe[1] > cabe[4] && cabe[4] > cabe[2] && cabe[2] > cabe[0]], [1, true]);
+igual('sobrando espaço, ficam como estão (a tela estica)', largurasQueCabem(naturais, 4000), naturais);
+igual('sem medida da tela ainda, ficam como estão', largurasQueCabem(naturais, 0), naturais);
+for (const tela of [1280, 1366, 1440, 1920]) {
+  const disponivel = tela - 88 - 16 - 56;   // menu recolhido, margens e a coluna das horas
+  const l = largurasQueCabem(naturais, disponivel);
+  igual(`tela de ${tela}px: segunda a sábado cabem`, l.length === 6 && l.reduce((s, x) => s + x, 0) <= disponivel, true);
+}
+igual('bloco inteiro, fino ou mínimo pela largura que sobrou', [tamanhoDoBloco(120), tamanhoDoBloco(64), tamanhoDoBloco(50), tamanhoDoBloco(39), tamanhoDoBloco(20)],
+  ['inteiro', 'inteiro', 'fino', 'minimo', 'minimo']);
 
 /* ---------------- a tinta: a cor cheia, como no ELLO (26/11/2026) ---------------- */
 igual('mistura de cor', [misturaCor('#000000', '#FFFFFF', 0.5), misturaCor('#8CFF00', '#FFFFFF', 0)], ['#808080', '#FFFFFF']);
